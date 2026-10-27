@@ -45,3 +45,4 @@ Vor jedem Commit prüfen:
 - [ ] **Keine toten Kommentare:** Schreibe Code so selbsterklärend, dass triviale Kommentare entfallen. Erkläre nur das *Warum*, niemals das *Was*.
 - [ ] **Sparsamer Heap-Verbrauch:** Kleine Value Objects sind `readonly record struct`, Collections im Domain-Modell sind `IReadOnlyList<T>` statt mutabler Listen.
 - [ ] **Nullability-Disziplin:** Kein unbedachtes `!` (Null-Forgiving-Operator).
+

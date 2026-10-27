@@ -10,3 +10,4 @@
 - Keine `try { ... } catch (Exception) { }` Schlucker ohne bewusste Strategie.
 - Striktes Einhalten von **1CPF / SFC (Single Component Per File)** und **DDD-Reinheit**.
 - Keine unbegründeten Allokationen auf Hot-Paths (< 30 MB Standby RAM).
+
