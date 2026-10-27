@@ -83,5 +83,58 @@ public sealed class LanGroupMessagesTests
         deserialized.TrackId.Should().Be("track-99");
         deserialized.VoterClientId.Should().Be(voterId);
     }
+
+    [Fact]
+    public void GroupActionMessage_ShouldSerializeAndDeserializeProperly()
+    {
+        Guid groupId = Guid.NewGuid();
+        Guid actorId = Guid.NewGuid();
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        GroupActionMessage original = new(groupId, actorId, "Rename", "Cool Group", now);
+
+        string json = JsonSerializer.Serialize(original);
+        GroupActionMessage? deserialized = JsonSerializer.Deserialize<GroupActionMessage>(json);
+
+        deserialized.Should().NotBeNull();
+        deserialized!.GroupId.Should().Be(groupId);
+        deserialized.ActorClientId.Should().Be(actorId);
+        deserialized.ActionType.Should().Be("Rename");
+        deserialized.Payload.Should().Be("Cool Group");
+    }
+
+    [Fact]
+    public void PlaybackCommandMessage_ShouldSerializeAndDeserializeProperly()
+    {
+        Guid groupId = Guid.NewGuid();
+        Guid issuerId = Guid.NewGuid();
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        PlaybackCommandMessage original = new(groupId, issuerId, "Skip", "vid123", now);
+
+        string json = JsonSerializer.Serialize(original);
+        PlaybackCommandMessage? deserialized = JsonSerializer.Deserialize<PlaybackCommandMessage>(json);
+
+        deserialized.Should().NotBeNull();
+        deserialized!.GroupId.Should().Be(groupId);
+        deserialized.IssuerClientId.Should().Be(issuerId);
+        deserialized.Command.Should().Be("Skip");
+        deserialized.OptionalTrackVideoId.Should().Be("vid123");
+    }
+
+    [Fact]
+    public void NetworkMessageHeader_ShouldSerializeAndDeserializeProperly()
+    {
+        Guid senderId = Guid.NewGuid();
+        Guid groupId = Guid.NewGuid();
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        NetworkMessageHeader original = new("BEACON", senderId, groupId, now);
+
+        string json = JsonSerializer.Serialize(original);
+        NetworkMessageHeader? deserialized = JsonSerializer.Deserialize<NetworkMessageHeader>(json);
+
+        deserialized.Should().NotBeNull();
+        deserialized!.MessageType.Should().Be("BEACON");
+        deserialized.SenderId.Should().Be(senderId);
+        deserialized.GroupId.Should().Be(groupId);
+    }
 }
 
