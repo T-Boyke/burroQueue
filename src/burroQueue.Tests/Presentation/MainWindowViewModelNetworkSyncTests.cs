@@ -174,4 +174,48 @@ public sealed class MainWindowViewModelNetworkSyncTests
         _group.Playlist.CurrentTrack.Should().NotBeNull();
         _group.Playlist.CurrentTrack!.VideoId.Should().Be("track-2");
     }
+
+    [Fact]
+    public void GroupActionReceived_Rename_ShouldUpdateGroupName()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+
+        _lanGroupService.GroupActionReceived += Raise.Event<EventHandler<GroupActionMessage>>(
+            this,
+            new GroupActionMessage(_group.Id.Value, Guid.NewGuid(), "Rename", "Remote Renamed Group", DateTimeOffset.UtcNow));
+
+        vm.GroupName.Should().Be("Remote Renamed Group");
+        _group.Name.Should().Be("Remote Renamed Group");
+    }
+
+    [Theory]
+    [InlineData("Play", PlaybackState.Playing)]
+    [InlineData("Pause", PlaybackState.Paused)]
+    [InlineData("Stop", PlaybackState.Stopped)]
+    public void PlaybackCommandReceived_ShouldUpdatePlaybackState(string command, PlaybackState expectedState)
+    {
+        Track track = new("track-1", new Uri("https://www.youtube.com/watch?v=track-1"), "Song 1", "Alice", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(track);
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        _lanGroupService.PlaybackCommandReceived += Raise.Event<EventHandler<PlaybackCommandMessage>>(
+            this,
+            new PlaybackCommandMessage(_group.Id.Value, Guid.NewGuid(), command, null, DateTimeOffset.UtcNow));
+
+        vm.PlaybackState.Should().Be(expectedState);
+    }
+
+    [Fact]
+    public void CollaborativePlaylistReceived_ShouldUpdateUrl()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+
+        _lanGroupService.CollaborativePlaylistReceived += Raise.Event<EventHandler<SharedPlaylistSyncMessage>>(
+            this,
+            new SharedPlaylistSyncMessage(_group.Id.Value, "https://www.youtube.com/playlist?list=PLsharedPlaylist123", "Alice", DateTimeOffset.UtcNow));
+
+        vm.CollaborativePlaylistUrl.Should().Be("https://www.youtube.com/playlist?list=PLsharedPlaylist123");
+    }
 }
+

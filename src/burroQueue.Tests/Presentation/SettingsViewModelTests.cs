@@ -1,0 +1,148 @@
+using burroQueue.Infrastructure.Audio;
+using burroQueue.Infrastructure.Configuration;
+using burroQueue.Infrastructure.Telephony;
+using burroQueue.Infrastructure.Windows;
+using burroQueue.Presentation.ViewModels;
+using FluentAssertions;
+using NSubstitute;
+using Xunit;
+
+namespace burroQueue.Tests.Presentation;
+
+public sealed class SettingsViewModelTests
+{
+    private readonly IAppSettingsService _settingsService;
+    private readonly ITelephonyManager _telephonyManager;
+    private readonly IWindowsAutostartService _autostartService;
+    private readonly IAudioDeviceEnumerator _audioDeviceEnumerator;
+
+    public SettingsViewModelTests()
+    {
+        _settingsService = Substitute.For<IAppSettingsService>();
+        _telephonyManager = Substitute.For<ITelephonyManager>();
+        _autostartService = Substitute.For<IWindowsAutostartService>();
+        _audioDeviceEnumerator = Substitute.For<IAudioDeviceEnumerator>();
+
+        _settingsService.CurrentSettings.Returns(new AppSettingsData
+        {
+            SelectedTelephonyProviderId = "WindowsCoreAudio",
+            SelectedAudioDeviceId = "device-1",
+            CollaborativePlaylistUrl = "https://www.youtube.com/playlist?list=PL1234567890&jct=token123",
+            AutoOpenCollaborativePlaylistOnJoin = true,
+            ClientDisplayName = "Alice"
+        });
+
+        _autostartService.IsAutostartEnabled.Returns(true);
+
+        _audioDeviceEnumerator.GetAvailableRenderDevices().Returns(
+        [
+            new AudioDeviceOption("device-1", "Speakers", IsDefault: true),
+            new AudioDeviceOption("device-2", "Headphones", IsDefault: false)
+        ]);
+
+        ITelephonyProvider provider1 = Substitute.For<ITelephonyProvider>();
+        provider1.ProviderId.Returns("WindowsCoreAudio");
+        _telephonyManager.AvailableProviders.Returns([provider1]);
+    }
+
+    [Fact]
+    public void Constructor_ShouldInitializePropertiesFromServices()
+    {
+        SettingsViewModel vm = new(
+            _settingsService,
+            _telephonyManager,
+            _autostartService,
+            _audioDeviceEnumerator);
+
+        vm.SelectedProviderId.Should().Be("WindowsCoreAudio");
+        vm.SelectedAudioDeviceId.Should().Be("device-1");
+        vm.CollaborativePlaylistUrl.Should().Be("https://www.youtube.com/playlist?list=PL1234567890&jct=token123");
+        vm.AutoOpenCollaborativePlaylistOnJoin.Should().BeTrue();
+        vm.ClientDisplayName.Should().Be("Alice");
+        vm.IsAutostartEnabled.Should().BeTrue();
+        vm.AvailableAudioDevices.Should().HaveCount(2);
+        vm.AvailableTelephonyProviders.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task SaveSettingsAsync_WithValidSettings_ShouldPersistAndSwitchProvider()
+    {
+        SettingsViewModel vm = new(
+            _settingsService,
+            _telephonyManager,
+            _autostartService,
+            _audioDeviceEnumerator);
+
+        vm.SelectedProviderId = "NullTelephony";
+        vm.SelectedAudioDeviceId = "device-2";
+        vm.CollaborativePlaylistUrl = "https://www.youtube.com/playlist?list=PLvalidPlaylistId123&jct=tok123";
+        vm.AutoOpenCollaborativePlaylistOnJoin = false;
+        vm.ClientDisplayName = "Bob";
+        vm.IsAutostartEnabled = false;
+
+        await vm.SaveSettingsAsync();
+
+        await _settingsService.Received(1).SaveAsync(Arg.Is<AppSettingsData>(d =>
+            d.SelectedTelephonyProviderId == "NullTelephony" &&
+            d.SelectedAudioDeviceId == "device-2" &&
+            d.CollaborativePlaylistUrl == "https://www.youtube.com/playlist?list=PLvalidPlaylistId123&jct=tok123" &&
+            !d.AutoOpenCollaborativePlaylistOnJoin &&
+            d.ClientDisplayName == "Bob"));
+
+        await _telephonyManager.Received(1).SwitchProviderAsync("NullTelephony", Arg.Any<CancellationToken>());
+        _autostartService.Received(1).SetAutostart(false);
+        vm.StatusMessage.Should().Be("Einstellungen gespeichert!");
+    }
+
+    [Fact]
+    public async Task SaveSettingsAsync_WithEmptyPlaylistUrl_ShouldSaveNullPlaylistUrl()
+    {
+        SettingsViewModel vm = new(
+            _settingsService,
+            _telephonyManager,
+            _autostartService,
+            _audioDeviceEnumerator);
+
+        vm.CollaborativePlaylistUrl = "   ";
+
+        await vm.SaveSettingsAsync();
+
+        await _settingsService.Received(1).SaveAsync(Arg.Is<AppSettingsData>(d =>
+            d.CollaborativePlaylistUrl == null));
+        vm.StatusMessage.Should().Be("Einstellungen gespeichert!");
+    }
+
+    [Fact]
+    public async Task SaveSettingsAsync_WithInvalidPlaylistUrl_ShouldSetStatusMessageAndNotSave()
+    {
+        SettingsViewModel vm = new(
+            _settingsService,
+            _telephonyManager,
+            _autostartService,
+            _audioDeviceEnumerator);
+
+        vm.CollaborativePlaylistUrl = "not-a-valid-youtube-playlist-url";
+
+        await vm.SaveSettingsAsync();
+
+        await _settingsService.DidNotReceive().SaveAsync(Arg.Any<AppSettingsData>());
+        vm.StatusMessage.Should().StartWith("Ungültiger Link");
+    }
+
+    [Fact]
+    public async Task SaveSettingsAsync_WithEmptyDisplayName_ShouldFallbackToUserName()
+    {
+        SettingsViewModel vm = new(
+            _settingsService,
+            _telephonyManager,
+            _autostartService,
+            _audioDeviceEnumerator);
+
+        vm.ClientDisplayName = "   ";
+
+        await vm.SaveSettingsAsync();
+
+        await _settingsService.Received(1).SaveAsync(Arg.Is<AppSettingsData>(d =>
+            d.ClientDisplayName == Environment.UserName));
+    }
+}
