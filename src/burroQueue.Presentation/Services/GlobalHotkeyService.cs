@@ -42,7 +42,7 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
         RegisterHotKey(_windowHandle, _hotkeyNextId, 0, _vkMediaNextTrack);
     }
 
-    private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    internal bool ProcessMessage(int msg, IntPtr wParam)
     {
         if (msg == _wmHotkey)
         {
@@ -50,13 +50,24 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
             if (id == _hotkeyPlayPauseId)
             {
                 PlayPausePressed?.Invoke(this, EventArgs.Empty);
-                handled = true;
+                return true;
             }
-            else if (id == _hotkeyNextId)
+
+            if (id == _hotkeyNextId)
             {
                 NextTrackPressed?.Invoke(this, EventArgs.Empty);
-                handled = true;
+                return true;
             }
+        }
+
+        return false;
+    }
+
+    private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (ProcessMessage(msg, wParam))
+        {
+            handled = true;
         }
 
         return IntPtr.Zero;

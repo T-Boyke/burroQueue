@@ -16,16 +16,16 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
         ArgumentNullException.ThrowIfNull(mainWindow);
 
         ContextMenuStrip menu = new();
-        menu.Items.Add("🫏 burroQueue anzeigen", null, (_, _) =>
+        menu.Items.Add("burroQueue anzeigen", null, (_, _) =>
         {
             mainWindow.Show();
             mainWindow.WindowState = System.Windows.WindowState.Normal;
             mainWindow.Activate();
         });
 
-        menu.Items.Add("⚙️ Einstellungen", null, (_, _) => onOpenSettings?.Invoke());
+        menu.Items.Add("Einstellungen...", null, (_, _) => onOpenSettings?.Invoke());
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("❌ Beenden", null, (_, _) => onExitApp?.Invoke());
+        menu.Items.Add("Beenden", null, (_, _) => onExitApp?.Invoke());
 
         Icon iconToUse = SystemIcons.Application;
         try
