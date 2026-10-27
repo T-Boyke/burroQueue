@@ -2,6 +2,9 @@ using System.Windows;
 using burroQueue.Presentation.Services;
 using burroQueue.Presentation.ViewModels;
 using Wpf.Ui.Controls;
+using DataFormats = System.Windows.DataFormats;
+using DragDropEffects = System.Windows.DragDropEffects;
+using DragEventArgs = System.Windows.DragEventArgs;
 
 namespace burroQueue.Presentation.Views;
 

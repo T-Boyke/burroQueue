@@ -1,4 +1,5 @@
 using System.Windows;
+using Application = System.Windows.Application;
 using burroQueue.Domain.Model;
 using burroQueue.Infrastructure.Audio;
 using burroQueue.Infrastructure.Configuration;
@@ -16,7 +17,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace burroQueue.Presentation;
 
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
     private ServiceProvider? _serviceProvider;
     private ISystrayNotificationService? _systrayService;
