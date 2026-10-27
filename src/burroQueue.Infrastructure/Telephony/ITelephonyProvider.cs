@@ -14,3 +14,4 @@ public interface ITelephonyProvider : IAsyncDisposable
 
     Task StopAsync(CancellationToken cancellationToken = default);
 }
+

@@ -70,3 +70,4 @@ public sealed partial class SettingsViewModel : ObservableObject
         StatusMessage = "Einstellungen gespeichert!";
     }
 }
+

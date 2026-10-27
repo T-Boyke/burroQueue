@@ -52,3 +52,4 @@ public sealed class AppSettingsService : IAppSettingsService
         await JsonSerializer.SerializeAsync(stream, settings, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 }
+

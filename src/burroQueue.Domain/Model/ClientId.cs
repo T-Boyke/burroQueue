@@ -6,3 +6,4 @@ public readonly record struct ClientId(Guid Value)
 
     public override string ToString() => Value.ToString("D");
 }
+

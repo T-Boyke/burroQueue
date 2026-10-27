@@ -29,3 +29,4 @@ public sealed class AudioVolumeTests
         level.Should().BeApproximately(0.16, 0.001);
     }
 }
+

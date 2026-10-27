@@ -8,3 +8,4 @@ public sealed record PlaybackStateChangedDomainEvent(
     PlaybackState NewState,
     Track? CurrentTrack,
     DateTimeOffset OccurredAtUtc);
+

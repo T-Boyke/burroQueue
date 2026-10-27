@@ -175,3 +175,4 @@ public sealed class SwyxItTelephonyProvider : ITelephonyProvider
         await _pollingTimer.DisposeAsync().ConfigureAwait(false);
     }
 }
+

@@ -6,3 +6,4 @@ public enum PlaybackState
     Playing,
     Paused
 }
+

@@ -6,3 +6,4 @@ public sealed record CollaborativePlaylistLinkUpdatedDomainEvent(
     GroupId GroupId,
     CollaborativePlaylistLink? NewLink,
     DateTimeOffset OccurredAtUtc);
+

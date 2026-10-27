@@ -8,3 +8,4 @@ public interface IAppSettingsService
 
     Task SaveAsync(AppSettingsData settings, CancellationToken cancellationToken = default);
 }
+

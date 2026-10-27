@@ -10,3 +10,4 @@ public interface IAudioOutputController
 
     void SetTargetVolume(double targetVolume, bool isDucked);
 }
+

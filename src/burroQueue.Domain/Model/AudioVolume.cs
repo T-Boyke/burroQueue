@@ -18,3 +18,4 @@ public readonly record struct AudioVolume
         return isDucked ? NormalLevel * DuckedMultiplier : NormalLevel;
     }
 }
+

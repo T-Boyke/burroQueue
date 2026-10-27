@@ -5,3 +5,4 @@ public sealed record NetworkMessageHeader(
     Guid SenderId,
     Guid GroupId,
     DateTimeOffset TimestampUtc);
+

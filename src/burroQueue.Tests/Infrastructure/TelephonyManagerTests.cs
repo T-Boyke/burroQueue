@@ -48,3 +48,4 @@ public sealed class TelephonyManagerTests
         received.IsCallActive.Should().BeTrue();
     }
 }
+

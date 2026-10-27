@@ -29,3 +29,4 @@ public sealed class WindowsCoreAudioTelephonyProvider : ITelephonyProvider
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
+

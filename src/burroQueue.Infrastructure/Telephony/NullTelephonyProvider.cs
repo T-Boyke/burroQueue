@@ -18,3 +18,4 @@ public sealed class NullTelephonyProvider : ITelephonyProvider
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
+

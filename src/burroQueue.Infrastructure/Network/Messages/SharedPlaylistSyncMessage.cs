@@ -5,3 +5,4 @@ public sealed record SharedPlaylistSyncMessage(
     string CollaborativePlaylistUrl,
     string SharedByDisplayName,
     DateTimeOffset TimestampUtc);
+

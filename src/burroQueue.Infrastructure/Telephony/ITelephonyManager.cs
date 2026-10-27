@@ -16,3 +16,4 @@ public interface ITelephonyManager : IAsyncDisposable
 
     Task StartAsync(CancellationToken cancellationToken = default);
 }
+

@@ -9,3 +9,4 @@ public sealed record DiscoveryBeaconMessage(
     bool HasCollaborativePlaylist,
     string? CollaborativePlaylistUrl,
     DateTimeOffset TimestampUtc);
+

@@ -57,3 +57,4 @@
       Command="{Binding SaveSettingsCommand}" />
   </Grid>
 </ui:FluentWindow>
+

@@ -68,3 +68,4 @@ public sealed record CollaborativePlaylistLink
 
     public override string ToString() => RawUri.ToString();
 }
+

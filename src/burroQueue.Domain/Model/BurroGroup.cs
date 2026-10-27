@@ -126,3 +126,4 @@ public sealed class BurroGroup
 
     public void ClearEvents() => _domainEvents.Clear();
 }
+

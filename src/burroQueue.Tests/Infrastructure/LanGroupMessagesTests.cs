@@ -49,3 +49,4 @@ public sealed class LanGroupMessagesTests
         deserialized.SharedByDisplayName.Should().Be("Alice");
     }
 }
+

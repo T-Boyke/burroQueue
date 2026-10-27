@@ -25,3 +25,4 @@ public interface ILanGroupService : IAsyncDisposable
 
     Task SendGroupActionAsync(GroupId groupId, ClientId actorId, string actionType, string? payload, CancellationToken cancellationToken = default);
 }
+

@@ -32,3 +32,4 @@ public sealed class CollaborativePlaylistLinkTests
         act.Should().Throw<InvalidTrackUrlException>();
     }
 }
+

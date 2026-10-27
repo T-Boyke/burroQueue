@@ -10,3 +10,4 @@ public sealed class AppSettingsData
 
     public string ClientDisplayName { get; set; } = Environment.UserName;
 }
+

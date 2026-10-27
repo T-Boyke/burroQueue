@@ -6,3 +6,4 @@ public sealed record GroupActionMessage(
     string ActionType, // "Rename", "Join", "Leave"
     string? Payload,
     DateTimeOffset TimestampUtc);
+

@@ -17,3 +17,4 @@ public sealed class TelephonyCallEventArgs : EventArgs
         IsCallActive = state is TelephonyState.Ringing or TelephonyState.Connecting or TelephonyState.ActiveCall;
     }
 }
+

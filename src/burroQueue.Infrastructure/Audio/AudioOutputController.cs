@@ -18,3 +18,4 @@ public sealed class AudioOutputController : IAudioOutputController
         VolumeChanged?.Invoke(this, _currentVolume);
     }
 }
+

@@ -6,3 +6,4 @@ public sealed record PlaybackCommandMessage(
     string Command, // "Play", "Pause", "Stop", "Skip"
     string? OptionalTrackVideoId,
     DateTimeOffset TimestampUtc);
+
