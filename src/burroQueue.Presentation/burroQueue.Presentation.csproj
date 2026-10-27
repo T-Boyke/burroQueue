@@ -5,12 +5,17 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <AssemblyName>burroQueue</AssemblyName>
     <RootNamespace>burroQueue.Presentation</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <Resource Include="Assets\logo.png" />
-    <Resource Include="Assets\app.ico" />
+    <Resource Include="Assets\logo.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Assets\app.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Resource>
   </ItemGroup>
 
   <ItemGroup>
