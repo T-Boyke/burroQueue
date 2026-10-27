@@ -26,21 +26,33 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
-        ServiceCollection services = new();
-        ConfigureServices(services);
+        try
+        {
+            ServiceCollection services = new();
+            ConfigureServices(services);
 
-        _serviceProvider = services.BuildServiceProvider();
-        _systrayService = _serviceProvider.GetRequiredService<ISystrayNotificationService>();
+            _serviceProvider = services.BuildServiceProvider();
+            _systrayService = _serviceProvider.GetRequiredService<ISystrayNotificationService>();
 
-        await InitializeApplicationAsync(
-            _serviceProvider,
-            showWindow: w => w.Show(),
-            showSettings: (sw, mw) =>
-            {
-                sw.Owner = mw;
-                sw.ShowDialog();
-            },
-            shutdownAction: () => Shutdown()).ConfigureAwait(true);
+            await InitializeApplicationAsync(
+                _serviceProvider,
+                showWindow: w => w.Show(),
+                showSettings: (sw, mw) =>
+                {
+                    sw.Owner = mw;
+                    sw.ShowDialog();
+                },
+                shutdownAction: () => Shutdown()).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"burroQueue konnte nicht gestartet werden:\n\n{ex.Message}\n\n{ex.InnerException?.Message}",
+                "burroQueue – Startfehler",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Shutdown(1);
+        }
     }
 
     internal static async Task InitializeApplicationAsync(

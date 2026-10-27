@@ -12,6 +12,7 @@
   WindowBackdropType="Mica"
   WindowCornerPreference="Round"
   WindowStartupLocation="CenterScreen"
+  ShowInTaskbar="True"
   FontFamily="Segoe UI Variable Text, Segoe UI, sans-serif"
   DragOver="OnDragOver"
   Drop="OnDrop">
@@ -187,7 +188,7 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-              <ui:SymbolIcon Symbol="MusicNote24" Margin="0,0,6,0" FontSize="14" />
+              <ui:SymbolIcon Symbol="MusicNote224" Margin="0,0,6,0" FontSize="14" />
               <TextBlock
                 FontSize="12"
                 FontWeight="SemiBold"
