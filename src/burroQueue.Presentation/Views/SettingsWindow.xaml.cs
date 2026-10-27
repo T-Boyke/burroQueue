@@ -12,5 +12,10 @@ public partial class SettingsWindow : FluentWindow
         InitializeComponent();
         DataContext = viewModel;
     }
+
+    private void OnCloseClicked(object sender, System.Windows.RoutedEventArgs e)
+    {
+        Close();
+    }
 }
 

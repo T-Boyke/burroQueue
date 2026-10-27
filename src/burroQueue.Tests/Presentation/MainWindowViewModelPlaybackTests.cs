@@ -621,6 +621,96 @@ public sealed class MainWindowViewModelPlaybackTests
         MainWindowViewModel.UiDispatcherRunner(() => executed = true);
         executed.Should().BeTrue();
     }
+
+    [Fact]
+    public void OpenSettingsCommand_ShouldRaiseOpenSettingsRequestedEvent()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        bool raised = false;
+        vm.OpenSettingsRequested += (_, _) => raised = true;
+
+        vm.OpenSettingsCommand.Execute(null);
+
+        raised.Should().BeTrue();
+    }
+
+    [Fact]
+    public void SetMasterVolume_ShouldUpdateAudioControllerAndProperty()
+    {
+        _audioController.CurrentVolume.Returns(0.8);
+        MainWindowViewModel vm = CreateViewModel();
+
+        vm.MasterVolume = 0.5;
+
+        vm.MasterVolume.Should().Be(0.5);
+        _audioController.Received(1).SetTargetVolume(0.5, Arg.Any<bool>());
+    }
+
+    [Fact]
+    public void ToggleMute_ShouldToggleMuteStateAndRestorePreviousVolume()
+    {
+        _audioController.CurrentVolume.Returns(0.7);
+        MainWindowViewModel vm = CreateViewModel();
+
+        vm.ToggleMuteCommand.Execute(null);
+        vm.IsMuted.Should().BeTrue();
+        vm.MasterVolume.Should().Be(0.0);
+
+        vm.ToggleMuteCommand.Execute(null);
+        vm.IsMuted.Should().BeFalse();
+        vm.MasterVolume.Should().Be(0.7);
+    }
+
+    [Fact]
+    public void ClearQueueCommand_ShouldClearQueueAndSavePlaylist()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        Track track1 = new("v1", new Uri("https://youtu.be/v1"), "Track 1", "User", DateTimeOffset.UtcNow);
+        Track track2 = new("v2", new Uri("https://youtu.be/v2"), "Track 2", "User", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(track1);
+        _group.Playlist.Enqueue(track2);
+        vm.SyncQueuedItems();
+        vm.QueuedCount.Should().Be(1);
+
+        vm.ClearQueueCommand.Execute(null);
+
+        _group.Playlist.Count.Should().Be(0);
+        vm.QueuedCount.Should().Be(0);
+        vm.QueuedItems.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void OpenWebDropInBrowserCommand_ShouldStartProcessWithWebDropUrl()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        System.Diagnostics.ProcessStartInfo? startedPsi = null;
+        MainWindowViewModel.ProcessStarter = psi => startedPsi = psi;
+
+        vm.OpenWebDropInBrowserCommand.Execute(null);
+
+        startedPsi.Should().NotBeNull();
+        startedPsi!.FileName.Should().Be(vm.WebDropUrl);
+        startedPsi.UseShellExecute.Should().BeTrue();
+    }
+
+    [Fact]
+    public void TelephonyStatus_WhenCallActive_ShouldSetIsAudioDuckedTrue()
+    {
+        ITelephonyProvider provider = Substitute.For<ITelephonyProvider>();
+        provider.ProviderId.Returns("SwyxIt");
+        provider.DisplayName.Returns("SwyxIt! Client");
+        _telephonyManager.ActiveProvider.Returns(provider);
+
+        MainWindowViewModel vm = CreateViewModel();
+        vm.TelephonyProviderName.Should().Be("SwyxIt! Client");
+
+        _telephonyManager.StateChanged += Raise.Event<EventHandler<TelephonyCallEventArgs>>(
+            _telephonyManager,
+            new TelephonyCallEventArgs("SwyxIt", TelephonyState.ActiveCall));
+
+        vm.IsCallActive.Should().BeTrue();
+        vm.IsAudioDucked.Should().BeTrue();
+    }
 }
 
 

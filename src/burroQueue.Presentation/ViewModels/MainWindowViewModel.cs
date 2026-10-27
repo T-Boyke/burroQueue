@@ -29,6 +29,10 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private readonly IPlaylistStorageService _playlistStorage;
     private readonly ClientId _localClientId = ClientId.New();
     private SkipVotePool _skipVotePool;
+    private bool _isUpdatingVolumeInternally;
+    private double _lastUnmutedVolume = 0.8;
+
+    public event EventHandler? OpenSettingsRequested;
 
     internal static Action<string> ClipboardAction { get; set; } = System.Windows.Clipboard.SetText;
     internal static Action<ProcessStartInfo> ProcessStarter { get; set; } = psi => Process.Start(psi);
@@ -64,6 +68,37 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     private string _telephonyStatusText = string.Empty;
+
+    [ObservableProperty]
+    private string _telephonyProviderName = "SwyxIt!";
+
+    [ObservableProperty]
+    private string _telephonyStateSummary = "Bereit (Überwachung aktiv)";
+
+    [ObservableProperty]
+    private double _masterVolume = 0.8;
+
+    [ObservableProperty]
+    private bool _isMuted;
+
+    [ObservableProperty]
+    private bool _isAudioDucked;
+
+    [ObservableProperty]
+    private string _activeAudioDeviceName = "Standard-Ausgabegerät";
+
+    partial void OnMasterVolumeChanged(double value)
+    {
+        if (!_isUpdatingVolumeInternally)
+        {
+            _audioController.SetTargetVolume(value, _isAudioDucked);
+            if (value > 0)
+            {
+                _lastUnmutedVolume = value;
+                IsMuted = false;
+            }
+        }
+    }
 
     [ObservableProperty]
     private string? _collaborativePlaylistUrl;
@@ -105,7 +140,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         IEmbeddedWebDropServer webDropServer,
         ILocalNetworkInfoService networkInfoService,
         IAudioPlayerBackend audioPlayerBackend,
-        IPlaylistStorageService playlistStorage)
+        IPlaylistStorageService playlistStorage,
+        IAudioDeviceEnumerator? audioDeviceEnumerator = null)
     {
         _group = group ?? throw new ArgumentNullException(nameof(group));
         _urlParser = urlParser ?? throw new ArgumentNullException(nameof(urlParser));
@@ -123,6 +159,35 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _collaborativePlaylistUrl = _settingsService.CurrentSettings.CollaborativePlaylistUrl;
         _webDropUrl = networkInfoService.GetWebDropUrl(8080);
         _skipVotePool = new SkipVotePool(TrackId.New(), requiredVotes: 3);
+
+        _masterVolume = _audioController.CurrentVolume;
+        _lastUnmutedVolume = _masterVolume > 0 ? _masterVolume : 0.8;
+        _isAudioDucked = _audioController.IsDucked;
+
+        if (_telephonyManager.ActiveProvider is { } activeProvider)
+        {
+            _telephonyProviderName = activeProvider.DisplayName;
+        }
+
+        if (audioDeviceEnumerator is not null && !string.IsNullOrEmpty(_settingsService.CurrentSettings.SelectedAudioDeviceId))
+        {
+            AudioDeviceOption? device = audioDeviceEnumerator.GetAvailableRenderDevices()
+                .FirstOrDefault(d => d.Id == _settingsService.CurrentSettings.SelectedAudioDeviceId);
+            if (device is not null)
+            {
+                _activeAudioDeviceName = device.DisplayName;
+            }
+        }
+
+        _audioController.VolumeChanged += (_, vol) =>
+        {
+            RunOnUi(() =>
+            {
+                _isUpdatingVolumeInternally = true;
+                MasterVolume = vol;
+                _isUpdatingVolumeInternally = false;
+            });
+        };
 
         SyncQueuedItems();
 
@@ -162,6 +227,57 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 // Auto-Save ist fail-safe und blockiert die App nicht
             }
         });
+    }
+
+    [RelayCommand]
+    public void OpenSettings()
+    {
+        OpenSettingsRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    public void ToggleMute()
+    {
+        if (IsMuted)
+        {
+            IsMuted = false;
+            MasterVolume = _lastUnmutedVolume > 0 ? _lastUnmutedVolume : 0.8;
+        }
+        else
+        {
+            _lastUnmutedVolume = MasterVolume > 0 ? MasterVolume : 0.8;
+            IsMuted = true;
+            MasterVolume = 0.0;
+        }
+    }
+
+    [RelayCommand]
+    public void ClearQueue()
+    {
+        _group.Playlist.Clear();
+        SyncQueuedItems();
+        AutoSavePlaylist();
+        StatusMessage = "Warteschlange geleert";
+    }
+
+    [RelayCommand]
+    public void OpenWebDropInBrowser()
+    {
+        if (!string.IsNullOrWhiteSpace(WebDropUrl))
+        {
+            try
+            {
+                ProcessStarter(new ProcessStartInfo
+                {
+                    FileName = WebDropUrl,
+                    UseShellExecute = true
+                });
+            }
+            catch
+            {
+                StatusMessage = "Konnte Browser nicht öffnen";
+            }
+        }
     }
 
     [RelayCommand]
@@ -227,7 +343,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    private void SyncQueuedItems()
+    internal void SyncQueuedItems()
     {
         RunOnUi(() =>
         {
@@ -385,14 +501,21 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     private void OnTelephonyStateChanged(object? sender, TelephonyCallEventArgs e)
     {
-        IsCallActive = e.IsCallActive;
-        TelephonyStatusText = e.IsCallActive
-            ? $"{e.ProviderId} Anruf aktiv – Lautstärke abgesenkt"
-            : string.Empty;
+        RunOnUi(() =>
+        {
+            IsCallActive = e.IsCallActive;
+            IsAudioDucked = e.IsCallActive;
+            TelephonyStatusText = e.IsCallActive
+                ? $"{e.ProviderId} Anruf aktiv – Lautstärke abgesenkt"
+                : string.Empty;
+            TelephonyStateSummary = e.IsCallActive
+                ? "Anruf aktiv (Ducking aktiv)"
+                : "Bereit (Überwachung aktiv)";
 
-        AudioVolume volume = new(0.8, 0.15);
-        double target = volume.CalculateEffectiveLevel(e.State);
-        _audioController.SetTargetVolume(target, e.IsCallActive);
+            AudioVolume volume = new(MasterVolume > 0 ? MasterVolume : 0.8, 0.15);
+            double target = volume.CalculateEffectiveLevel(e.State);
+            _audioController.SetTargetVolume(target, e.IsCallActive);
+        });
     }
 
     private void OnGroupActionReceived(object? sender, GroupActionMessage action)

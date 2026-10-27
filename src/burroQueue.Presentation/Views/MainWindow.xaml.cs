@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Windows;
 using burroQueue.Presentation.Services;
 using burroQueue.Presentation.ViewModels;
+using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui.Controls;
 using DataFormats = System.Windows.DataFormats;
 using DragDropEffects = System.Windows.DragDropEffects;
@@ -17,12 +18,22 @@ public partial class MainWindow : FluentWindow
     private readonly IGlobalHotkeyService _hotkeyService;
 
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
-    public MainWindow(MainWindowViewModel viewModel, IGlobalHotkeyService hotkeyService)
+    public MainWindow(MainWindowViewModel viewModel, IGlobalHotkeyService hotkeyService, IServiceProvider? serviceProvider = null)
     {
         InitializeComponent();
         _viewModel = viewModel;
         _hotkeyService = hotkeyService;
         DataContext = _viewModel;
+
+        if (serviceProvider is not null)
+        {
+            _viewModel.OpenSettingsRequested += (_, _) =>
+            {
+                SettingsWindow settingsWindow = serviceProvider.GetRequiredService<SettingsWindow>();
+                settingsWindow.Owner = this;
+                settingsWindow.ShowDialog();
+            };
+        }
 
         Loaded += OnLoaded;
         Closing += OnClosing;
