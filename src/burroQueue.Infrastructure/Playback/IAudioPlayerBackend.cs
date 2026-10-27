@@ -7,7 +7,7 @@ public interface IAudioPlayerBackend : IAsyncDisposable
     PlaybackState CurrentState { get; }
 
     Track? ActiveTrack { get; }
- 
+
     double CurrentVolume { get; }
 
     event EventHandler<PlaybackState>? StateChanged;
