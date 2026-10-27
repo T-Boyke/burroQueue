@@ -51,3 +51,4 @@ Diese Regeln gelten **verbindlich** für alle KI-Agenten und Entwickler in diese
 - **Namespaces:** Immer File-Scoped (`namespace burroQueue.Domain.Model;`).
 - **Nullability:** `<Nullable>enable</Nullable>` ist überall Pflicht; vermeide den Null-Forgiving-Operator (`!`), außer in streng begründeten Ausnahmefällen.
 - **Validierung vor Abschluss einer Aufgabe:** Führe immer `./scripts/verify-architecture.ps1` und (sobald `.NET 10 SDK` installiert ist) `dotnet test` aus.
+- **Repository-Gedächtnis & ADRs:** Halte den Projektstatus in `memory.md` und wesentliche Architekturentscheidungen in `decisions.md` aktuell (siehe `.agents/rules/memory-and-decisions.md`).
