@@ -1,0 +1,121 @@
+<ui:FluentWindow
+  x:Class="burroQueue.Presentation.Views.MainWindow"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+  Title="burroQueue"
+  Width="420"
+  Height="340"
+  AllowDrop="True"
+  ExtendsContentIntoTitleBar="True"
+  WindowBackdropType="Mica"
+  WindowCornerPreference="Round"
+  WindowStartupLocation="CenterScreen">
+  <Grid Margin="16">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <!-- Title Bar -->
+    <ui:TitleBar Title="🫏 burroQueue" Grid.Row="0" />
+
+    <!-- Group Header & Rename -->
+    <Grid Grid.Row="1" Margin="0,8,0,8">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <TextBlock
+          FontSize="15"
+          FontWeight="Bold"
+          Text="Gruppe: " />
+        <TextBlock
+          FontSize="15"
+          FontWeight="SemiBold"
+          Foreground="#4FC3F7"
+          Text="{Binding GroupName}" />
+      </StackPanel>
+      <Button
+        Grid.Column="1"
+        Padding="8,4"
+        Content="Playlist öffnen"
+        Visibility="{Binding CollaborativePlaylistUrl, Converter={x:Null}}"
+        Command="{Binding OpenCollaborativePlaylistCommand}" />
+    </Grid>
+
+    <!-- Drop Zone -->
+    <Border
+      Grid.Row="2"
+      Margin="0,4,0,8"
+      Padding="12"
+      CornerRadius="8"
+      Background="#1AFFFFFF">
+      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+        <TextBlock
+          HorizontalAlignment="Center"
+          FontSize="15"
+          FontWeight="SemiBold"
+          Text="Drop YouTube Link Here" />
+        <TextBlock
+          Margin="0,4,0,0"
+          HorizontalAlignment="Center"
+          FontSize="12"
+          Opacity="0.8"
+          Text="{Binding StatusMessage}" />
+      </StackPanel>
+    </Border>
+
+    <!-- Telephony / Call Ducking Banner -->
+    <Border
+      Grid.Row="3"
+      Margin="0,0,0,8"
+      Padding="8"
+      CornerRadius="6"
+      Background="#FFE57F"
+      Visibility="{Binding IsCallActive, Converter={x:Null}}">
+      <TextBlock
+        HorizontalAlignment="Center"
+        Foreground="#212121"
+        FontWeight="Medium"
+        Text="{Binding TelephonyStatusText}" />
+    </Border>
+
+    <!-- Playback Control Bar -->
+    <Grid Grid.Row="4" Margin="0,4,0,0">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+
+      <StackPanel Orientation="Horizontal">
+        <Button
+          Margin="0,0,6,0"
+          Content="▶ Play"
+          Command="{Binding PlayCommand}" />
+        <Button
+          Margin="0,0,6,0"
+          Content="⏸ Pause"
+          Command="{Binding PauseCommand}" />
+        <Button
+          Margin="0,0,6,0"
+          Content="⏹ Stop"
+          Command="{Binding StopCommand}" />
+        <Button
+          Margin="0,0,6,0"
+          Content="⏭ Skip"
+          Command="{Binding SkipCommand}" />
+      </StackPanel>
+
+      <TextBlock
+        Grid.Column="1"
+        VerticalAlignment="Center"
+        Opacity="0.75"
+        Text="{Binding QueuedCount, StringFormat='Queue: {0}'}" />
+    </Grid>
+  </Grid>
+</ui:FluentWindow>

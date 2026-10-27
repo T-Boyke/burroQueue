@@ -1,0 +1,59 @@
+<ui:FluentWindow
+  x:Class="burroQueue.Presentation.Views.SettingsWindow"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+  Title="burroQueue – Einstellungen"
+  Width="480"
+  Height="440"
+  ExtendsContentIntoTitleBar="True"
+  WindowBackdropType="Mica"
+  WindowStartupLocation="CenterOwner">
+  <Grid Margin="16">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <ui:TitleBar Title="⚙️ Einstellungen" Grid.Row="0" />
+
+    <StackPanel Grid.Row="1" Margin="0,16,0,0">
+      <TextBlock Text="VoIP- &amp; Telefonie-Dienst (Auto-Ducking)" FontWeight="SemiBold" />
+      <ComboBox
+        Margin="0,6,0,16"
+        ItemsSource="{Binding AvailableTelephonyProviders}"
+        SelectedValue="{Binding SelectedProviderId, Mode=TwoWay}"
+        SelectedValuePath="ProviderId"
+        DisplayMemberPath="DisplayName" />
+
+      <TextBlock Text="Gemeinsame YouTube-Playlist (Einladungslink mit &amp;jct=...)" FontWeight="SemiBold" />
+      <ui:TextBox
+        Margin="0,6,0,6"
+        PlaceholderText="https://www.youtube.com/playlist?list=...&amp;jct=..."
+        Text="{Binding CollaborativePlaylistUrl, UpdateSourceTrigger=PropertyChanged}" />
+
+      <CheckBox
+        Margin="0,4,0,16"
+        Content="Gemeinsame Playlist beim Gruppenbeitritt automatisch im Browser öffnen"
+        IsChecked="{Binding AutoOpenCollaborativePlaylistOnJoin}" />
+
+      <TextBlock Text="Dein Anzeigename in der Gruppe" FontWeight="SemiBold" />
+      <ui:TextBox
+        Margin="0,6,0,16"
+        Text="{Binding ClientDisplayName, UpdateSourceTrigger=PropertyChanged}" />
+
+      <TextBlock
+        Foreground="#4CAF50"
+        FontWeight="Medium"
+        Text="{Binding StatusMessage}" />
+    </StackPanel>
+
+    <Button
+      Grid.Row="2"
+      HorizontalAlignment="Right"
+      Appearance="Primary"
+      Content="Speichern"
+      Command="{Binding SaveSettingsCommand}" />
+  </Grid>
+</ui:FluentWindow>
