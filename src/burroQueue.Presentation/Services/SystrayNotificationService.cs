@@ -48,6 +48,14 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
                 _customIcon = new Icon(iconPath);
                 iconToUse = _customIcon;
             }
+            else if (!string.IsNullOrEmpty(Environment.ProcessPath) && File.Exists(Environment.ProcessPath))
+            {
+                _customIcon = Icon.ExtractAssociatedIcon(Environment.ProcessPath);
+                if (_customIcon is not null)
+                {
+                    iconToUse = _customIcon;
+                }
+            }
         }
         catch
         {

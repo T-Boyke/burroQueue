@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using burroQueue.Domain.Model;
 using burroQueue.Infrastructure.Audio;
@@ -21,10 +22,37 @@ public partial class App : System.Windows.Application
     private ServiceProvider? _serviceProvider;
     private ISystrayNotificationService? _systrayService;
 
+    internal static void LogStartup(string message)
+    {
+        try
+        {
+            string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "burroQueue");
+            Directory.CreateDirectory(dir);
+            File.AppendAllText(Path.Combine(dir, "startup.log"), $"[{DateTime.UtcNow:O}] [PID {Environment.ProcessId}] [Thread {Environment.CurrentManagedThreadId}] {message}{Environment.NewLine}");
+        }
+        catch
+        {
+        }
+    }
+
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        DispatcherUnhandledException += (_, args) =>
+        {
+            LogStartup($"DISPATCHER UNHANDLED EXCEPTION: {args.Exception}");
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            LogStartup($"APPDOMAIN UNHANDLED EXCEPTION: {args.ExceptionObject}");
+        };
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            LogStartup($"UNOBSERVED TASK EXCEPTION: {args.Exception}");
+        };
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        LogStartup("OnStartup started (ShutdownMode=OnExplicitShutdown)");
 
         try
         {
@@ -33,10 +61,21 @@ public partial class App : System.Windows.Application
 
             _serviceProvider = services.BuildServiceProvider();
             _systrayService = _serviceProvider.GetRequiredService<ISystrayNotificationService>();
+            LogStartup("Services configured and built");
 
             await InitializeApplicationAsync(
                 _serviceProvider,
-                showWindow: w => w.Show(),
+                showWindow: w =>
+                {
+                    LogStartup("showWindow callback invoked");
+                    Current.MainWindow = w;
+                    w.Show();
+                    w.WindowState = WindowState.Normal;
+                    w.Activate();
+                    w.Focus();
+                    IntPtr hwnd = new System.Windows.Interop.WindowInteropHelper(w).Handle;
+                    LogStartup($"MainWindow shown. HWND=0x{hwnd:X}, Left={w.Left}, Top={w.Top}, Width={w.Width}, Height={w.Height}, Visibility={w.Visibility}, WindowState={w.WindowState}, IsActive={w.IsActive}");
+                },
                 showSettings: (sw, mw) =>
                 {
                     sw.Owner = mw;
@@ -46,6 +85,7 @@ public partial class App : System.Windows.Application
         }
         catch (Exception ex)
         {
+            LogStartup($"CRITICAL STARTUP ERROR: {ex}");
             System.Windows.MessageBox.Show(
                 $"burroQueue konnte nicht gestartet werden:\n\n{ex.Message}\n\n{ex.InnerException?.Message}",
                 "burroQueue – Startfehler",
@@ -61,23 +101,31 @@ public partial class App : System.Windows.Application
         Action<SettingsWindow, MainWindow> showSettings,
         Action shutdownAction)
     {
+        LogStartup("InitializeApplicationAsync started");
         IAppSettingsService settings = serviceProvider.GetRequiredService<IAppSettingsService>();
         await settings.LoadAsync().ConfigureAwait(true);
+        LogStartup("Settings loaded");
 
         IPlaylistStorageService storage = serviceProvider.GetRequiredService<IPlaylistStorageService>();
         BurroGroup group = serviceProvider.GetRequiredService<BurroGroup>();
         await storage.LoadPlaylistAsync(group.Playlist).ConfigureAwait(true);
+        LogStartup($"Playlist loaded ({group.Playlist.QueuedTracks.Count} queued tracks)");
 
         ITelephonyManager telephony = serviceProvider.GetRequiredService<ITelephonyManager>();
         await telephony.StartAsync().ConfigureAwait(true);
+        LogStartup("Telephony manager started");
 
         ILanGroupService lan = serviceProvider.GetRequiredService<ILanGroupService>();
         await lan.StartAsync().ConfigureAwait(true);
+        LogStartup("LAN group service started");
 
         IEmbeddedWebDropServer webDrop = serviceProvider.GetRequiredService<IEmbeddedWebDropServer>();
         await webDrop.StartAsync().ConfigureAwait(true);
+        LogStartup($"WebDrop server started on port {webDrop.Port}");
 
+        LogStartup("Resolving MainWindow...");
         MainWindow mainWindow = serviceProvider.GetRequiredService<MainWindow>();
+        LogStartup("MainWindow resolved successfully");
 
         ISystrayNotificationService systrayService = serviceProvider.GetRequiredService<ISystrayNotificationService>();
         systrayService.Initialize(
@@ -88,8 +136,11 @@ public partial class App : System.Windows.Application
                 showSettings(settingsWindow, mainWindow);
             },
             onExitApp: shutdownAction);
+        LogStartup("Systray initialized");
 
+        LogStartup("Invoking showWindow callback...");
         showWindow(mainWindow);
+        LogStartup("InitializeApplicationAsync completed");
     }
 
     internal static async Task ShutdownApplicationAsync(IServiceProvider? serviceProvider, ISystrayNotificationService? systrayService)
@@ -152,6 +203,7 @@ public partial class App : System.Windows.Application
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     protected override async void OnExit(ExitEventArgs e)
     {
+        LogStartup($"OnExit invoked with ExitCode={e.ApplicationExitCode}");
         await ShutdownApplicationAsync(_serviceProvider, _systrayService).ConfigureAwait(false);
         base.OnExit(e);
     }

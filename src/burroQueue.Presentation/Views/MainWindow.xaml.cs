@@ -20,7 +20,9 @@ public partial class MainWindow : FluentWindow
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public MainWindow(MainWindowViewModel viewModel, IGlobalHotkeyService hotkeyService, IServiceProvider? serviceProvider = null)
     {
+        App.LogStartup("MainWindow constructor starting InitializeComponent...");
         InitializeComponent();
+        App.LogStartup("MainWindow InitializeComponent finished");
         _viewModel = viewModel;
         _hotkeyService = hotkeyService;
         DataContext = _viewModel;
@@ -34,6 +36,13 @@ public partial class MainWindow : FluentWindow
                 settingsWindow.ShowDialog();
             };
         }
+
+        Loaded += (_, _) => App.LogStartup($"MainWindow Loaded event fired. HWND=0x{new System.Windows.Interop.WindowInteropHelper(this).Handle:X}");
+        Activated += (_, _) => App.LogStartup("MainWindow Activated event fired");
+        Deactivated += (_, _) => App.LogStartup("MainWindow Deactivated event fired");
+        IsVisibleChanged += (_, _) => App.LogStartup($"MainWindow IsVisibleChanged event fired: {IsVisible}");
+        StateChanged += (_, _) => App.LogStartup($"MainWindow StateChanged event fired: {WindowState}");
+        Closed += (_, _) => App.LogStartup("MainWindow Closed event fired");
 
         Loaded += OnLoaded;
         Closing += OnClosing;
@@ -69,7 +78,9 @@ public partial class MainWindow : FluentWindow
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal void OnClosing(object? sender, CancelEventArgs e)
     {
+        App.LogStartup($"MainWindow OnClosing invoked! Cancel={e.Cancel}");
         HandleClosing(e, Hide);
+        App.LogStartup($"MainWindow OnClosing finished. Cancel={e.Cancel}, IsVisible={IsVisible}");
     }
 
     internal static void HandleClosing(CancelEventArgs e, Action hideAction)

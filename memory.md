@@ -16,6 +16,7 @@ Letzte Aktualisierung: 2026-10-27 | Ziel: Stabile Version 1.0 (Produktionsreife)
   - `burroQueue.Infrastructure`: 97,8% Line Coverage (86,5% Branch)
   - `burroQueue.Presentation`: 98,6% Line Coverage (87,2% Branch)
 - **Installer & Portable:** Inno Setup 6.x + Portable Single-File Release Build (`./publish/portable/burroQueue.exe`)
+- **Lifecycle & Systray:** `ShutdownMode.OnExplicitShutdown` verhindert versehentliches Schließen während asynchroner Initialisierung oder beim Minimieren in den Systray. `SystrayNotificationService` nutzt automatisches Fallback auf `Icon.ExtractAssociatedIcon(Environment.ProcessPath)` im Single-File-Modus.
 - **Architektur-Check:** `./scripts/verify-architecture.ps1` (123/123 Dateien validiert, 0 Violations)
 - **CI Formatting:** `dotnet format burroQueue.sln --no-restore --verify-no-changes` (0 Warnungen / 0 Fehler)
 
