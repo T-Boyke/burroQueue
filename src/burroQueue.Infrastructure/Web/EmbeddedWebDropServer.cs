@@ -6,7 +6,7 @@ namespace burroQueue.Infrastructure.Web;
 
 public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
 {
-    private readonly HttpListener _listener;
+    private HttpListener? _listener;
     private readonly Domain.Model.BurroGroup? _group;
     private CancellationTokenSource? _cts;
     private Task? _listenTask;
@@ -14,7 +14,7 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
 
     public int Port { get; }
 
-    public bool IsRunning => _listener.IsListening;
+    public bool IsRunning => _listener is { IsListening: true };
 
     public event EventHandler<string>? LinkDropped;
 
@@ -22,37 +22,52 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
     {
         Port = port;
         _group = group;
-        _listener = new HttpListener();
     }
 
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
-        if (_listener.IsListening)
+        if (_listener is { IsListening: true })
         {
             return Task.CompletedTask;
         }
 
+        HttpListener listener = new();
         try
         {
-            _listener.Prefixes.Clear();
-            _listener.Prefixes.Add($"http://*:{Port}/");
-            _listener.Start();
+            listener.Prefixes.Add($"http://*:{Port}/");
+            listener.Start();
         }
-        catch (HttpListenerException)
+        catch
         {
-            // Fallback auf localhost falls keine Admin-URL-ACL existiert
-            _listener.Prefixes.Clear();
-            _listener.Prefixes.Add($"http://localhost:{Port}/");
             try
             {
-                _listener.Start();
+                listener.Close();
             }
             catch
             {
+            }
+
+            listener = new HttpListener();
+            listener.Prefixes.Add($"http://localhost:{Port}/");
+            try
+            {
+                listener.Start();
+            }
+            catch
+            {
+                try
+                {
+                    listener.Close();
+                }
+                catch
+                {
+                }
+
                 return Task.CompletedTask;
             }
         }
 
+        _listener = listener;
         _cts = new CancellationTokenSource();
         _listenTask = Task.Run(() => ListenLoopAsync(_cts.Token), CancellationToken.None);
         return Task.CompletedTask;
@@ -65,7 +80,7 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
             await _cts.CancelAsync().ConfigureAwait(false);
         }
 
-        if (_listener.IsListening)
+        if (_listener is { IsListening: true })
         {
             try
             {
@@ -92,7 +107,7 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
 
     private async Task ListenLoopAsync(CancellationToken token)
     {
-        while (!token.IsCancellationRequested && _listener.IsListening)
+        while (!token.IsCancellationRequested && _listener is { IsListening: true })
         {
             try
             {
@@ -253,6 +268,13 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
 
         _isDisposed = true;
         await StopAsync().ConfigureAwait(false);
+        try
+        {
+            _listener?.Close();
+        }
+        catch
+        {
+        }
         _cts?.Dispose();
     }
 }

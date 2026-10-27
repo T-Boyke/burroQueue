@@ -7,35 +7,27 @@ namespace burroQueue.Tests.Infrastructure;
 
 public sealed class LocalNetworkInfoServiceTests
 {
+    private readonly LocalNetworkInfoService _service = new();
+
     [Fact]
-    public void GetPrimaryIPv4Address_ReturnsValidIPv4OrLocalhost()
+    public void GetPrimaryIPv4Address_ShouldReturnValidIPv4Address()
     {
-        // Arrange
-        LocalNetworkInfoService service = new();
+        string ip = _service.GetPrimaryIPv4Address();
 
-        // Act
-        string ip = service.GetPrimaryIPv4Address();
-
-        // Assert
         ip.Should().NotBeNullOrWhiteSpace();
-        bool isValidIp = IPAddress.TryParse(ip, out IPAddress? parsed);
-        isValidIp.Should().BeTrue();
+        bool isParsed = IPAddress.TryParse(ip, out IPAddress? parsed);
+        isParsed.Should().BeTrue();
         parsed!.AddressFamily.Should().Be(System.Net.Sockets.AddressFamily.InterNetwork);
     }
 
     [Fact]
-    public void GetWebDropUrl_ReturnsFormattedHttpUrlWithPort()
+    public void GetWebDropUrl_ShouldFormatValidHttpUrlWithPort()
     {
-        // Arrange
-        LocalNetworkInfoService service = new();
+        string url = _service.GetWebDropUrl(8080);
 
-        // Act
-        string url = service.GetWebDropUrl(8080);
-
-        // Assert
         url.Should().StartWith("http://");
         url.Should().EndWith(":8080");
-        Uri.TryCreate(url, UriKind.Absolute, out Uri? uri).Should().BeTrue();
-        uri!.Port.Should().Be(8080);
+        Uri.TryCreate(url, UriKind.Absolute, out Uri? parsedUri).Should().BeTrue();
+        parsedUri!.Port.Should().Be(8080);
     }
 }

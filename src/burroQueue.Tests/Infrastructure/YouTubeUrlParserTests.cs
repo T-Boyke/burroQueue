@@ -12,6 +12,11 @@ public sealed class YouTubeUrlParserTests
     [InlineData("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "dQw4w9WgXcQ")]
     [InlineData("https://youtu.be/dQw4w9WgXcQ?si=12345", "dQw4w9WgXcQ")]
     [InlineData("https://www.youtube.com/shorts/dQw4w9WgXcQ", "dQw4w9WgXcQ")]
+    [InlineData("https://music.youtube.com/watch?v=dQw4w9WgXcQ", "dQw4w9WgXcQ")]
+    [InlineData("https://www.youtube.com/embed/dQw4w9WgXcQ", "dQw4w9WgXcQ")]
+    [InlineData("https://www.youtube.com/live/dQw4w9WgXcQ?feature=share", "dQw4w9WgXcQ")]
+    [InlineData("https://www.youtube.com/v/dQw4w9WgXcQ", "dQw4w9WgXcQ")]
+    [InlineData("dQw4w9WgXcQ", "dQw4w9WgXcQ")]
     public void TryExtractVideoId_WhenValidYouTubeUrl_ShouldReturnTrueAndNormalizedUri(string rawUrl, string expectedId)
     {
         bool success = _sut.TryExtractVideoId(rawUrl, out string videoId, out Uri normalizedUri);

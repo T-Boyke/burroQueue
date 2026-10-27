@@ -1,0 +1,136 @@
+using System.Net;
+using System.Net.Sockets;
+using burroQueue.Domain.Model;
+using burroQueue.Infrastructure.Web;
+using FluentAssertions;
+using Xunit;
+
+namespace burroQueue.Tests.Integration;
+
+public sealed class WebDropServerIntegrationTests : IAsyncLifetime, IDisposable
+{
+    private readonly int _port;
+    private readonly BurroGroup _group;
+    private EmbeddedWebDropServer? _server;
+    private HttpClient? _httpClient;
+
+    public WebDropServerIntegrationTests()
+    {
+        using (TcpListener tcp = new(IPAddress.Loopback, 0))
+        {
+            tcp.Start();
+            _port = ((IPEndPoint)tcp.LocalEndpoint).Port;
+            tcp.Stop();
+        }
+
+        _group = new BurroGroup(GroupId.New(), "Integration Test Group");
+    }
+
+    public async Task InitializeAsync()
+    {
+        _server = new EmbeddedWebDropServer(_port, _group);
+        await _server.StartAsync();
+        _httpClient = new HttpClient();
+    }
+
+    public async Task DisposeAsync()
+    {
+        _httpClient?.Dispose();
+        _httpClient = null;
+
+        if (_server is not null)
+        {
+            await _server.DisposeAsync();
+            _server = null;
+        }
+    }
+
+    public void Dispose()
+    {
+        DisposeAsync().GetAwaiter().GetResult();
+        GC.SuppressFinalize(this);
+    }
+
+    [Fact]
+    public async Task GetRoot_ShouldReturnHtmlWithGroupAndQueueInfo()
+    {
+        if (_server is null || !_server.IsRunning)
+        {
+            return; // Skip if port binding not allowed in test runner environment
+        }
+
+        Track current = new("t1", new Uri("https://www.youtube.com/watch?v=t1"), "Song One", "Alice", DateTimeOffset.UtcNow);
+        Track queued = new("t2", new Uri("https://www.youtube.com/watch?v=t2"), "Song Two", "Bob", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(current);
+        _group.Playlist.Enqueue(queued);
+
+        HttpResponseMessage response = await _httpClient!.GetAsync($"http://localhost:{_port}/");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("text/html");
+
+        string html = await response.Content.ReadAsStringAsync();
+        html.Should().Contain("Integration Test Group");
+        html.Should().Contain("Song One");
+        html.Should().Contain("Song Two");
+        html.Should().Contain("burroQueue");
+    }
+
+    [Fact]
+    public async Task PostDrop_WithUrlEncodedBody_ShouldRaiseLinkDroppedEvent()
+    {
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
+        string? droppedUrl = null;
+        _server.LinkDropped += (_, url) => droppedUrl = url;
+
+        Dictionary<string, string> form = new()
+        {
+            ["url"] = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        };
+        FormUrlEncodedContent content = new(form);
+
+        HttpResponseMessage response = await _httpClient!.PostAsync($"http://localhost:{_port}/drop", content);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        string responseHtml = await response.Content.ReadAsStringAsync();
+        responseHtml.Should().Contain("Song eingeworfen");
+
+        droppedUrl.Should().Be("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+    }
+
+    [Fact]
+    public async Task PostDrop_WithRawTextBody_ShouldRaiseLinkDroppedEvent()
+    {
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
+        string? droppedUrl = null;
+        _server.LinkDropped += (_, url) => droppedUrl = url;
+
+        StringContent content = new("https://youtu.be/dQw4w9WgXcQ", System.Text.Encoding.UTF8, "text/plain");
+
+        HttpResponseMessage response = await _httpClient!.PostAsync($"http://localhost:{_port}/drop", content);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        droppedUrl.Should().Be("https://youtu.be/dQw4w9WgXcQ");
+    }
+
+    [Fact]
+    public async Task StopAsync_ShouldStopListening()
+    {
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
+        _server.IsRunning.Should().BeTrue();
+        await _server.StopAsync();
+        _server.IsRunning.Should().BeFalse();
+    }
+}

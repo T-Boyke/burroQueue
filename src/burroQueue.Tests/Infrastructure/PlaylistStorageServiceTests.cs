@@ -37,6 +37,61 @@ public sealed class PlaylistStorageServiceTests : IDisposable
             .Which.VideoId.Should().Be("e-ORhEE9VVg");
     }
 
+    [Fact]
+    public async Task LoadPlaylistAsync_WhenFileDoesNotExist_ShouldNotThrowOrModifyPlaylist()
+    {
+        PlaylistStorageService service = new(_tempFile);
+        Playlist playlist = new();
+
+        await service.LoadPlaylistAsync(playlist);
+
+        playlist.Count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task LoadPlaylistAsync_WhenFileContainsCorruptJson_ShouldHandleGracefully()
+    {
+        await File.WriteAllTextAsync(_tempFile, "{ this is not valid json :/");
+        PlaylistStorageService service = new(_tempFile);
+        Playlist playlist = new();
+
+        await service.LoadPlaylistAsync(playlist);
+
+        playlist.Count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task LoadPlaylistAsync_WhenFileContainsEmptyList_ShouldNotModifyPlaylist()
+    {
+        await File.WriteAllTextAsync(_tempFile, "[]");
+        PlaylistStorageService service = new(_tempFile);
+        Playlist playlist = new();
+
+        await service.LoadPlaylistAsync(playlist);
+
+        playlist.Count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task SavePlaylistAsync_WhenPlaylistIsNull_ShouldThrowArgumentNullException()
+    {
+        PlaylistStorageService service = new(_tempFile);
+
+        Func<Task> act = async () => await service.SavePlaylistAsync(null!);
+
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    [Fact]
+    public async Task LoadPlaylistAsync_WhenPlaylistIsNull_ShouldThrowArgumentNullException()
+    {
+        PlaylistStorageService service = new(_tempFile);
+
+        Func<Task> act = async () => await service.LoadPlaylistAsync(null!);
+
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
+
     public void Dispose()
     {
         if (File.Exists(_tempFile))
@@ -45,4 +100,5 @@ public sealed class PlaylistStorageServiceTests : IDisposable
         }
     }
 }
+
 
