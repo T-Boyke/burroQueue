@@ -18,3 +18,4 @@ public interface IAudioPlayerBackend : IAsyncDisposable
 
     Task StopAsync(CancellationToken cancellationToken = default);
 }
+

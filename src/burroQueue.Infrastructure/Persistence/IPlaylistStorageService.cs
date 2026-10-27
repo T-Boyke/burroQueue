@@ -8,3 +8,4 @@ public interface IPlaylistStorageService
 
     Task LoadPlaylistAsync(Playlist playlist, CancellationToken cancellationToken = default);
 }
+

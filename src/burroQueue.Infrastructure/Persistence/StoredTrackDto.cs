@@ -16,3 +16,4 @@ public sealed record StoredTrackDto(
     public Track ToDomain() =>
         new(VideoId, new Uri(Url), Title, SubmittedBy, EnqueuedAtUtc);
 }
+
