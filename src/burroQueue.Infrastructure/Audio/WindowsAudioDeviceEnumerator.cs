@@ -8,21 +8,31 @@ public sealed class WindowsAudioDeviceEnumerator : IAudioDeviceEnumerator
 {
     public IReadOnlyList<AudioDeviceOption> GetAvailableRenderDevices()
     {
-        List<AudioDeviceOption> devices = [AudioDeviceOption.SystemDefault];
-
         if (!OperatingSystem.IsWindows())
         {
-            return devices;
+            return [AudioDeviceOption.SystemDefault];
         }
 
-        try
+        return ParseAudioDevices(() =>
         {
+            List<(string? Id, string? Name)> list = [];
             using ManagementObjectSearcher searcher = new("SELECT DeviceID, Name, Status FROM Win32_SoundDevice WHERE Status = 'OK'");
             foreach (ManagementBaseObject mo in searcher.Get())
             {
-                string? name = mo["Name"]?.ToString();
-                string? id = mo["DeviceID"]?.ToString();
+                list.Add((mo["DeviceID"]?.ToString(), mo["Name"]?.ToString()));
+            }
+            return list;
+        });
+    }
 
+    internal static List<AudioDeviceOption> ParseAudioDevices(Func<IEnumerable<(string? Id, string? Name)>> getDevices)
+    {
+        List<AudioDeviceOption> devices = [AudioDeviceOption.SystemDefault];
+
+        try
+        {
+            foreach (var (id, name) in getDevices())
+            {
                 if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(id))
                 {
                     devices.Add(new AudioDeviceOption(id, name, false));
