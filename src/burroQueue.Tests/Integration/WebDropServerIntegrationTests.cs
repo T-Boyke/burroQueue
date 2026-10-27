@@ -77,6 +77,40 @@ public sealed class WebDropServerIntegrationTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
+    public async Task GetRoot_Via127001_ShouldReturnHtmlSuccessfullyWithoutHostnameError()
+    {
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
+        HttpResponseMessage response = await _httpClient!.GetAsync($"http://127.0.0.1:{_port}/");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("text/html");
+        string html = await response.Content.ReadAsStringAsync();
+        html.Should().Contain("burroQueue");
+    }
+
+    [Fact]
+    public async Task GetRoot_WithCustomLanHostHeader_ShouldReturnHtmlWithout400InvalidHostname()
+    {
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
+        using HttpRequestMessage request = new(HttpMethod.Get, $"http://127.0.0.1:{_port}/");
+        request.Headers.Host = $"192.168.2.109:{_port}";
+
+        HttpResponseMessage response = await _httpClient!.SendAsync(request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        string html = await response.Content.ReadAsStringAsync();
+        html.Should().Contain("burroQueue");
+    }
+
+    [Fact]
     public async Task PostDrop_WithUrlEncodedBody_ShouldRaiseLinkDroppedEvent()
     {
         if (_server is null || !_server.IsRunning)

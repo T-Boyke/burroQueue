@@ -1,95 +1,96 @@
 using System.Globalization;
 using System.Net;
+using System.Net.Sockets;
 using System.Text;
 
 namespace burroQueue.Infrastructure.Web;
 
 public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
 {
-    private HttpListener? _listener;
+    private TcpListener? _tcpListener;
     private readonly Domain.Model.BurroGroup? _group;
     private CancellationTokenSource? _cts;
     private Task? _listenTask;
+    private bool _isRunning;
     private bool _isDisposed;
+    private int _actualPort;
 
-    public int Port { get; }
+    public int Port => _actualPort > 0 ? _actualPort : _configuredPort;
 
-    public bool IsRunning => _listener is { IsListening: true };
+    private readonly int _configuredPort;
+
+    public bool IsRunning => _isRunning && _tcpListener is not null;
 
     public event EventHandler<string>? LinkDropped;
 
     public EmbeddedWebDropServer(int port = 8080, Domain.Model.BurroGroup? group = null)
     {
-        Port = port;
+        _configuredPort = port;
+        _actualPort = port;
         _group = group;
     }
 
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
-        if (_listener is { IsListening: true })
+        if (IsRunning)
         {
             return Task.CompletedTask;
         }
 
-        HttpListener listener = new();
         try
         {
-            listener.Prefixes.Add($"http://*:{Port}/");
+            TcpListener listener = new(IPAddress.Any, _configuredPort);
             listener.Start();
+            _tcpListener = listener;
+            if (listener.LocalEndpoint is IPEndPoint ep)
+            {
+                _actualPort = ep.Port;
+            }
         }
         catch
         {
             try
             {
-                listener.Close();
+                TcpListener fallback = new(IPAddress.Loopback, _configuredPort);
+                fallback.Start();
+                _tcpListener = fallback;
+                if (fallback.LocalEndpoint is IPEndPoint ep)
+                {
+                    _actualPort = ep.Port;
+                }
             }
             catch
             {
-            }
-
-            listener = new HttpListener();
-            listener.Prefixes.Add($"http://localhost:{Port}/");
-            try
-            {
-                listener.Start();
-            }
-            catch
-            {
-                try
-                {
-                    listener.Close();
-                }
-                catch
-                {
-                }
-
                 return Task.CompletedTask;
             }
         }
 
-        _listener = listener;
+        _isRunning = true;
         _cts = new CancellationTokenSource();
-        _listenTask = Task.Run(() => ListenLoopAsync(_cts.Token), CancellationToken.None);
+        _listenTask = Task.Run(() => AcceptLoopAsync(_cts.Token), CancellationToken.None);
         return Task.CompletedTask;
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
+        _isRunning = false;
+
         if (_cts is not null)
         {
             await _cts.CancelAsync().ConfigureAwait(false);
         }
 
-        if (_listener is { IsListening: true })
+        if (_tcpListener is not null)
         {
             try
             {
-                _listener.Stop();
+                _tcpListener.Stop();
             }
             catch
             {
-                // Ignoriere Fehler beim Stoppen
+                // Ignoriere Fehler beim Stoppen des Sockets
             }
+            _tcpListener = null;
         }
 
         if (_listenTask is not null)
@@ -98,82 +99,138 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
             {
                 await _listenTask.ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is OperationCanceledException or HttpListenerException or InvalidOperationException or ObjectDisposedException)
+            catch (Exception ex) when (ex is OperationCanceledException or SocketException or ObjectDisposedException)
             {
                 // Normal bei Shutdown/Cancellation
             }
+            _listenTask = null;
         }
     }
 
-    private async Task ListenLoopAsync(CancellationToken token)
+    private async Task AcceptLoopAsync(CancellationToken token)
     {
-        while (!token.IsCancellationRequested && _listener is { IsListening: true })
+        while (!token.IsCancellationRequested && _isRunning && _tcpListener is not null)
         {
             try
             {
-                HttpListenerContext context = await _listener.GetContextAsync().ConfigureAwait(false);
-                _ = Task.Run(() => HandleRequestAsync(context), CancellationToken.None);
+                TcpClient client = await _tcpListener.AcceptTcpClientAsync(token).ConfigureAwait(false);
+                _ = Task.Run(() => HandleClientAsync(client, token), CancellationToken.None);
             }
-            catch (Exception ex) when (ex is HttpListenerException or InvalidOperationException or ObjectDisposedException or OperationCanceledException)
+            catch (Exception ex) when (ex is OperationCanceledException or SocketException or ObjectDisposedException or InvalidOperationException)
             {
                 break;
             }
         }
     }
 
-    private async Task HandleRequestAsync(HttpListenerContext context)
+    private async Task HandleClientAsync(TcpClient client, CancellationToken token)
     {
-        HttpListenerRequest req = context.Request;
-        HttpListenerResponse res = context.Response;
-
-        try
+        using (client)
         {
-            if (req.HttpMethod == "POST" && req.Url?.AbsolutePath == "/drop")
+            try
             {
-                using StreamReader reader = new(req.InputStream, req.ContentEncoding);
-                string body = await reader.ReadToEndAsync().ConfigureAwait(false);
+                client.ReceiveTimeout = 5000;
+                client.SendTimeout = 5000;
 
-                string submittedUrl = body;
-                if (req.ContentType?.Contains("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase) == true)
+                using NetworkStream stream = client.GetStream();
+                using StreamReader reader = new(stream, new UTF8Encoding(false), leaveOpen: true);
+
+                string? requestLine = await reader.ReadLineAsync(token).ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(requestLine))
                 {
-                    string[] parts = body.Split('&');
-                    foreach (string p in parts)
+                    return;
+                }
+
+                string[] requestParts = requestLine.Split(' ');
+                string method = requestParts.Length > 0 ? requestParts[0].ToUpperInvariant() : "GET";
+                string path = requestParts.Length > 1 ? requestParts[1] : "/";
+
+                int contentLength = 0;
+                string? contentType = null;
+
+                string? headerLine;
+                while (!string.IsNullOrEmpty(headerLine = await reader.ReadLineAsync(token).ConfigureAwait(false)))
+                {
+                    int colonIndex = headerLine.IndexOf(':');
+                    if (colonIndex > 0)
                     {
-                        string[] kvp = p.Split('=', 2);
-                        if (kvp.Length == 2 && kvp[0] == "url")
+                        string headerName = headerLine[..colonIndex].Trim();
+                        string headerValue = headerLine[(colonIndex + 1)..].Trim();
+
+                        if (headerName.Equals("Content-Length", StringComparison.OrdinalIgnoreCase) &&
+                            int.TryParse(headerValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out int cl))
                         {
-                            submittedUrl = WebUtility.UrlDecode(kvp[1]);
-                            break;
+                            contentLength = cl;
+                        }
+                        else if (headerName.Equals("Content-Type", StringComparison.OrdinalIgnoreCase))
+                        {
+                            contentType = headerValue;
                         }
                     }
                 }
 
-                if (!string.IsNullOrWhiteSpace(submittedUrl))
+                if (method == "POST" && (path == "/drop" || path.StartsWith("/drop?", StringComparison.Ordinal)))
                 {
-                    LinkDropped?.Invoke(this, submittedUrl.Trim());
-                }
+                    string body = string.Empty;
+                    if (contentLength > 0)
+                    {
+                        char[] buffer = new char[contentLength];
+                        int readTotal = 0;
+                        while (readTotal < contentLength)
+                        {
+                            int read = await reader.ReadBlockAsync(buffer, readTotal, contentLength - readTotal).ConfigureAwait(false);
+                            if (read <= 0)
+                            {
+                                break;
+                            }
+                            readTotal += read;
+                        }
+                        body = new string(buffer, 0, readTotal);
+                    }
 
-                byte[] respBytes = Encoding.UTF8.GetBytes("<html><body style='font-family:sans-serif;text-align:center;padding:40px;background:#121212;color:#fff;'><h2>Song eingeworfen!</h2><p>Dein Link läuft gleich auf der Jukebox.</p><a href='/' style='color:#4fc3f7;'>Weiteren Link einwerfen</a></body></html>");
-                res.ContentType = "text/html; charset=utf-8";
-                res.StatusCode = (int)HttpStatusCode.OK;
-                await res.OutputStream.WriteAsync(respBytes).ConfigureAwait(false);
+                    string submittedUrl = body;
+                    if (contentType?.Contains("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        string[] pairs = body.Split('&');
+                        foreach (string pair in pairs)
+                        {
+                            string[] kvp = pair.Split('=', 2);
+                            if (kvp.Length == 2 && kvp[0] == "url")
+                            {
+                                submittedUrl = WebUtility.UrlDecode(kvp[1]);
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(submittedUrl))
+                    {
+                        LinkDropped?.Invoke(this, submittedUrl.Trim());
+                    }
+
+                    string responseHtml = "<!DOCTYPE html><html lang='de'><body style='font-family:sans-serif;text-align:center;padding:40px;background:#121212;color:#fff;'><h2>Song eingeworfen!</h2><p>Dein Link l&auml;uft gleich auf der Jukebox.</p><a href='/' style='color:#4fc3f7;'>Weiteren Link einwerfen</a></body></html>";
+                    byte[] responseBytes = Encoding.UTF8.GetBytes(responseHtml);
+                    byte[] headerBytes = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {responseBytes.Length}\r\nConnection: close\r\n\r\n");
+
+                    await stream.WriteAsync(headerBytes, token).ConfigureAwait(false);
+                    await stream.WriteAsync(responseBytes, token).ConfigureAwait(false);
+                    await stream.FlushAsync(token).ConfigureAwait(false);
+                }
+                else
+                {
+                    string pageHtml = GeneratePageHtml();
+                    byte[] pageBytes = Encoding.UTF8.GetBytes(pageHtml);
+                    byte[] headerBytes = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {pageBytes.Length}\r\nConnection: close\r\n\r\n");
+
+                    await stream.WriteAsync(headerBytes, token).ConfigureAwait(false);
+                    await stream.WriteAsync(pageBytes, token).ConfigureAwait(false);
+                    await stream.FlushAsync(token).ConfigureAwait(false);
+                }
             }
-            else
+            catch (Exception ex) when (ex is IOException or SocketException or OperationCanceledException)
             {
-                string html = GeneratePageHtml();
-                byte[] bytes = Encoding.UTF8.GetBytes(html);
-                res.ContentType = "text/html; charset=utf-8";
-                res.StatusCode = (int)HttpStatusCode.OK;
-                await res.OutputStream.WriteAsync(bytes).ConfigureAwait(false);
+                // Verbindungsabbrüche durch Client ignorieren
             }
-        }
-        catch
-        {
-            res.StatusCode = (int)HttpStatusCode.InternalServerError;
-        }
-        finally
-        {
-            res.Close();
         }
     }
 
@@ -264,14 +321,6 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
 
         _isDisposed = true;
         await StopAsync().ConfigureAwait(false);
-        try
-        {
-            _listener?.Close();
-        }
-        catch
-        {
-        }
         _cts?.Dispose();
     }
 }
-
