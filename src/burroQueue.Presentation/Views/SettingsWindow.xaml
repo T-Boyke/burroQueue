@@ -6,21 +6,31 @@
   Title="burroQueue – Einstellungen"
   Icon="/Assets/logo.png"
   Width="480"
-  Height="490"
+  Height="510"
   ExtendsContentIntoTitleBar="True"
   WindowBackdropType="Mica"
-  WindowStartupLocation="CenterOwner">
-  <Grid Margin="16">
+  WindowStartupLocation="CenterOwner"
+  FontFamily="Segoe UI Variable Text, Segoe UI, sans-serif">
+  <Grid Margin="18">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
-    <ui:TitleBar Title="⚙️ Einstellungen" Grid.Row="0" />
+    <!-- Native Title Bar with Burro Icon -->
+    <ui:TitleBar Title="Einstellungen" Grid.Row="0">
+      <ui:TitleBar.Icon>
+        <ui:ImageIcon Source="/Assets/logo.png" />
+      </ui:TitleBar.Icon>
+    </ui:TitleBar>
 
     <StackPanel Grid.Row="1" Margin="0,16,0,0">
-      <TextBlock Text="VoIP- &amp; Telefonie-Dienst (Auto-Ducking)" FontWeight="SemiBold" />
+      <TextBlock
+        Text="VoIP- &amp; Telefonie-Dienst (Auto-Ducking)"
+        FontSize="13"
+        FontWeight="SemiBold"
+        Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
       <ComboBox
         Margin="0,6,0,16"
         ItemsSource="{Binding AvailableTelephonyProviders}"
@@ -28,7 +38,11 @@
         SelectedValuePath="ProviderId"
         DisplayMemberPath="DisplayName" />
 
-      <TextBlock Text="Gemeinsame YouTube-Playlist (Einladungslink mit &amp;jct=...)" FontWeight="SemiBold" />
+      <TextBlock
+        Text="Gemeinsame YouTube-Playlist (Einladungslink mit &amp;jct=...)"
+        FontSize="13"
+        FontWeight="SemiBold"
+        Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
       <ui:TextBox
         Margin="0,6,0,6"
         PlaceholderText="https://www.youtube.com/playlist?list=...&amp;jct=..."
@@ -44,21 +58,27 @@
         Content="burroQueue beim Windows-Start automatisch im Hintergrund ausführen"
         IsChecked="{Binding IsAutostartEnabled}" />
 
-      <TextBlock Text="Dein Anzeigename in der Gruppe" FontWeight="SemiBold" />
+      <TextBlock
+        Text="Dein Anzeigename in der Gruppe"
+        FontSize="13"
+        FontWeight="SemiBold"
+        Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
       <ui:TextBox
         Margin="0,6,0,16"
         Text="{Binding ClientDisplayName, UpdateSourceTrigger=PropertyChanged}" />
 
       <TextBlock
-        Foreground="#4CAF50"
+        Foreground="{DynamicResource SystemFillColorSuccessBrush}"
+        FontSize="12"
         FontWeight="Medium"
         Text="{Binding StatusMessage}" />
     </StackPanel>
 
-    <Button
+    <ui:Button
       Grid.Row="2"
       HorizontalAlignment="Right"
       Appearance="Primary"
+      Icon="{ui:SymbolIcon Save24}"
       Content="Speichern"
       Command="{Binding SaveSettingsCommand}" />
   </Grid>

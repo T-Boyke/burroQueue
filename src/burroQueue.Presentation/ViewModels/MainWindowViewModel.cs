@@ -231,7 +231,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     {
         IsCallActive = e.IsCallActive;
         TelephonyStatusText = e.IsCallActive
-            ? $"📞 {e.ProviderId} Anruf aktiv – Lautstärke gesenkt"
+            ? $"{e.ProviderId} Anruf aktiv – Lautstärke abgesenkt"
             : string.Empty;
 
         AudioVolume volume = new(0.8, 0.15);

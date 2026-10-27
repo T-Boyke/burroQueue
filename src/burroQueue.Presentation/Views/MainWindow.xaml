@@ -5,16 +5,17 @@
   xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
   Title="burroQueue"
   Icon="/Assets/logo.png"
-  Width="440"
-  Height="460"
+  Width="460"
+  Height="490"
   AllowDrop="True"
   ExtendsContentIntoTitleBar="True"
   WindowBackdropType="Mica"
   WindowCornerPreference="Round"
   WindowStartupLocation="CenterScreen"
+  FontFamily="Segoe UI Variable Text, Segoe UI, sans-serif"
   DragOver="OnDragOver"
   Drop="OnDrop">
-  <Grid Margin="16">
+  <Grid Margin="18">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
@@ -25,41 +26,55 @@
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
-    <!-- Title Bar -->
-    <ui:TitleBar Title="🫏 burroQueue" Grid.Row="0" />
+    <!-- Native Title Bar with Burro Icon -->
+    <ui:TitleBar Title="burroQueue" Grid.Row="0">
+      <ui:TitleBar.Icon>
+        <ui:ImageIcon Source="/Assets/logo.png" />
+      </ui:TitleBar.Icon>
+    </ui:TitleBar>
 
-    <!-- Group Header & Rename -->
-    <Grid Grid.Row="1" Margin="0,8,0,8">
+    <!-- Group Header & Rename Action -->
+    <Grid Grid.Row="1" Margin="0,10,0,10">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
       <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <ui:SymbolIcon
+          Symbol="PeopleCommunity24"
+          Margin="0,0,8,0"
+          Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
         <TextBlock
-          FontSize="15"
-          FontWeight="Bold"
+          FontSize="14"
+          FontWeight="Normal"
+          Opacity="0.75"
           Text="Gruppe: " />
         <TextBlock
-          FontSize="15"
+          FontSize="14"
           FontWeight="SemiBold"
-          Foreground="#4FC3F7"
+          Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
           Text="{Binding GroupName}" />
       </StackPanel>
-      <Button
+
+      <ui:Button
         Grid.Column="1"
-        Padding="8,4"
+        Appearance="Secondary"
+        Padding="10,5"
+        Icon="{ui:SymbolIcon Open24}"
         Content="Playlist öffnen"
-        Visibility="{Binding CollaborativePlaylistUrl, Converter={x:Null}}"
+        Visibility="{Binding CollaborativePlaylistUrl, Converter={StaticResource NullToVisibilityConverter}}"
         Command="{Binding OpenCollaborativePlaylistCommand}" />
     </Grid>
 
-    <!-- Now Playing Card with Thumbnail -->
+    <!-- Now Playing Card with Album Art & Skip Vote -->
     <Border
       Grid.Row="2"
-      Margin="0,0,0,8"
+      Margin="0,0,0,10"
       Padding="12"
       CornerRadius="8"
-      Background="#22FFFFFF">
+      Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+      BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+      BorderThickness="1">
       <Grid>
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="Auto" />
@@ -67,94 +82,131 @@
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
 
-        <Image
+        <Border
           Grid.Column="0"
           Width="64"
           Height="48"
           Margin="0,0,12,0"
-          Source="{Binding CurrentTrackThumbnailUrl}"
-          Stretch="UniformToFill" />
+          CornerRadius="4"
+          ClipToBounds="True"
+          Background="{DynamicResource SubtleFillColorSecondaryBrush}">
+          <Image
+            Source="{Binding CurrentTrackThumbnailUrl}"
+            Stretch="UniformToFill" />
+        </Border>
 
         <StackPanel Grid.Column="1" VerticalAlignment="Center">
           <TextBlock
-            FontSize="14"
+            FontSize="13"
             FontWeight="SemiBold"
             TextTrimming="CharacterEllipsis"
+            Foreground="{DynamicResource TextFillColorPrimaryBrush}"
             Text="{Binding CurrentTrackTitle}" />
           <TextBlock
             Margin="0,2,0,0"
             FontSize="12"
-            Opacity="0.7"
+            Opacity="0.65"
             TextTrimming="CharacterEllipsis"
+            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
             Text="{Binding CurrentTrackArtist}" />
         </StackPanel>
 
-        <!-- Vote To Skip Button -->
-        <Button
+        <!-- Vote to Skip Action -->
+        <ui:Button
           Grid.Column="2"
+          Appearance="Subtle"
           VerticalAlignment="Center"
           Padding="8,6"
+          Icon="{ui:SymbolIcon Vote24}"
           Command="{Binding VoteToSkipCommand}">
-          <StackPanel Orientation="Horizontal">
-            <TextBlock Text="🗳️ Skip (" />
-            <TextBlock Text="{Binding SkipVoteStatus}" />
-            <TextBlock Text=")" />
-          </StackPanel>
-        </Button>
+          <TextBlock
+            FontSize="12"
+            FontWeight="Medium"
+            Text="{Binding SkipVoteStatus, StringFormat='Skip ({0})'}" />
+        </ui:Button>
       </Grid>
     </Border>
 
-    <!-- Drop Zone -->
+    <!-- Primary Drop Zone -->
     <Border
       Grid.Row="3"
-      Margin="0,0,0,8"
-      Padding="12"
+      Margin="0,0,0,10"
+      Padding="16"
       CornerRadius="8"
-      Background="#15FFFFFF">
+      Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+      BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+      BorderThickness="1">
       <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+        <ui:SymbolIcon
+          Symbol="ArrowDownload24"
+          FontSize="28"
+          Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
         <TextBlock
+          Margin="0,8,0,0"
           HorizontalAlignment="Center"
-          FontSize="15"
+          FontSize="14"
           FontWeight="SemiBold"
-          Text="Drop YouTube Link Here" />
+          Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+          Text="YouTube-Link hier hineinziehen" />
         <TextBlock
           Margin="0,4,0,0"
           HorizontalAlignment="Center"
           FontSize="12"
-          Opacity="0.8"
+          Opacity="0.65"
+          Foreground="{DynamicResource TextFillColorSecondaryBrush}"
           Text="{Binding StatusMessage}" />
       </StackPanel>
     </Border>
 
-    <!-- Mobile Web Drop Banner -->
+    <!-- Mobile Web Drop Indicator -->
     <Border
       Grid.Row="4"
-      Margin="0,0,0,8"
-      Padding="8"
+      Margin="0,0,0,10"
+      Padding="8,6"
       CornerRadius="6"
-      Background="#1A4FC3F7">
+      Background="{DynamicResource ControlFillColorSecondaryBrush}">
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-        <TextBlock Text="📱 Handy Web-Drop aktiv: " FontSize="12" Opacity="0.8" />
-        <TextBlock Text="{Binding WebDropUrl}" FontSize="12" FontWeight="SemiBold" Foreground="#4FC3F7" />
+        <ui:SymbolIcon
+          Symbol="PhoneLaptop24"
+          FontSize="16"
+          Margin="0,0,6,0"
+          Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+        <TextBlock
+          FontSize="11"
+          Opacity="0.75"
+          Text="Mobil / Web-Drop aktiv: " />
+        <TextBlock
+          FontSize="11"
+          FontWeight="SemiBold"
+          Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+          Text="{Binding WebDropUrl}" />
       </StackPanel>
     </Border>
 
-    <!-- Telephony / Call Ducking Banner -->
+    <!-- VoIP Call Ducking Notification Banner -->
     <Border
       Grid.Row="5"
-      Margin="0,0,0,8"
-      Padding="8"
+      Margin="0,0,0,10"
+      Padding="10,6"
       CornerRadius="6"
-      Background="#FFE57F"
-      Visibility="{Binding IsCallActive, Converter={x:Null}}">
-      <TextBlock
-        HorizontalAlignment="Center"
-        Foreground="#212121"
-        FontWeight="Medium"
-        Text="{Binding TelephonyStatusText}" />
+      Background="{DynamicResource SystemFillColorAttentionBackgroundBrush}"
+      Visibility="{Binding IsCallActive, Converter={StaticResource BooleanToVisibilityConverter}}">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+        <ui:SymbolIcon
+          Symbol="Call24"
+          FontSize="16"
+          Margin="0,0,8,0"
+          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+        <TextBlock
+          VerticalAlignment="Center"
+          FontSize="12"
+          FontWeight="SemiBold"
+          Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+          Text="{Binding TelephonyStatusText}" />
+      </StackPanel>
     </Border>
 
-    <!-- Playback Control Bar -->
+    <!-- Playback Navigation Bar -->
     <Grid Grid.Row="6" Margin="0,4,0,0">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
@@ -162,28 +214,38 @@
       </Grid.ColumnDefinitions>
 
       <StackPanel Orientation="Horizontal">
-        <Button
+        <ui:Button
           Margin="0,0,6,0"
-          Content="▶ Play"
+          Appearance="Secondary"
+          Icon="{ui:SymbolIcon Play24}"
+          Content="Play"
           Command="{Binding PlayCommand}" />
-        <Button
+        <ui:Button
           Margin="0,0,6,0"
-          Content="⏸ Pause"
+          Appearance="Secondary"
+          Icon="{ui:SymbolIcon Pause24}"
+          Content="Pause"
           Command="{Binding PauseCommand}" />
-        <Button
+        <ui:Button
           Margin="0,0,6,0"
-          Content="⏹ Stop"
+          Appearance="Secondary"
+          Icon="{ui:SymbolIcon Stop24}"
+          Content="Stop"
           Command="{Binding StopCommand}" />
-        <Button
+        <ui:Button
           Margin="0,0,6,0"
-          Content="⏭ Skip"
+          Appearance="Secondary"
+          Icon="{ui:SymbolIcon Next24}"
+          Content="Skip"
           Command="{Binding SkipCommand}" />
       </StackPanel>
 
       <TextBlock
         Grid.Column="1"
         VerticalAlignment="Center"
-        Opacity="0.75"
+        FontSize="12"
+        Opacity="0.65"
+        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
         Text="{Binding QueuedCount, StringFormat='Queue: {0}'}" />
     </Grid>
   </Grid>
