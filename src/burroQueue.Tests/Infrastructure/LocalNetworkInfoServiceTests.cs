@@ -115,4 +115,13 @@ public sealed class LocalNetworkInfoServiceTests
 
         ip.Should().Be("127.0.0.1");
     }
+
+    [Fact]
+    public void ResolvePrimaryIPv4Address_WhenNoAdaptersAndDefaultFallback_ShouldAttemptSocketOrReturnLoopback()
+    {
+        string ip = LocalNetworkInfoService.ResolvePrimaryIPv4Address(
+            getInterfaces: () => []);
+
+        ip.Should().NotBeNullOrWhiteSpace();
+    }
 }

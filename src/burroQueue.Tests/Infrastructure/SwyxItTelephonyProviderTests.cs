@@ -185,5 +185,63 @@ public sealed class SwyxItTelephonyProviderTests : IAsyncLifetime, IDisposable
 
         ((object?)_provider.ClientManager).Should().BeNull();
     }
+
+    [Fact]
+    public void CheckLinesCallback_WhenComActivatorInstantiatesObject_ShouldSetClientManager()
+    {
+        Func<string, object?> original = SwyxItTelephonyProvider.ComActivator;
+        try
+        {
+            FakeSwyxClientManager fakeMgr = new();
+            SwyxItTelephonyProvider.ComActivator = _ => fakeMgr;
+
+            _provider!.CheckLinesCallback(null);
+
+            ((object?)_provider.ClientManager).Should().BeSameAs(fakeMgr);
+        }
+        finally
+        {
+            SwyxItTelephonyProvider.ComActivator = original;
+        }
+    }
+
+    [Fact]
+    public void CheckLinesCallback_WhenComActivatorThrowsComException_ShouldHandleGracefully()
+    {
+        Func<string, object?> original = SwyxItTelephonyProvider.ComActivator;
+        try
+        {
+#pragma warning disable CA2201
+            SwyxItTelephonyProvider.ComActivator = _ => throw new System.Runtime.InteropServices.COMException("COM fail");
+#pragma warning restore CA2201
+
+            _provider!.CheckLinesCallback(null);
+
+            ((object?)_provider.ClientManager).Should().BeNull();
+        }
+        finally
+        {
+            SwyxItTelephonyProvider.ComActivator = original;
+        }
+    }
+
+    [Fact]
+    public async Task DisposeAsync_WhenComReleaserThrows_ShouldCatchAndResetClientManager()
+    {
+        Action<object> originalReleaser = SwyxItTelephonyProvider.ComReleaser;
+        try
+        {
+            SwyxItTelephonyProvider.ComReleaser = _ => throw new InvalidOperationException("Release failed");
+            _provider!.ClientManager = new FakeSwyxClientManager();
+
+            await _provider.DisposeAsync();
+
+            ((object?)_provider.ClientManager).Should().BeNull();
+        }
+        finally
+        {
+            SwyxItTelephonyProvider.ComReleaser = originalReleaser;
+        }
+    }
 }
 

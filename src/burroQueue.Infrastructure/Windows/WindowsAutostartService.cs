@@ -13,11 +13,6 @@ public sealed class WindowsAutostartService : IWindowsAutostartService
     {
         get
         {
-            if (!OperatingSystem.IsWindows())
-            {
-                return false;
-            }
-
             return EvaluateAutostart(() => Registry.CurrentUser.OpenSubKey(_runKeyPath, false));
         }
     }
@@ -37,11 +32,6 @@ public sealed class WindowsAutostartService : IWindowsAutostartService
 
     public bool SetAutostart(bool enable)
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return false;
-        }
-
         return ApplyAutostart(enable, () => Registry.CurrentUser.OpenSubKey(_runKeyPath, true), Environment.ProcessPath);
     }
 

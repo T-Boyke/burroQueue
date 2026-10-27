@@ -92,6 +92,39 @@ public sealed class PlaylistStorageServiceTests : IDisposable
         await act.Should().ThrowAsync<ArgumentNullException>();
     }
 
+    [Fact]
+    public void Constructor_WithDefaultPath_ShouldInitializeSuccessfully()
+    {
+        PlaylistStorageService service = new();
+        service.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task SavePlaylistAsync_WhenDirectoryDoesNotExist_ShouldCreateDirectory()
+    {
+        string subDir = Path.Combine(Path.GetTempPath(), $"burro_dir_{Guid.NewGuid():N}");
+        string filePath = Path.Combine(subDir, "state.json");
+        try
+        {
+            Directory.Exists(subDir).Should().BeFalse();
+            PlaylistStorageService service = new(filePath);
+            Playlist playlist = new();
+            playlist.Enqueue(new Track("vid1", new Uri("https://youtube.com/watch?v=vid1"), "T1", "A1", DateTimeOffset.UtcNow));
+
+            await service.SavePlaylistAsync(playlist);
+
+            Directory.Exists(subDir).Should().BeTrue();
+            File.Exists(filePath).Should().BeTrue();
+        }
+        finally
+        {
+            if (Directory.Exists(subDir))
+            {
+                try { Directory.Delete(subDir, recursive: true); } catch { }
+            }
+        }
+    }
+
     public void Dispose()
     {
         if (File.Exists(_tempFile))

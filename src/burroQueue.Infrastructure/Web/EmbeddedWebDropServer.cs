@@ -98,9 +98,9 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
             {
                 await _listenTask.ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (Exception ex) when (ex is OperationCanceledException or HttpListenerException or InvalidOperationException or ObjectDisposedException)
             {
-                // Normal
+                // Normal bei Shutdown/Cancellation
             }
         }
     }
@@ -114,11 +114,7 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
                 HttpListenerContext context = await _listener.GetContextAsync().ConfigureAwait(false);
                 _ = Task.Run(() => HandleRequestAsync(context), CancellationToken.None);
             }
-            catch (HttpListenerException)
-            {
-                break;
-            }
-            catch (OperationCanceledException)
+            catch (Exception ex) when (ex is HttpListenerException or InvalidOperationException or ObjectDisposedException or OperationCanceledException)
             {
                 break;
             }

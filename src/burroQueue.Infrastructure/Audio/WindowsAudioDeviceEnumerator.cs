@@ -8,11 +8,6 @@ public sealed class WindowsAudioDeviceEnumerator : IAudioDeviceEnumerator
 {
     public IReadOnlyList<AudioDeviceOption> GetAvailableRenderDevices()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return [AudioDeviceOption.SystemDefault];
-        }
-
         return ParseAudioDevices(() =>
         {
             List<(string? Id, string? Name)> list = [];

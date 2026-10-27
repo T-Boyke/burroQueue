@@ -166,6 +166,30 @@ public sealed class LanGroupServiceTests : IAsyncLifetime, IDisposable
         Func<Task> act = async () => await _service.SendQueueSyncAsync(GroupId.New(), "Enqueue", null!);
         await act.Should().ThrowAsync<ArgumentNullException>();
     }
+
+    [Fact]
+    public async Task StartAsync_WhenSocketExceptionThrown_ShouldHandleGracefully()
+    {
+        LanGroupService service = new();
+        service.UdpClientFactory = () => throw new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.AddressAlreadyInUse);
+
+        Func<Task> act = async () => await service.StartAsync();
+
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_WhenSocketThrowsException_ShouldCatchGracefully()
+    {
+        LanGroupService service = new();
+        await service.StartAsync();
+        service.UdpClient?.Client.Close();
+
+        Func<Task> act = async () => await service.SendQueueSyncAsync(GroupId.New(), "Enqueue", new Track("vid", new Uri("https://youtube.com/watch?v=vid"), "T", "A", DateTimeOffset.UtcNow));
+
+        await act.Should().NotThrowAsync();
+        await service.StopAsync();
+    }
 }
 
 

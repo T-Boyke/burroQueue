@@ -47,6 +47,20 @@ public sealed class SwyxItTelephonyProvider : ITelephonyProvider
         return Task.CompletedTask;
     }
 
+    internal static Func<string, object?> ComActivator { get; set; } = progId =>
+    {
+        Type? type = Type.GetTypeFromProgID(progId);
+        return type is not null ? Activator.CreateInstance(type) : null;
+    };
+
+    internal static Action<object> ComReleaser { get; set; } = obj =>
+    {
+        if (Marshal.IsComObject(obj))
+        {
+            Marshal.ReleaseComObject(obj);
+        }
+    };
+
     private void EnsureConnected()
     {
         if (_clMgr is not null)
@@ -56,11 +70,7 @@ public sealed class SwyxItTelephonyProvider : ITelephonyProvider
 
         try
         {
-            Type? type = Type.GetTypeFromProgID(_progId);
-            if (type is not null)
-            {
-                _clMgr = Activator.CreateInstance(type);
-            }
+            _clMgr = ComActivator(_progId);
         }
         catch (COMException)
         {
@@ -163,10 +173,7 @@ public sealed class SwyxItTelephonyProvider : ITelephonyProvider
         {
             try
             {
-                if (Marshal.IsComObject(_clMgr))
-                {
-                    Marshal.ReleaseComObject(_clMgr);
-                }
+                ComReleaser(_clMgr);
             }
             catch
             {

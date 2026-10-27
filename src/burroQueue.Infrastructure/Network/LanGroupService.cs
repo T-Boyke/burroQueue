@@ -36,6 +36,9 @@ public sealed class LanGroupService : ILanGroupService
         _multicastEndpoint = new IPEndPoint(_multicastAddress, _multicastPort);
     }
 
+    internal Func<UdpClient> UdpClientFactory { get; set; } = () => new UdpClient();
+    internal UdpClient? UdpClient => _udpClient;
+
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
         if (_udpClient is not null)
@@ -45,7 +48,7 @@ public sealed class LanGroupService : ILanGroupService
 
         try
         {
-            _udpClient = new UdpClient();
+            _udpClient = UdpClientFactory();
             _udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             _udpClient.Client.Bind(new IPEndPoint(IPAddress.Any, _multicastPort));
             _udpClient.JoinMulticastGroup(_multicastAddress);
@@ -89,14 +92,7 @@ public sealed class LanGroupService : ILanGroupService
 
         if (_listenerTask is not null)
         {
-            try
-            {
-                await _listenerTask.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // Normal beim Stoppen
-            }
+            await _listenerTask.ConfigureAwait(false);
         }
     }
 
@@ -197,7 +193,7 @@ public sealed class LanGroupService : ILanGroupService
             byte[] bytes = Encoding.UTF8.GetBytes(json);
             await _udpClient.SendAsync(bytes, bytes.Length, _multicastEndpoint).ConfigureAwait(false);
         }
-        catch (SocketException)
+        catch (Exception ex) when (ex is SocketException or ObjectDisposedException)
         {
             // Netzwerk-Ausfall abfangen
         }
