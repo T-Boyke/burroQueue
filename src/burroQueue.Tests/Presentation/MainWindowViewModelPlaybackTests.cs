@@ -2,6 +2,7 @@ using burroQueue.Domain.Model;
 using burroQueue.Infrastructure.Audio;
 using burroQueue.Infrastructure.Configuration;
 using burroQueue.Infrastructure.Network;
+using burroQueue.Infrastructure.Persistence;
 using burroQueue.Infrastructure.Playback;
 using burroQueue.Infrastructure.Telephony;
 using burroQueue.Infrastructure.Web;
@@ -25,6 +26,7 @@ public sealed class MainWindowViewModelPlaybackTests
     private readonly IEmbeddedWebDropServer _webDropServer;
     private readonly ILocalNetworkInfoService _networkInfoService;
     private readonly IAudioPlayerBackend _audioPlayerBackend;
+    private readonly IPlaylistStorageService _playlistStorage;
 
     public MainWindowViewModelPlaybackTests()
     {
@@ -38,6 +40,7 @@ public sealed class MainWindowViewModelPlaybackTests
         _webDropServer = Substitute.For<IEmbeddedWebDropServer>();
         _networkInfoService = Substitute.For<ILocalNetworkInfoService>();
         _audioPlayerBackend = Substitute.For<IAudioPlayerBackend>();
+        _playlistStorage = Substitute.For<IPlaylistStorageService>();
 
         _settingsService.CurrentSettings.Returns(new AppSettingsData
         {
@@ -61,7 +64,8 @@ public sealed class MainWindowViewModelPlaybackTests
             _settingsService,
             _webDropServer,
             _networkInfoService,
-            _audioPlayerBackend);
+            _audioPlayerBackend,
+            _playlistStorage);
     }
 
     [Fact]
@@ -288,5 +292,79 @@ public sealed class MainWindowViewModelPlaybackTests
         vm.TelephonyStatusText.Should().BeEmpty();
         _audioController.Received(1).SetTargetVolume(0.8, false);
     }
+
+    [Fact]
+    public async Task EnqueueRawUrl_WhenValid_ShouldTriggerPlaylistAutoSave()
+    {
+        _urlParser.TryExtractVideoId("https://youtube.com/watch?v=save-123", out Arg.Any<string>()!, out Arg.Any<Uri>()!)
+            .Returns(x =>
+            {
+                x[1] = "save-123";
+                x[2] = new Uri("https://youtube.com/watch?v=save-123");
+                return true;
+            });
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        vm.EnqueueRawUrl("https://youtube.com/watch?v=save-123");
+
+        // Allow async Task.Run auto-save to execute
+        await Task.Delay(50);
+        await _playlistStorage.Received().SavePlaylistAsync(_group.Playlist, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RemoveTrack_WhenValid_ShouldTriggerPlaylistAutoSave()
+    {
+        Track track = new("rem-123", new Uri("https://youtube.com/watch?v=rem-123"), "Remove Song", "Alice", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(track);
+
+        Track track2 = new("rem-456", new Uri("https://youtube.com/watch?v=rem-456"), "Keep Song", "Alice", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(track2);
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        vm.RemoveTrack(track2);
+
+        await Task.Delay(50);
+        await _playlistStorage.Received().SavePlaylistAsync(_group.Playlist, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SkipAsync_ShouldTriggerPlaylistAutoSave()
+    {
+        Track track1 = new("s1", new Uri("https://youtube.com/watch?v=s1"), "Song 1", "Alice", DateTimeOffset.UtcNow);
+        Track track2 = new("s2", new Uri("https://youtube.com/watch?v=s2"), "Song 2", "Bob", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(track1);
+        _group.Playlist.Enqueue(track2);
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        await vm.SkipAsync();
+
+        await Task.Delay(50);
+        await _playlistStorage.Received().SavePlaylistAsync(_group.Playlist, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task InitializeAsync_ShouldLoadPlaylistAndSyncUi()
+    {
+        _playlistStorage.LoadPlaylistAsync(_group.Playlist, Arg.Any<CancellationToken>())
+            .Returns(x =>
+            {
+                _group.Playlist.Enqueue(new Track("init-1", new Uri("https://youtube.com/watch?v=init-1"), "Loaded", "Storage", DateTimeOffset.UtcNow));
+                return Task.CompletedTask;
+            });
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        await vm.InitializeAsync();
+
+        await _playlistStorage.Received(1).LoadPlaylistAsync(_group.Playlist, Arg.Any<CancellationToken>());
+        vm.QueuedCount.Should().Be(0); // 1 track is CurrentTrack, so QueuedCount (waiting) is 0
+        _group.Playlist.CurrentTrack.Should().NotBeNull();
+        _group.Playlist.CurrentTrack!.VideoId.Should().Be("init-1");
+    }
 }
+
 

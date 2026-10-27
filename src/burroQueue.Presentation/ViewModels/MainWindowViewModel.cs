@@ -5,6 +5,7 @@ using burroQueue.Infrastructure.Audio;
 using burroQueue.Infrastructure.Configuration;
 using burroQueue.Infrastructure.Network;
 using burroQueue.Infrastructure.Network.Messages;
+using burroQueue.Infrastructure.Persistence;
 using burroQueue.Infrastructure.Playback;
 using burroQueue.Infrastructure.Telephony;
 using burroQueue.Infrastructure.Web;
@@ -25,6 +26,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private readonly IAppSettingsService _settingsService;
     private readonly IEmbeddedWebDropServer _webDropServer;
     private readonly IAudioPlayerBackend _audioPlayerBackend;
+    private readonly IPlaylistStorageService _playlistStorage;
     private readonly ClientId _localClientId = ClientId.New();
     private SkipVotePool _skipVotePool;
 
@@ -79,7 +81,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         IAppSettingsService settingsService,
         IEmbeddedWebDropServer webDropServer,
         ILocalNetworkInfoService networkInfoService,
-        IAudioPlayerBackend audioPlayerBackend)
+        IAudioPlayerBackend audioPlayerBackend,
+        IPlaylistStorageService playlistStorage)
     {
         _group = group ?? throw new ArgumentNullException(nameof(group));
         _urlParser = urlParser ?? throw new ArgumentNullException(nameof(urlParser));
@@ -90,6 +93,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         _webDropServer = webDropServer ?? throw new ArgumentNullException(nameof(webDropServer));
         _audioPlayerBackend = audioPlayerBackend ?? throw new ArgumentNullException(nameof(audioPlayerBackend));
+        _playlistStorage = playlistStorage ?? throw new ArgumentNullException(nameof(playlistStorage));
         ArgumentNullException.ThrowIfNull(networkInfoService);
 
         _groupName = _group.Name;
@@ -107,6 +111,34 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _lanGroupService.SkipVoteReceived += OnSkipVoteReceived;
         _audioPlayerBackend.TrackPlaybackFinished += OnTrackPlaybackFinished;
         _webDropServer.LinkDropped += (_, droppedUrl) => EnqueueRawUrl(droppedUrl);
+    }
+
+    public async Task InitializeAsync()
+    {
+        try
+        {
+            await _playlistStorage.LoadPlaylistAsync(_group.Playlist).ConfigureAwait(false);
+            RunOnUi(SyncQueuedItems);
+        }
+        catch
+        {
+            // Fail-safe: Fallback auf leere Playlist
+        }
+    }
+
+    private void AutoSavePlaylist()
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _playlistStorage.SavePlaylistAsync(_group.Playlist).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Auto-Save ist fail-safe und blockiert die App nicht
+            }
+        });
     }
 
     [RelayCommand]
@@ -145,6 +177,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _group.Playlist.Enqueue(track);
         SyncQueuedItems();
         StatusMessage = $"Enqueued: {videoId}";
+        AutoSavePlaylist();
 
         _ = _lanGroupService.SendQueueSyncAsync(_group.Id, "Enqueue", track);
 
@@ -166,6 +199,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             SyncQueuedItems();
             StatusMessage = $"Removed: {track.Title}";
+            AutoSavePlaylist();
             _ = _lanGroupService.SendQueueSyncAsync(_group.Id, "Remove", track);
         }
     }
@@ -284,6 +318,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         Track? next = _group.Skip();
         PlaybackState = _group.PlaybackState;
         SyncQueuedItems();
+        AutoSavePlaylist();
 
         if (next is not null)
         {
@@ -427,6 +462,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
                     _group.Playlist.Enqueue(peerTrack);
                     SyncQueuedItems();
                     StatusMessage = $"{message.AddedBy} hat hinzugefügt: {message.Title}";
+                    AutoSavePlaylist();
 
                     if (_group.Playlist.CurrentTrack == peerTrack)
                     {
@@ -441,6 +477,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 {
                     SyncQueuedItems();
                     StatusMessage = $"Entfernt von Peer: {message.Title}";
+                    AutoSavePlaylist();
                 }
             }
         });

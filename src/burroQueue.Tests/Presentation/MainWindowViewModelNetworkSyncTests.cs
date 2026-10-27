@@ -3,6 +3,7 @@ using burroQueue.Infrastructure.Audio;
 using burroQueue.Infrastructure.Configuration;
 using burroQueue.Infrastructure.Network;
 using burroQueue.Infrastructure.Network.Messages;
+using burroQueue.Infrastructure.Persistence;
 using burroQueue.Infrastructure.Playback;
 using burroQueue.Infrastructure.Telephony;
 using burroQueue.Infrastructure.Web;
@@ -26,6 +27,7 @@ public sealed class MainWindowViewModelNetworkSyncTests
     private readonly IEmbeddedWebDropServer _webDropServer;
     private readonly ILocalNetworkInfoService _networkInfoService;
     private readonly IAudioPlayerBackend _audioPlayerBackend;
+    private readonly IPlaylistStorageService _playlistStorage;
 
     public MainWindowViewModelNetworkSyncTests()
     {
@@ -39,6 +41,7 @@ public sealed class MainWindowViewModelNetworkSyncTests
         _webDropServer = Substitute.For<IEmbeddedWebDropServer>();
         _networkInfoService = Substitute.For<ILocalNetworkInfoService>();
         _audioPlayerBackend = Substitute.For<IAudioPlayerBackend>();
+        _playlistStorage = Substitute.For<IPlaylistStorageService>();
 
         _settingsService.CurrentSettings.Returns(new AppSettingsData
         {
@@ -62,7 +65,8 @@ public sealed class MainWindowViewModelNetworkSyncTests
             _settingsService,
             _webDropServer,
             _networkInfoService,
-            _audioPlayerBackend);
+            _audioPlayerBackend,
+            _playlistStorage);
     }
 
     [Fact]
