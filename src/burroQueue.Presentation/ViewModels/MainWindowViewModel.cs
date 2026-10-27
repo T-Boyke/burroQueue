@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using burroQueue.Domain.Model;
 using burroQueue.Infrastructure.Audio;
@@ -61,6 +62,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private string _webDropUrl = "http://localhost:8080";
 
+    [ObservableProperty]
+    private bool _isQueueExpanded;
+
+    public ObservableCollection<Track> QueuedItems { get; } = [];
+
     public MainWindowViewModel(
         BurroGroup group,
         IYouTubeUrlParser urlParser,
@@ -84,11 +90,19 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _collaborativePlaylistUrl = _settingsService.CurrentSettings.CollaborativePlaylistUrl;
         _skipVotePool = new SkipVotePool(TrackId.New(), requiredVotes: 3);
 
+        SyncQueuedItems();
+
         _telephonyManager.StateChanged += OnTelephonyStateChanged;
         _lanGroupService.GroupActionReceived += OnGroupActionReceived;
         _lanGroupService.PlaybackCommandReceived += OnPlaybackCommandReceived;
         _lanGroupService.CollaborativePlaylistReceived += OnCollaborativePlaylistReceived;
         _webDropServer.LinkDropped += (_, droppedUrl) => EnqueueRawUrl(droppedUrl);
+    }
+
+    [RelayCommand]
+    public void ToggleQueueExpanded()
+    {
+        IsQueueExpanded = !IsQueueExpanded;
     }
 
     [RelayCommand]
@@ -102,13 +116,39 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
         Track track = new(videoId, normalizedUri, videoId, _settingsService.CurrentSettings.ClientDisplayName, DateTimeOffset.UtcNow);
         _group.Playlist.Enqueue(track);
-        QueuedCount = _group.Playlist.Count;
+        SyncQueuedItems();
         StatusMessage = $"Enqueued: {videoId}";
 
         if (_group.Playlist.CurrentTrack == track)
         {
             _ = LoadTrackMetadataAsync(track);
         }
+    }
+
+    [RelayCommand]
+    public void RemoveTrack(Track? track)
+    {
+        if (track is null)
+        {
+            return;
+        }
+
+        if (_group.Playlist.Remove(track.Id))
+        {
+            SyncQueuedItems();
+            StatusMessage = $"Removed: {track.Title}";
+        }
+    }
+
+    private void SyncQueuedItems()
+    {
+        QueuedItems.Clear();
+        foreach (Track item in _group.Playlist.QueuedTracks)
+        {
+            QueuedItems.Add(item);
+        }
+
+        QueuedCount = _group.Playlist.Count;
     }
 
     private async Task LoadTrackMetadataAsync(Track track)
@@ -187,7 +227,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     {
         Track? next = _group.Skip();
         PlaybackState = _group.PlaybackState;
-        QueuedCount = _group.Playlist.Count;
+        SyncQueuedItems();
 
         if (next is not null)
         {

@@ -24,3 +24,4 @@ public sealed class NullToVisibilityConverter : IValueConverter
         throw new NotSupportedException();
     }
 }
+
