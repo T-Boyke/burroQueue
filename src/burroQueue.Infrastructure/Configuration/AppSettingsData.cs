@@ -4,6 +4,8 @@ public sealed class AppSettingsData
 {
     public string SelectedTelephonyProviderId { get; set; } = "SwyxIt";
 
+    public string SelectedAudioDeviceId { get; set; } = string.Empty;
+
     public string? CollaborativePlaylistUrl { get; set; }
 
     public bool AutoOpenCollaborativePlaylistOnJoin { get; set; } = true;

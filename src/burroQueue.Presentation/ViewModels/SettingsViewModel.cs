@@ -1,4 +1,5 @@
 using burroQueue.Domain.Model;
+using burroQueue.Infrastructure.Audio;
 using burroQueue.Infrastructure.Configuration;
 using burroQueue.Infrastructure.Telephony;
 using burroQueue.Infrastructure.Windows;
@@ -12,9 +13,13 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly IAppSettingsService _settingsService;
     private readonly ITelephonyManager _telephonyManager;
     private readonly IWindowsAutostartService _autostartService;
+    private readonly IAudioDeviceEnumerator _audioDeviceEnumerator;
 
     [ObservableProperty]
     private string _selectedProviderId;
+
+    [ObservableProperty]
+    private string _selectedAudioDeviceId = string.Empty;
 
     [ObservableProperty]
     private string _collaborativePlaylistUrl = string.Empty;
@@ -33,21 +38,28 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public IReadOnlyList<ITelephonyProvider> AvailableTelephonyProviders => _telephonyManager.AvailableProviders;
 
+    public IReadOnlyList<AudioDeviceOption> AvailableAudioDevices { get; }
+
     public SettingsViewModel(
         IAppSettingsService settingsService,
         ITelephonyManager telephonyManager,
-        IWindowsAutostartService autostartService)
+        IWindowsAutostartService autostartService,
+        IAudioDeviceEnumerator audioDeviceEnumerator)
     {
         _settingsService = settingsService;
         _telephonyManager = telephonyManager;
         _autostartService = autostartService;
+        _audioDeviceEnumerator = audioDeviceEnumerator;
 
         AppSettingsData current = _settingsService.CurrentSettings;
         _selectedProviderId = current.SelectedTelephonyProviderId;
+        _selectedAudioDeviceId = current.SelectedAudioDeviceId;
         _collaborativePlaylistUrl = current.CollaborativePlaylistUrl ?? string.Empty;
         _autoOpenCollaborativePlaylistOnJoin = current.AutoOpenCollaborativePlaylistOnJoin;
         _clientDisplayName = current.ClientDisplayName;
         _isAutostartEnabled = _autostartService.IsAutostartEnabled;
+
+        AvailableAudioDevices = _audioDeviceEnumerator.GetAvailableRenderDevices();
     }
 
     [RelayCommand]
@@ -69,6 +81,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         AppSettingsData data = new()
         {
             SelectedTelephonyProviderId = SelectedProviderId,
+            SelectedAudioDeviceId = SelectedAudioDeviceId,
             CollaborativePlaylistUrl = string.IsNullOrWhiteSpace(CollaborativePlaylistUrl) ? null : CollaborativePlaylistUrl.Trim(),
             AutoOpenCollaborativePlaylistOnJoin = AutoOpenCollaborativePlaylistOnJoin,
             ClientDisplayName = string.IsNullOrWhiteSpace(ClientDisplayName) ? Environment.UserName : ClientDisplayName.Trim()

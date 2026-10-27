@@ -5,8 +5,8 @@
   xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
   Title="burroQueue – Einstellungen"
   Icon="/Assets/logo.png"
-  Width="480"
-  Height="510"
+  Width="500"
+  Height="570"
   ExtendsContentIntoTitleBar="True"
   WindowBackdropType="Mica"
   WindowStartupLocation="CenterOwner"
@@ -25,54 +25,72 @@
       </ui:TitleBar.Icon>
     </ui:TitleBar>
 
-    <StackPanel Grid.Row="1" Margin="0,16,0,0">
-      <TextBlock
-        Text="VoIP- &amp; Telefonie-Dienst (Auto-Ducking)"
-        FontSize="13"
-        FontWeight="SemiBold"
-        Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-      <ComboBox
-        Margin="0,6,0,16"
-        ItemsSource="{Binding AvailableTelephonyProviders}"
-        SelectedValue="{Binding SelectedProviderId, Mode=TwoWay}"
-        SelectedValuePath="ProviderId"
-        DisplayMemberPath="DisplayName" />
+    <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
+      <StackPanel Margin="0,0,10,0">
+        <!-- Target Audio Output Device Routing -->
+        <TextBlock
+          Text="Ziel-Ausgabegerät (z. B. Büro-Box, getrennt vom Swyx-Headset)"
+          FontSize="13"
+          FontWeight="SemiBold"
+          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+        <ComboBox
+          Margin="0,6,0,16"
+          ItemsSource="{Binding AvailableAudioDevices}"
+          SelectedValue="{Binding SelectedAudioDeviceId, Mode=TwoWay}"
+          SelectedValuePath="Id"
+          DisplayMemberPath="DisplayName" />
 
-      <TextBlock
-        Text="Gemeinsame YouTube-Playlist (Einladungslink mit &amp;jct=...)"
-        FontSize="13"
-        FontWeight="SemiBold"
-        Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-      <ui:TextBox
-        Margin="0,6,0,6"
-        PlaceholderText="https://www.youtube.com/playlist?list=...&amp;jct=..."
-        Text="{Binding CollaborativePlaylistUrl, UpdateSourceTrigger=PropertyChanged}" />
+        <!-- VoIP Telephony Ducking -->
+        <TextBlock
+          Text="VoIP- &amp; Telefonie-Dienst (Auto-Ducking)"
+          FontSize="13"
+          FontWeight="SemiBold"
+          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+        <ComboBox
+          Margin="0,6,0,16"
+          ItemsSource="{Binding AvailableTelephonyProviders}"
+          SelectedValue="{Binding SelectedProviderId, Mode=TwoWay}"
+          SelectedValuePath="ProviderId"
+          DisplayMemberPath="DisplayName" />
 
-      <CheckBox
-        Margin="0,4,0,12"
-        Content="Gemeinsame Playlist beim Gruppenbeitritt automatisch im Browser öffnen"
-        IsChecked="{Binding AutoOpenCollaborativePlaylistOnJoin}" />
+        <!-- Collaborative Playlist -->
+        <TextBlock
+          Text="Gemeinsame YouTube-Playlist (Einladungslink mit &amp;jct=...)"
+          FontSize="13"
+          FontWeight="SemiBold"
+          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+        <ui:TextBox
+          Margin="0,6,0,6"
+          PlaceholderText="https://www.youtube.com/playlist?list=...&amp;jct=..."
+          Text="{Binding CollaborativePlaylistUrl, UpdateSourceTrigger=PropertyChanged}" />
 
-      <CheckBox
-        Margin="0,0,0,16"
-        Content="burroQueue beim Windows-Start automatisch im Hintergrund ausführen"
-        IsChecked="{Binding IsAutostartEnabled}" />
+        <CheckBox
+          Margin="0,4,0,12"
+          Content="Gemeinsame Playlist beim Gruppenbeitritt automatisch im Browser öffnen"
+          IsChecked="{Binding AutoOpenCollaborativePlaylistOnJoin}" />
 
-      <TextBlock
-        Text="Dein Anzeigename in der Gruppe"
-        FontSize="13"
-        FontWeight="SemiBold"
-        Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-      <ui:TextBox
-        Margin="0,6,0,16"
-        Text="{Binding ClientDisplayName, UpdateSourceTrigger=PropertyChanged}" />
+        <CheckBox
+          Margin="0,0,0,16"
+          Content="burroQueue beim Windows-Start automatisch im Hintergrund ausführen"
+          IsChecked="{Binding IsAutostartEnabled}" />
 
-      <TextBlock
-        Foreground="{DynamicResource SystemFillColorSuccessBrush}"
-        FontSize="12"
-        FontWeight="Medium"
-        Text="{Binding StatusMessage}" />
-    </StackPanel>
+        <!-- Display Name -->
+        <TextBlock
+          Text="Dein Anzeigename in der Gruppe"
+          FontSize="13"
+          FontWeight="SemiBold"
+          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+        <ui:TextBox
+          Margin="0,6,0,16"
+          Text="{Binding ClientDisplayName, UpdateSourceTrigger=PropertyChanged}" />
+
+        <TextBlock
+          Foreground="{DynamicResource SystemFillColorSuccessBrush}"
+          FontSize="12"
+          FontWeight="Medium"
+          Text="{Binding StatusMessage}" />
+      </StackPanel>
+    </ScrollViewer>
 
     <ui:Button
       Grid.Row="2"

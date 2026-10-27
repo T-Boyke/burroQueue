@@ -70,6 +70,7 @@ public partial class App : Application
         // Infrastructure
         services.AddSingleton<IAppSettingsService, AppSettingsService>();
         services.AddSingleton<IPlaylistStorageService, PlaylistStorageService>();
+        services.AddSingleton<IAudioDeviceEnumerator, WindowsAudioDeviceEnumerator>();
         services.AddSingleton<IYouTubeUrlParser, YouTubeUrlParser>();
         services.AddSingleton<IYouTubeMetadataFetcher, YouTubeMetadataFetcher>();
         services.AddSingleton<IAudioOutputController, AudioOutputController>();
