@@ -10,13 +10,14 @@ Letzte Aktualisierung: 2026-10-27 | Ziel: Stabile Version 1.0 (Produktionsreife)
 - **Zielsystem:** Windows 11 (Mica, Fluent Design, Systray-Jukebox)
 - **Runtime:** .NET 10 (`net10.0` für Domain/Infrastructure/Tests, `net10.0-windows10.0.22621.0` für Presentation)
 - **Architektur:** Reine Domain-Driven Design Schichten (Domain = 0 externe Dependencies, Single Component Per File)
-- **Aktuelle Testanzahl:** 238 Tests (100% grün in ~250ms)
+- **Aktuelle Testanzahl:** 257 Tests (100% grün in ~270ms)
 - **Aktuelle Code-Coverage:**
   - `burroQueue.Domain`: 100,00% Line Coverage (97,05% Branch)
   - `burroQueue.Infrastructure`: 84,65% Line Coverage (70,18% Branch)
   - `burroQueue.Presentation`: 62,81% Line Coverage (61,00% Branch)
 - **Installer:** Inno Setup 6.x mit unkomprimiertem 32bpp DIB Multi-Res `.ico` (16–256 px)
-- **Architektur-Check:** `./scripts/verify-architecture.ps1` (118/118 Dateien validiert, 0 Violations)
+- **Architektur-Check:** `./scripts/verify-architecture.ps1` (119/119 Dateien validiert, 0 Violations)
+- **CI Formatting:** `dotnet format burroQueue.sln --no-restore --verify-no-changes` (0 Warnungen / 0 Fehler)
 
 ---
 
@@ -55,7 +56,7 @@ Letzte Aktualisierung: 2026-10-27 | Ziel: Stabile Version 1.0 (Produktionsreife)
 1. **Unit Tests:**
    - 100% Coverage der Domain (Modelle, Value Objects, Events, Exceptions).
    - Ausführliche Tests für alle Infrastructure-Services (`YouTubeUrlParser`, `PlaylistStorageService`, `TelephonyManager`, etc.).
-   - Ausführliche Tests für ViewModels und Converter (`MainWindowViewModelPlaybackTests`, `MainWindowViewModelNetworkSyncTests`, `SettingsViewModelTests`, `AppServiceRegistrationTests`).
+   - Ausführliche Tests für ViewModels, Converter und isolierte View-Logik (`MainWindowViewModelPlaybackTests`, `MainWindowViewModelNetworkSyncTests`, `SettingsViewModelTests`, `MainWindowViewTests`, `AppServiceRegistrationTests`).
 2. **Integration Tests:**
    - `WebDropServerIntegrationTests`: Live HTTP GET/POST auf `EmbeddedWebDropServer`.
    - `LanMulticastIntegrationTests`: Lokale UDP-Multicast-Synchronisation zwischen zwei unabhängigen Instanzen.

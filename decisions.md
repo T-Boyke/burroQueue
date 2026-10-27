@@ -80,6 +80,13 @@ Dieses Dokument hält alle zentralen architektonischen Entscheidungen für `burr
 
 ---
 
+## ADR-007: Isolierte statische View-Logik-Handler für UI- und Drag&Drop-Tests
+
+- **Status:** Angenommen
+- **Kontext:** WPF `FluentWindow`-Komponenten nutzen Windows 11 Fluent Mica-Backdrops und Win32 DWM APIs, die in CI- und Headless-Testläufern ohne aktiven Desktop Window Manager zu Native-Crashes oder unhandled Win32-Exceptions führen können. Zudem haben WPF `DragEventArgs` geschützte interne Konstruktoren.
+- **Entscheidung:** Sämtliche nicht-triviale Ereignis-Logik von Fenstern (wie Drag-and-Drop Parsing, Close-to-Tray Abfang-Routinen und globale Hotkey-Verdrahtung) wird als statische interne Methoden (`HandleDragOver`, `HandleDrop`, `HandleClosing`, `HandleHotkeyRegistration`) extrahiert, die standardmäßige Schnittstellen wie `IDataObject`, `CancelEventArgs` und `IGlobalHotkeyService` entgegennehmen.
+- **Konsequenzen:** 100% deterministische, robuste und blitzschnelle Unit-Tests ohne XAML-Window-Initialisierung oder Flakiness in headless Testläufen.
+
 ## ADR-009: Robuste HttpListener-Instanziierung mit dynamischem Fallback
 
 - **Status:** Angenommen
