@@ -415,6 +415,69 @@ public sealed class MainWindowViewModelPlaybackTests
         vm.StatusMessage.Should().NotContain("Skipping song");
         _group.Playlist.CurrentTrack.Should().Be(track);
     }
+
+    [Fact]
+    public void RemoveTrack_WhenTrackNotInQueue_ShouldNotThrowOrBroadcast()
+    {
+        Track inQueue = new("q1", new Uri("https://youtube.com/watch?v=q1"), "Queue 1", "Alice", DateTimeOffset.UtcNow);
+        Track notInQueue = new("q2", new Uri("https://youtube.com/watch?v=q2"), "Queue 2", "Bob", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(inQueue);
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        vm.RemoveTrack(notInQueue);
+
+        _lanGroupService.DidNotReceive().SendQueueSyncAsync(_group.Id, "Remove", notInQueue);
+    }
+
+    [Fact]
+    public async Task EnqueueRawUrl_WhenFirstTrack_ShouldTriggerMetadataFetch()
+    {
+        _urlParser.TryExtractVideoId("https://youtube.com/watch?v=meta-1", out Arg.Any<string>()!, out Arg.Any<Uri>()!)
+            .Returns(x =>
+            {
+                x[1] = "meta-1";
+                x[2] = new Uri("https://youtube.com/watch?v=meta-1");
+                return true;
+            });
+
+        _metadataFetcher.FetchMetadataAsync("meta-1", Arg.Any<CancellationToken>())
+            .Returns(new TrackMetadata("Fetched Title", "Fetched Artist", new Uri("https://img.youtube.com/vi/meta-1/0.jpg")));
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        vm.EnqueueRawUrl("https://youtube.com/watch?v=meta-1");
+
+        // First track immediately becomes CurrentTrack, so LoadTrackMetadataAsync runs
+        await Task.Delay(50);
+        vm.CurrentTrackTitle.Should().Be("Fetched Title");
+        vm.CurrentTrackArtist.Should().Be("Fetched Artist");
+        vm.CurrentTrackThumbnailUrl.Should().Be("https://img.youtube.com/vi/meta-1/0.jpg");
+    }
+
+    [Fact]
+    public async Task EnqueueRawUrl_WhenMetadataFetchFails_ShouldFallbackToTrackInfo()
+    {
+        _urlParser.TryExtractVideoId("https://youtube.com/watch?v=meta-null", out Arg.Any<string>()!, out Arg.Any<Uri>()!)
+            .Returns(x =>
+            {
+                x[1] = "meta-null";
+                x[2] = new Uri("https://youtube.com/watch?v=meta-null");
+                return true;
+            });
+
+        _metadataFetcher.FetchMetadataAsync("meta-null", Arg.Any<CancellationToken>())
+            .Returns(TrackMetadata.Unknown("meta-null"));
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        vm.EnqueueRawUrl("https://youtube.com/watch?v=meta-null");
+
+        await Task.Delay(50);
+        vm.CurrentTrackTitle.Should().Be("meta-null");
+        vm.CurrentTrackArtist.Should().Be("Unknown Artist");
+        vm.CurrentTrackThumbnailUrl.Should().BeNull();
+    }
 }
 
 

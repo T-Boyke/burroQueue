@@ -244,6 +244,120 @@ public sealed class MainWindowViewModelNetworkSyncTests
 
         vm.SkipVoteStatus.Should().Be("0 / 3 Votes");
     }
+
+    [Fact]
+    public async Task PlaybackCommandReceived_Skip_ShouldAdvanceQueue()
+    {
+        Track t1 = new("track-1", new Uri("https://youtube.com/watch?v=track-1"), "Song 1", "Alice", DateTimeOffset.UtcNow);
+        Track t2 = new("track-2", new Uri("https://youtube.com/watch?v=track-2"), "Song 2", "Bob", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(t1);
+        _group.Playlist.Enqueue(t2);
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        _lanGroupService.PlaybackCommandReceived += Raise.Event<EventHandler<PlaybackCommandMessage>>(
+            this,
+            new PlaybackCommandMessage(_group.Id.Value, Guid.NewGuid(), "Skip", null, DateTimeOffset.UtcNow));
+
+        await Task.Delay(50);
+        _group.Playlist.CurrentTrack.Should().NotBeNull();
+        _group.Playlist.CurrentTrack!.VideoId.Should().Be("track-2");
+    }
+
+    [Fact]
+    public void QueueSyncReceived_EnqueueAction_WhenDuplicateTrack_ShouldIgnore()
+    {
+        Track current = new("curr123", new Uri("https://youtube.com/watch?v=curr123"), "Playing Song", "Alice", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(current);
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        QueueSyncMessage duplicate = new(
+            _group.Id.Value,
+            "Enqueue",
+            "curr123",
+            "https://youtube.com/watch?v=curr123",
+            "Playing Song",
+            "Bob",
+            DateTimeOffset.UtcNow);
+
+        _lanGroupService.QueueSyncReceived += Raise.Event<EventHandler<QueueSyncMessage>>(this, duplicate);
+
+        vm.QueuedCount.Should().Be(0);
+    }
+
+    [Fact]
+    public void QueueSyncReceived_EnqueueAction_WhenInvalidUri_ShouldIgnore()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+
+        QueueSyncMessage invalid = new(
+            _group.Id.Value,
+            "Enqueue",
+            "bad-uri",
+            "://invalid url",
+            "Bad Song",
+            "Bob",
+            DateTimeOffset.UtcNow);
+
+        _lanGroupService.QueueSyncReceived += Raise.Event<EventHandler<QueueSyncMessage>>(this, invalid);
+
+        vm.QueuedCount.Should().Be(0);
+    }
+
+    [Fact]
+    public void QueueSyncReceived_RemoveAction_WhenTrackNotFound_ShouldIgnore()
+    {
+        Track current = new("curr123", new Uri("https://youtube.com/watch?v=curr123"), "Playing Song", "Alice", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(current);
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        QueueSyncMessage nonExisting = new(
+            _group.Id.Value,
+            "Remove",
+            "does-not-exist",
+            "https://youtube.com/watch?v=does-not-exist",
+            "Unknown",
+            "Bob",
+            DateTimeOffset.UtcNow);
+
+        _lanGroupService.QueueSyncReceived += Raise.Event<EventHandler<QueueSyncMessage>>(this, nonExisting);
+
+        vm.QueuedCount.Should().Be(0);
+    }
+
+    [Fact]
+    public void GroupActionReceived_WhenDifferentGroupIdOrNonRename_ShouldIgnore()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+
+        // Wrong group ID
+        _lanGroupService.GroupActionReceived += Raise.Event<EventHandler<GroupActionMessage>>(
+            this,
+            new GroupActionMessage(Guid.NewGuid(), Guid.NewGuid(), "Rename", "Ignored Group", DateTimeOffset.UtcNow));
+
+        vm.GroupName.Should().Be("Test Office");
+
+        // Non-rename action
+        _lanGroupService.GroupActionReceived += Raise.Event<EventHandler<GroupActionMessage>>(
+            this,
+            new GroupActionMessage(_group.Id.Value, Guid.NewGuid(), "Leave", "User Left", DateTimeOffset.UtcNow));
+
+        vm.GroupName.Should().Be("Test Office");
+    }
+
+    [Fact]
+    public void CollaborativePlaylistReceived_WhenDifferentGroupId_ShouldIgnore()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+
+        _lanGroupService.CollaborativePlaylistReceived += Raise.Event<EventHandler<SharedPlaylistSyncMessage>>(
+            this,
+            new SharedPlaylistSyncMessage(Guid.NewGuid(), "https://youtube.com/playlist?list=PLdifferent", "Bob", DateTimeOffset.UtcNow));
+
+        vm.CollaborativePlaylistUrl.Should().BeNull();
+    }
 }
 
 
