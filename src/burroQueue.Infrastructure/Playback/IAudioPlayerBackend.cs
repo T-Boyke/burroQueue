@@ -10,6 +10,8 @@ public interface IAudioPlayerBackend : IAsyncDisposable
 
     event EventHandler<PlaybackState>? StateChanged;
 
+    event EventHandler<Track>? TrackPlaybackFinished;
+
     Task PlayTrackAsync(Track track, CancellationToken cancellationToken = default);
 
     Task PauseAsync(CancellationToken cancellationToken = default);
