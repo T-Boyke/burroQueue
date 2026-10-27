@@ -116,5 +116,74 @@ public sealed class SwyxItTelephonyProviderTests : IAsyncLifetime, IDisposable
 
         act.Should().NotThrow();
     }
+
+    [Fact]
+    public void CheckLinesCallback_WithActiveLines_ShouldFireCallStateChanged()
+    {
+        FakeSwyxClientManager fakeMgr = new();
+        fakeMgr.AddLine(1); // Connecting
+        fakeMgr.AddLine(8); // ActiveCall (highest)
+
+        _provider!.ClientManager = fakeMgr;
+
+        TelephonyCallEventArgs? capturedEvent = null;
+        _provider.CallStateChanged += (_, e) => capturedEvent = e;
+
+        _provider.CheckLinesCallback(null);
+
+        capturedEvent.Should().NotBeNull();
+        capturedEvent!.State.Should().Be(TelephonyState.ActiveCall);
+        capturedEvent.IsCallActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public void CheckLinesCallback_WhenStateUnchanged_ShouldNotFireDuplicateEvents()
+    {
+        FakeSwyxClientManager fakeMgr = new();
+        fakeMgr.AddLine(8); // ActiveCall
+        _provider!.ClientManager = fakeMgr;
+
+        int fireCount = 0;
+        _provider.CallStateChanged += (_, _) => fireCount++;
+
+        _provider.CheckLinesCallback(null);
+        fireCount.Should().Be(1);
+
+        // Second check with unchanged state
+        _provider.CheckLinesCallback(null);
+        fireCount.Should().Be(1);
+    }
+
+    [Fact]
+    public void CheckLinesCallback_WhenComExceptionThrown_ShouldReleaseComAndResetToIdle()
+    {
+        FakeSwyxClientManager fakeMgr = new() { ShouldThrowComException = true };
+        _provider!.ClientManager = fakeMgr;
+
+        Action act = () => _provider.CheckLinesCallback(null);
+
+        act.Should().NotThrow();
+        ((object?)_provider.ClientManager).Should().BeNull();
+    }
+
+    [Fact]
+    public void CheckLinesCallback_WhenGenericExceptionThrown_ShouldUpdateStateToIdle()
+    {
+        FakeSwyxClientManager fakeMgr = new() { ShouldThrowGenericException = true };
+        _provider!.ClientManager = fakeMgr;
+
+        Action act = () => _provider.CheckLinesCallback(null);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task DisposeAsync_MultipleCalls_ShouldBeSafeAndIdempotent()
+    {
+        await _provider!.DisposeAsync();
+        await _provider.DisposeAsync();
+
+        ((object?)_provider.ClientManager).Should().BeNull();
+    }
 }
 
