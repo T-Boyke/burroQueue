@@ -168,6 +168,49 @@ public sealed class WebDropServerIntegrationTests : IAsyncLifetime, IDisposable
         Func<Task> act = async () => await server.DisposeAsync();
         await act.Should().NotThrowAsync();
     }
+
+    [Fact]
+    public void GeneratePageHtml_WhenGroupIsNull_ShouldRenderDefaultOfficeJukebox()
+    {
+        EmbeddedWebDropServer server = new(8080, null);
+
+        string html = server.GeneratePageHtml();
+
+        html.Should().Contain("Office Jukebox");
+        html.Should().Contain("Kein Song aktiv");
+        html.Should().Contain("Warteschlange ist leer");
+        html.Should().Contain("GNU AGPL-3.0");
+    }
+
+    [Fact]
+    public void GeneratePageHtml_WhenQueueEmpty_ShouldRenderEmptyQueueMessage()
+    {
+        BurroGroup group = new(GroupId.New(), "Empty Queue Office");
+        EmbeddedWebDropServer server = new(8080, group);
+
+        string html = server.GeneratePageHtml();
+
+        html.Should().Contain("Empty Queue Office");
+        html.Should().Contain("Warteschlange ist leer");
+    }
+
+    [Fact]
+    public async Task PostDrop_WithEmptyUrlParam_ShouldNotRaiseLinkDroppedEvent()
+    {
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
+        bool dropped = false;
+        _server.LinkDropped += (_, _) => dropped = true;
+
+        FormUrlEncodedContent content = new(new Dictionary<string, string> { ["url"] = "   " });
+        HttpResponseMessage response = await _httpClient!.PostAsync($"http://localhost:{_port}/drop", content);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        dropped.Should().BeFalse();
+    }
 }
 
 

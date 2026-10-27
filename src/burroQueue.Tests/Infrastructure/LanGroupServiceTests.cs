@@ -152,6 +152,20 @@ public sealed class LanGroupServiceTests : IAsyncLifetime, IDisposable
 
         await Task.Delay(50);
     }
+
+    [Fact]
+    public async Task BroadcastBeaconAsync_WithNullGroup_ShouldThrowArgumentNullException()
+    {
+        Func<Task> act = async () => await _service.BroadcastBeaconAsync(null!, ClientId.New(), "Host");
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    [Fact]
+    public async Task SendQueueSyncAsync_WithNullTrack_ShouldThrowArgumentNullException()
+    {
+        Func<Task> act = async () => await _service.SendQueueSyncAsync(GroupId.New(), "Enqueue", null!);
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
 }
 
 
