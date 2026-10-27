@@ -4,7 +4,7 @@
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
   Title="burroQueue"
-  Icon="/Assets/logo.png"
+  Icon="pack://application:,,,/burroQueue;component/Assets/logo.png"
   Width="480"
   Height="560"
   AllowDrop="True"
@@ -29,7 +29,7 @@
     <!-- Native Title Bar with Burro Icon -->
     <ui:TitleBar Title="burroQueue" Grid.Row="0">
       <ui:TitleBar.Icon>
-        <ui:ImageIcon Source="/Assets/logo.png" />
+        <ui:ImageIcon Source="pack://application:,,,/burroQueue;component/Assets/logo.png" />
       </ui:TitleBar.Icon>
     </ui:TitleBar>
 
@@ -114,7 +114,7 @@
         <!-- Vote to Skip Action -->
         <ui:Button
           Grid.Column="2"
-          Appearance="Subtle"
+          Appearance="Transparent"
           VerticalAlignment="Center"
           Padding="8,6"
           Icon="{ui:SymbolIcon Vote24}"
@@ -196,7 +196,7 @@
 
             <ui:Button
               Grid.Column="1"
-              Appearance="Subtle"
+              Appearance="Transparent"
               Padding="6,2"
               Command="{Binding ToggleQueueExpandedCommand}">
               <ui:SymbolIcon Symbol="ChevronDown24" />
@@ -234,7 +234,7 @@
 
                   <ui:Button
                     Grid.Column="2"
-                    Appearance="Subtle"
+                    Appearance="Transparent"
                     Padding="4"
                     Command="{Binding DataContext.RemoveTrackCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
                     CommandParameter="{Binding}">
@@ -280,7 +280,7 @@
         </StackPanel>
         <ui:Button
           Grid.Column="1"
-          Appearance="Subtle"
+          Appearance="Transparent"
           Padding="6,3"
           ToolTip="Web-Drop URL in Zwischenablage kopieren"
           Icon="{ui:SymbolIcon Copy24}"

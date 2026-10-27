@@ -378,16 +378,45 @@ public sealed class MainWindowViewModelPlaybackTests
     }
 
     [Fact]
-    public void OpenCollaborativePlaylist_WhenUrlNullOrEmpty_ShouldReturnSilently()
+    public void OpenCollaborativePlaylist_ShouldNotThrow()
     {
         MainWindowViewModel vm = CreateViewModel();
-        vm.CollaborativePlaylistUrl = null;
 
         Action act = () => vm.OpenCollaborativePlaylist();
 
         act.Should().NotThrow();
     }
+
+    [Fact]
+    public async Task InitializeAsync_WhenStorageThrows_ShouldCatchGracefully()
+    {
+        _playlistStorage.When(s => s.LoadPlaylistAsync(Arg.Any<Playlist>(), Arg.Any<CancellationToken>()))
+            .Do(_ => throw new IOException("Disk error"));
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        Func<Task> act = async () => await vm.InitializeAsync();
+
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task VoteToSkipAsync_WhenThresholdNotReached_ShouldUpdateStatusWithoutSkipping()
+    {
+        Track track = new("t1", new Uri("https://youtube.com/watch?v=t1"), "Song", "Alice", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(track);
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        // Single vote does not reach required threshold of 3
+        await vm.VoteToSkipAsync();
+
+        vm.SkipVoteStatus.Should().Be("1 / 3 Votes");
+        vm.StatusMessage.Should().NotContain("Skipping song");
+        _group.Playlist.CurrentTrack.Should().Be(track);
+    }
 }
+
 
 
 

@@ -1,7 +1,12 @@
+using System.ComponentModel;
 using System.Windows;
 using burroQueue.Presentation.Services;
 using burroQueue.Presentation.ViewModels;
 using Wpf.Ui.Controls;
+using DataFormats = System.Windows.DataFormats;
+using DragDropEffects = System.Windows.DragDropEffects;
+using DragEventArgs = System.Windows.DragEventArgs;
+using IDataObject = System.Windows.IDataObject;
 
 namespace burroQueue.Presentation.Views;
 
@@ -21,64 +26,83 @@ public partial class MainWindow : FluentWindow
         Closing += OnClosing;
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e)
+    internal void OnLoaded(object sender, RoutedEventArgs e)
     {
-        _hotkeyService.Register(this);
-        _hotkeyService.PlayPausePressed += async (_, _) =>
+        HandleHotkeyRegistration(_hotkeyService, this, _viewModel);
+    }
+
+    internal static void HandleHotkeyRegistration(IGlobalHotkeyService hotkeyService, Window window, MainWindowViewModel viewModel)
+    {
+        hotkeyService.Register(window);
+        hotkeyService.PlayPausePressed += async (_, _) =>
         {
-            if (_viewModel.PlaybackState == Domain.Model.PlaybackState.Playing)
+            if (viewModel.PlaybackState == Domain.Model.PlaybackState.Playing)
             {
-                await _viewModel.PauseAsync();
+                await viewModel.PauseAsync();
             }
             else
             {
-                await _viewModel.PlayAsync();
+                await viewModel.PlayAsync();
             }
         };
 
-        _hotkeyService.NextTrackPressed += async (_, _) =>
+        hotkeyService.NextTrackPressed += async (_, _) =>
         {
-            await _viewModel.SkipAsync();
+            await viewModel.SkipAsync();
         };
     }
 
-    private void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+    internal void OnClosing(object? sender, CancelEventArgs e)
     {
-        // Close-to-Tray Verhalten: Fenster verbergen statt beenden
-        e.Cancel = true;
-        Hide();
+        HandleClosing(e, Hide);
     }
 
-    private void OnDragOver(object sender, System.Windows.DragEventArgs e)
+    internal static void HandleClosing(CancelEventArgs e, Action hideAction)
     {
-        if (e.Data.GetDataPresent(System.Windows.DataFormats.Text) || e.Data.GetDataPresent(System.Windows.DataFormats.UnicodeText))
+        e.Cancel = true;
+        hideAction();
+    }
+
+    internal void OnDragOver(object sender, DragEventArgs e)
+    {
+        HandleDragOver(e.Data, eff => e.Effects = eff, h => e.Handled = h);
+    }
+
+    internal static void HandleDragOver(IDataObject data, Action<DragDropEffects> setEffects, Action<bool> setHandled)
+    {
+        if (data.GetDataPresent(DataFormats.Text) || data.GetDataPresent(DataFormats.UnicodeText))
         {
-            e.Effects = System.Windows.DragDropEffects.Copy;
-            e.Handled = true;
+            setEffects(DragDropEffects.Copy);
+            setHandled(true);
         }
         else
         {
-            e.Effects = System.Windows.DragDropEffects.None;
+            setEffects(DragDropEffects.None);
         }
     }
 
-    private void OnDrop(object sender, System.Windows.DragEventArgs e)
+    internal void OnDrop(object sender, DragEventArgs e)
+    {
+        HandleDrop(_viewModel, e.Data, h => e.Handled = h);
+    }
+
+    internal static void HandleDrop(MainWindowViewModel viewModel, IDataObject data, Action<bool> setHandled)
     {
         string? droppedText = null;
 
-        if (e.Data.GetDataPresent(System.Windows.DataFormats.UnicodeText))
+        if (data.GetDataPresent(DataFormats.UnicodeText))
         {
-            droppedText = e.Data.GetData(System.Windows.DataFormats.UnicodeText) as string;
+            droppedText = data.GetData(DataFormats.UnicodeText) as string;
         }
-        else if (e.Data.GetDataPresent(System.Windows.DataFormats.Text))
+        else if (data.GetDataPresent(DataFormats.Text))
         {
-            droppedText = e.Data.GetData(System.Windows.DataFormats.Text) as string;
+            droppedText = data.GetData(DataFormats.Text) as string;
         }
 
         if (!string.IsNullOrWhiteSpace(droppedText))
         {
-            _viewModel.EnqueueRawUrlCommand.Execute(droppedText);
-            e.Handled = true;
+            viewModel.EnqueueRawUrlCommand.Execute(droppedText);
+            setHandled(true);
         }
     }
 }

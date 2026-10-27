@@ -4,7 +4,7 @@
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
   Title="burroQueue – Einstellungen"
-  Icon="/Assets/logo.png"
+  Icon="pack://application:,,,/burroQueue;component/Assets/logo.png"
   Width="500"
   Height="570"
   ExtendsContentIntoTitleBar="True"
@@ -21,7 +21,7 @@
     <!-- Native Title Bar with Burro Icon -->
     <ui:TitleBar Title="Einstellungen" Grid.Row="0">
       <ui:TitleBar.Icon>
-        <ui:ImageIcon Source="/Assets/logo.png" />
+        <ui:ImageIcon Source="pack://application:,,,/burroQueue;component/Assets/logo.png" />
       </ui:TitleBar.Icon>
     </ui:TitleBar>
 

@@ -221,5 +221,29 @@ public sealed class MainWindowViewModelNetworkSyncTests
 
         vm.CollaborativePlaylistUrl.Should().Be("https://www.youtube.com/playlist?list=PLsharedPlaylist123");
     }
+
+    [Fact]
+    public void SkipVoteReceived_WhenDifferentTrackOrGroup_ShouldIgnore()
+    {
+        Track track = new("current-song", new Uri("https://youtube.com/watch?v=current-song"), "Song", "Alice", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(track);
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        // Vote for a different track ID
+        _lanGroupService.SkipVoteReceived += Raise.Event<EventHandler<SkipVoteMessage>>(
+            this,
+            new SkipVoteMessage(_group.Id.Value, "different-track", Guid.NewGuid(), DateTimeOffset.UtcNow));
+
+        vm.SkipVoteStatus.Should().Be("0 / 3 Votes");
+
+        // Vote for a different group ID
+        _lanGroupService.SkipVoteReceived += Raise.Event<EventHandler<SkipVoteMessage>>(
+            this,
+            new SkipVoteMessage(Guid.NewGuid(), "current-song", Guid.NewGuid(), DateTimeOffset.UtcNow));
+
+        vm.SkipVoteStatus.Should().Be("0 / 3 Votes");
+    }
 }
+
 
