@@ -19,17 +19,21 @@ Dieses Projekt legt höchsten Wert auf handwerkliche Software-Qualität, nachvol
 ## 2. Lokaler Workflow
 
 ### Voraussetzungen
+
 - Windows 11
 - .NET 10 SDK
 - PowerShell 7 (`pwsh`)
 
 ### Vorbereitung & Verifikation
+
 Führe vor jedem Commit das Architektur-Gate aus:
+
 ```powershell
 ./scripts/verify-architecture.ps1
 ```
 
 Führe die Tests und Format-Prüfung aus:
+
 ```powershell
 dotnet format burroQueue.sln --verify-no-changes
 dotnet build burroQueue.sln -warnaserror
