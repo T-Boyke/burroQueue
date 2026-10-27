@@ -3,8 +3,11 @@ using burroQueue.Domain.Model;
 using burroQueue.Infrastructure.Audio;
 using burroQueue.Infrastructure.Configuration;
 using burroQueue.Infrastructure.Network;
+using burroQueue.Infrastructure.Persistence;
+using burroQueue.Infrastructure.Playback;
 using burroQueue.Infrastructure.Telephony;
 using burroQueue.Infrastructure.YouTube;
+using burroQueue.Presentation.Services;
 using burroQueue.Presentation.ViewModels;
 using burroQueue.Presentation.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +17,7 @@ namespace burroQueue.Presentation;
 public partial class App : Application
 {
     private ServiceProvider? _serviceProvider;
+    private ISystrayNotificationService? _systrayService;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -27,6 +31,10 @@ public partial class App : Application
         IAppSettingsService settings = _serviceProvider.GetRequiredService<IAppSettingsService>();
         await settings.LoadAsync().ConfigureAwait(true);
 
+        IPlaylistStorageService storage = _serviceProvider.GetRequiredService<IPlaylistStorageService>();
+        BurroGroup group = _serviceProvider.GetRequiredService<BurroGroup>();
+        await storage.LoadPlaylistAsync(group.Playlist).ConfigureAwait(true);
+
         ITelephonyManager telephony = _serviceProvider.GetRequiredService<ITelephonyManager>();
         await telephony.StartAsync().ConfigureAwait(true);
 
@@ -34,6 +42,18 @@ public partial class App : Application
         await lan.StartAsync().ConfigureAwait(true);
 
         MainWindow mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+
+        _systrayService = _serviceProvider.GetRequiredService<ISystrayNotificationService>();
+        _systrayService.Initialize(
+            mainWindow,
+            onOpenSettings: () =>
+            {
+                SettingsWindow settingsWindow = _serviceProvider.GetRequiredService<SettingsWindow>();
+                settingsWindow.Owner = mainWindow;
+                settingsWindow.ShowDialog();
+            },
+            onExitApp: () => Shutdown());
+
         mainWindow.Show();
     }
 
@@ -44,8 +64,10 @@ public partial class App : Application
 
         // Infrastructure
         services.AddSingleton<IAppSettingsService, AppSettingsService>();
+        services.AddSingleton<IPlaylistStorageService, PlaylistStorageService>();
         services.AddSingleton<IYouTubeUrlParser, YouTubeUrlParser>();
         services.AddSingleton<IAudioOutputController, AudioOutputController>();
+        services.AddSingleton<IAudioPlayerBackend, AudioPlayerBackend>();
         services.AddSingleton<ILanGroupService, LanGroupService>();
 
         // Modulare Telephony Providers
@@ -54,7 +76,8 @@ public partial class App : Application
         services.AddSingleton<ITelephonyProvider, NullTelephonyProvider>();
         services.AddSingleton<ITelephonyManager, TelephonyManager>();
 
-        // Presentation ViewModels & Views
+        // Presentation Services & Views
+        services.AddSingleton<ISystrayNotificationService, SystrayNotificationService>();
         services.AddTransient<MainWindowViewModel>();
         services.AddTransient<SettingsViewModel>();
         services.AddSingleton<MainWindow>();
@@ -65,6 +88,18 @@ public partial class App : Application
     {
         if (_serviceProvider is not null)
         {
+            try
+            {
+                IPlaylistStorageService storage = _serviceProvider.GetRequiredService<IPlaylistStorageService>();
+                BurroGroup group = _serviceProvider.GetRequiredService<BurroGroup>();
+                await storage.SavePlaylistAsync(group.Playlist).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Unhandled persistence errors ignored on exit
+            }
+
+            _systrayService?.Dispose();
             await _serviceProvider.DisposeAsync().ConfigureAwait(false);
         }
 
