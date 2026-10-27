@@ -77,3 +77,8 @@ dotnet_naming_rule.types_should_be_pascal_case.style = pascal_case
 dotnet_naming_symbols.types.applicable_kinds = class, struct, interface, enum, delegate
 dotnet_naming_style.pascal_case.capitalization = pascal_case
 
+# Unit Tests: Allow underscores in test method names (BDD: Method_Scenario_ExpectedResult)
+[**Tests/**.cs]
+dotnet_diagnostic.CA1707.severity = none
+
+
