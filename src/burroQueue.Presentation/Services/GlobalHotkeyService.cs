@@ -8,12 +8,12 @@ namespace burroQueue.Presentation.Services;
 [SupportedOSPlatform("windows")]
 public sealed class GlobalHotkeyService : IGlobalHotkeyService
 {
-    private const int WmHotkey = 0x0312;
-    private const int HotkeyPlayPauseId = 9001;
-    private const int HotkeyNextId = 9002;
+    private const int _wmHotkey = 0x0312;
+    private const int _hotkeyPlayPauseId = 9001;
+    private const int _hotkeyNextId = 9002;
 
-    private const uint VkMediaPlayPause = 0xB3;
-    private const uint VkMediaNextTrack = 0xB0;
+    private const uint _vkMediaPlayPause = 0xB3;
+    private const uint _vkMediaNextTrack = 0xB0;
 
     [DllImport("user32.dll")]
     private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
@@ -38,21 +38,21 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
         _source?.AddHook(HwndHook);
 
         // Registriere Hardware-Mediatasten
-        RegisterHotKey(_windowHandle, HotkeyPlayPauseId, 0, VkMediaPlayPause);
-        RegisterHotKey(_windowHandle, HotkeyNextId, 0, VkMediaNextTrack);
+        RegisterHotKey(_windowHandle, _hotkeyPlayPauseId, 0, _vkMediaPlayPause);
+        RegisterHotKey(_windowHandle, _hotkeyNextId, 0, _vkMediaNextTrack);
     }
 
     private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg == WmHotkey)
+        if (msg == _wmHotkey)
         {
             int id = wParam.ToInt32();
-            if (id == HotkeyPlayPauseId)
+            if (id == _hotkeyPlayPauseId)
             {
                 PlayPausePressed?.Invoke(this, EventArgs.Empty);
                 handled = true;
             }
-            else if (id == HotkeyNextId)
+            else if (id == _hotkeyNextId)
             {
                 NextTrackPressed?.Invoke(this, EventArgs.Empty);
                 handled = true;
@@ -72,8 +72,8 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
         _isDisposed = true;
         if (_windowHandle != IntPtr.Zero)
         {
-            UnregisterHotKey(_windowHandle, HotkeyPlayPauseId);
-            UnregisterHotKey(_windowHandle, HotkeyNextId);
+            UnregisterHotKey(_windowHandle, _hotkeyPlayPauseId);
+            UnregisterHotKey(_windowHandle, _hotkeyNextId);
             _source?.RemoveHook(HwndHook);
             _windowHandle = IntPtr.Zero;
         }

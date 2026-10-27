@@ -7,7 +7,7 @@ namespace burroQueue.Infrastructure.Telephony;
 [SupportedOSPlatform("windows")]
 public sealed class SwyxItTelephonyProvider : ITelephonyProvider
 {
-    private const string ProgId = "CLMgr.ClientLineMgr";
+    private const string _progId = "CLMgr.ClientLineMgr";
     private readonly Timer _pollingTimer;
     private dynamic? _clMgr;
     private TelephonyState _lastState = TelephonyState.Idle;
@@ -21,7 +21,7 @@ public sealed class SwyxItTelephonyProvider : ITelephonyProvider
     {
         get
         {
-            Type? type = Type.GetTypeFromProgID(ProgId);
+            Type? type = Type.GetTypeFromProgID(_progId);
             return type is not null;
         }
     }
@@ -56,7 +56,7 @@ public sealed class SwyxItTelephonyProvider : ITelephonyProvider
 
         try
         {
-            Type? type = Type.GetTypeFromProgID(ProgId);
+            Type? type = Type.GetTypeFromProgID(_progId);
             if (type is not null)
             {
                 _clMgr = Activator.CreateInstance(type);

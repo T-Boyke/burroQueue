@@ -6,8 +6,8 @@ namespace burroQueue.Infrastructure.Windows;
 [SupportedOSPlatform("windows")]
 public sealed class WindowsAutostartService : IWindowsAutostartService
 {
-    private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string AppName = "burroQueue";
+    private const string _runKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    private const string _appName = "burroQueue";
 
     public bool IsAutostartEnabled
     {
@@ -18,8 +18,8 @@ public sealed class WindowsAutostartService : IWindowsAutostartService
                 return false;
             }
 
-            using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RunKeyPath, false);
-            return key?.GetValue(AppName) is not null;
+            using RegistryKey? key = Registry.CurrentUser.OpenSubKey(_runKeyPath, false);
+            return key?.GetValue(_appName) is not null;
         }
     }
 
@@ -32,7 +32,7 @@ public sealed class WindowsAutostartService : IWindowsAutostartService
 
         try
         {
-            using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RunKeyPath, true);
+            using RegistryKey? key = Registry.CurrentUser.OpenSubKey(_runKeyPath, true);
             if (key is null)
             {
                 return false;
@@ -43,13 +43,13 @@ public sealed class WindowsAutostartService : IWindowsAutostartService
                 string? exePath = Environment.ProcessPath;
                 if (!string.IsNullOrEmpty(exePath))
                 {
-                    key.SetValue(AppName, $"\"{exePath}\"");
+                    key.SetValue(_appName, $"\"{exePath}\"");
                     return true;
                 }
             }
             else
             {
-                key.DeleteValue(AppName, false);
+                key.DeleteValue(_appName, false);
                 return true;
             }
         }

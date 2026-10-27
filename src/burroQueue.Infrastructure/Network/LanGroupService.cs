@@ -9,10 +9,10 @@ namespace burroQueue.Infrastructure.Network;
 
 public sealed class LanGroupService : ILanGroupService
 {
-    private const string MulticastAddressString = "239.255.42.99";
-    private const int MulticastPort = 41234;
+    private const string _multicastAddressString = "239.255.42.99";
+    private const int _multicastPort = 41234;
 
-    private readonly IPAddress _multicastAddress = IPAddress.Parse(MulticastAddressString);
+    private readonly IPAddress _multicastAddress = IPAddress.Parse(_multicastAddressString);
     private readonly IPEndPoint _multicastEndpoint;
     private UdpClient? _udpClient;
     private CancellationTokenSource? _cts;
@@ -29,7 +29,7 @@ public sealed class LanGroupService : ILanGroupService
 
     public LanGroupService()
     {
-        _multicastEndpoint = new IPEndPoint(_multicastAddress, MulticastPort);
+        _multicastEndpoint = new IPEndPoint(_multicastAddress, _multicastPort);
     }
 
     public Task StartAsync(CancellationToken cancellationToken = default)
@@ -43,7 +43,7 @@ public sealed class LanGroupService : ILanGroupService
         {
             _udpClient = new UdpClient();
             _udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            _udpClient.Client.Bind(new IPEndPoint(IPAddress.Any, MulticastPort));
+            _udpClient.Client.Bind(new IPEndPoint(IPAddress.Any, _multicastPort));
             _udpClient.JoinMulticastGroup(_multicastAddress);
             _udpClient.EnableBroadcast = true;
         }

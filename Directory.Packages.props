@@ -8,6 +8,7 @@
     <PackageVersion Include="WPF-UI" Version="4.0.2" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+    <PackageVersion Include="System.Management" Version="10.0.0" />
 
     <!-- Testing (TDD) -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />

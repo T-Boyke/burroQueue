@@ -5,6 +5,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.Management" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\burroQueue.Domain\burroQueue.Domain.csproj" />
   </ItemGroup>
 </Project>
