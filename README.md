@@ -1,116 +1,91 @@
 <p align="center">
-  <img src="assets/logo.png" width="160" alt="burroQueue Logo" />
+  <img src="assets/logo.png" width="140" alt="burroQueue Logo" />
 </p>
 
-<h1 align="center">🫏 burroQueue</h1>
+<h1 align="center">burroQueue</h1>
 
 <p align="center">
-  <b>Kollaborative Windows 11 Office-Jukebox &bull; SwyxIt! VoIP Auto-Ducking &bull; P2P LAN Sync &bull; AGPL-3.0</b>
+  <b>Kollaborative Windows 11 Office-Jukebox</b><br />
+  Mit VoIP Auto-Ducking (SwyxIt!), P2P-LAN-Discovery, YouTube-Metadaten und Web-Drop für das Büro.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Platform-Windows%2011-0078D4?style=flat-square" alt="Platform" />
+  <img src="https://img.shields.io/badge/Runtime-.NET%2010%20%7C%20C%23%2014-512BD4?style=flat-square" alt="Runtime" />
+  <img src="https://img.shields.io/badge/UI-WPF%20%2B%20Wpf.Ui%20(Mica)-005FB8?style=flat-square" alt="UI" />
+  <img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg?style=flat-square" alt="License" />
 </p>
 
 ---
 
-**burroQueue** ist eine winzige, hochperformante und native Windows 11 Taskleisten-App (Systray), die als kollaborative Office-Jukebox fungiert. Eine humorvolle Anlehnung an den Büroalltag und den unermüdlichen "Arbeitselel" (_Burro_): Mitarbeiter können YouTube-Links per Drag-and-Drop oder Zwischenablage einfach in die Queue "hineinwerfen". Diese werden automatisch in eine zentrale Playlist des Hosts eingespeist und über dessen Audioausgabe (z. B. Bluetooth-Box) abgespielt.
+## Kernfunktionen
 
-Die App fügt sich nahtlos in das **Windows 11 Fluent Design (Mica/Acrylic, Light/Dark Mode)** ein.
-
----
-
-## 🏛️ Architektur & Prinzipien
-
-Dieses Projekt wurde mit Fokus auf extreme Wartbarkeit, Testbarkeit und Performance entwickelt. Folgende Paradigmen sind zwingend einzuhalten:
-
-- **Domain-Driven Design (DDD):** Kapselung der Kernlogik (Playlist, Track, Host) in einem reinen, framework-unabhängigen Domain-Layer.
-- **Test-Driven Development (TDD):** Jedes Feature wird durch Unit- und Integrationstests abgesichert. Keine Code-Änderung ohne fehlschlagenden Test vorab.
-- **Clean Code & SOLID:** Strict Separation of Concerns, Dependency Injection und minimale Seiteneffekte.
-- **SFC / 1CPF (Single Component Per File):** Jede Datei enthält exakt eine Klasse, ein Interface oder eine UI-Komponente, um maximale Übersicht zu gewährleisten.
+- **VoIP Auto-Ducking (SwyxIt! 11 & Windows Core Audio):** Überwacht eingehende und aktive Anrufe. Die Musiklautstärke senkt sich bei Anrufbeginn automatisch ab und fadet nach Gesprächsende wieder hoch.
+- **Getrenntes Audio-Routing:** Jukebox-Sound läuft dediziert auf der Büro-Box (Bluetooth/Klinke), während Telefonate ungestört auf dem Headset bleiben.
+- **P2P-LAN Synchronisation:** Instanzen finden sich im Firmennetzwerk via UDP-Multicast (`239.255.42.99:41234`). Gruppenmitglieder können die Gruppe umbenennen und die Wiedergabe steuern.
+- **Gemeinsame YouTube-Playlists:** Unterstützung für Einladungslinks (`&jct=...`), die neuen Gruppenmitgliedern automatisch bereitgestellt werden.
+- **Mobile Web-Drop (`http://<PC-IP>:8080`):** Leichtgewichtiges Browser-Interface für Kollegen auf Smartphones, Macs oder Linux-Rechnern ohne App-Installation (< 1 MB RAM).
+- **Interaktive Warteschlange & Vote-to-Skip:** Warteschlange einsehen, einzelne Tracks entfernen oder bei unpassenden Songs demokratisch für Skip abstimmen.
+- **Ressourceneffizienz:** Standby-Speicherbedarf unter 30 MB RAM durch native WPF-Architektur ohne WebView2- oder Electron-Wrapper.
 
 ---
 
-## 🏗️ Projektstruktur
+## Architektur & Richtlinien
 
-```text
-src/
-├── burroQueue.Domain/           # Reine Geschäftslogik (Entities, Value Objects, Domain Events)
-│   ├── Model/
-│   │   ├── Playlist.cs
-│   │   └── Track.cs
-│   └── Exceptions/
-├── burroQueue.Infrastructure/   # Externe Services (YouTube API, Network Listener, Config)
-│   ├── YouTube/
-│   └── Network/
-├── burroQueue.Presentation/     # Native WPF + Wpf.Ui App / Taskbar Integration
-│   ├── ViewModels/
-│   ├── Views/
-│   └── App.xaml.cs
-└── burroQueue.Tests/            # TDD Test-Suite (XUnit / FluentAssertions)
+Das Projekt folgt einer strikten 4-Schichten-Architektur:
+
+1. **`src/burroQueue.Domain` (Reine Geschäftslogik):**
+   Kapselt Playlists, Tracks, Gruppen und Abstimmungen. Frei von NuGet-Paketen, UI- oder Netzwerk-Referenzen.
+2. **`src/burroQueue.Infrastructure` (Adapter & I/O):**
+   Telefonie-Anbindung (`CLMgr.ClientLineMgr`), P2P-Netzwerk-Sockets, YouTube oEmbed-Metadaten, Audiosteuerung und lokaler Web-Server.
+3. **`src/burroQueue.Presentation` (Native Windows 11 UI):**
+   Mica Fluent Window, MVVM via `CommunityToolkit.Mvvm`, System Theme Watcher und Systray-Hintergrundbetrieb.
+4. **`src/burroQueue.Tests` (Test-Suite):**
+   Unit- und Integrationstests mit `xUnit`, `FluentAssertions` und `NSubstitute`.
+
+### Qualitäts-Gate (SFC / 1CPF & DDD)
+Jede C#-Datei enthält exakt eine Komponente (Single Component Per File). Das Architektur-Gate prüft vor Commits und in der CI:
+```powershell
+./scripts/verify-architecture.ps1
 ```
 
 ---
 
-## 🚀 Features
+## Schnellstart
 
-- 🪟 **Native Win11 UI via Wpf.Ui:** Unterstützt echtes Mica-Material, abgerundete Ecken und automatischen Wechsel zwischen Light & Dark Mode.
-- 🎯 **Taskbar Drop-Zone:** Minimale Beeinträchtigung des Workflows. Link reinziehen – fertig.
-- 📡 **Local Network Sync:** Mitarbeiter benötigen keine Installation. Ein leichtgewichtiges Web-Interface oder ein lokaler API-Endpoint nimmt die Links entgegen.
-- 🔋 **Performance First:** Extrem geringer RAM- und CPU-Verbrauch (<30MB RAM im Standby) durch nativen .NET-WPF-Unterbau ohne schwere Electron/Web-Wrapper.
+### Voraussetzungen
+- Windows 11 (Version 22H2 oder neuer empfohlen)
+- .NET 10 SDK
 
----
+### Bauen und Testen
+```bash
+# Repository klonen
+git clone https://github.com/T-Boyke/burroQueue.git
+cd burroQueue
 
-## 🛠️ Tech Stack & Voraussetzungen
+# Architektur-Konformität prüfen
+./scripts/verify-architecture.ps1
 
-- **Sprache:** C# 14 / .NET 10+
-- **UI Framework:** WPF + Wpf.Ui
-- **Architektur:** MVVM (CommunityToolkit.Mvvm)
+# Solution bauen & Tests ausführen
+dotnet build burroQueue.sln
+dotnet test burroQueue.sln
+```
 
----
-
-## 🏁 Schnellstart (Entwicklung)
-
-1. **Repository klonen:**
-
-    ```bash
-    git clone https://github.com/T-Boyke/burroQueue.git
-    ```
-
-2. **Architektur & 1CPF prüfen:**
-
-    ```powershell
-    ./scripts/verify-architecture.ps1
-    ```
-
-3. **Tests ausführen (TDD-Workflow):**
-
-    ```bash
-    dotnet test
-    ```
-
-4. **Host-App starten:**
-   Öffne die Solution in Visual Studio oder VS Code (`tasks.json` / F5) und starte das Projekt `burroQueue.Presentation`.
+### Starten
+```bash
+dotnet run --project src/burroQueue.Presentation/burroQueue.Presentation.csproj
+```
 
 ---
 
-## 🤖 Antigravity Agent Rules & Skills
+## CI/CD & Lokaler Runner
 
-Dieses Repository enthält maßgeschneiderte Antigravity-Agentenregeln und Skills:
-
-- `AGENTS.md` & `.agents/rules/`: Verbindliche Gesetze zu **DDD**, **TDD**, **1CPF / SFC**, **Performance (<30MB)** und **regelmäßigen Atomic Commits**.
-- `.agents/skills/tdd-ddd-workflow`: Workflow für Red-Green-Refactor.
-- `.agents/skills/github-atomic-commits`: Konventionelle, schrittweise atomare Git-Commits.
-- `.agents/skills/wpf-ui-mvvm`: Windows 11 Fluent UI, Mica & Systray-Drop-Zone.
-- `.agents/skills/clean-code-audit`: Repository-weiter Architektur-Check.
-- `.agents/skills/youtube-network-sync`: YouTube URL-Parsing & ressourcenschonender LAN-Endpoint.
+- **Cloud CI:** [`.github/workflows/ci.yml`](.github/workflows/ci.yml) validiert Architektur, Code-Formatierung und Tests auf `windows-latest`.
+- **Release:** [`.github/workflows/release.yml`](.github/workflows/release.yml) packt bei Git-Tags ein Single-File Release für Windows 11 x64.
+- **Self-Hosted Runner:** Lokales Setup-Skript unter [`scripts/runner/setup-runner.ps1`](scripts/runner/setup-runner.ps1) für Entwicklungsrechner.
 
 ---
 
-## 🏃 GitHub Actions & Local Action Runner
+## Lizenz
 
-- **CI Workflow:** `.github/workflows/ci.yml` baut die Solution, prüft 1CPF/Architektur und führt die xUnit-Testsuite aus.
-- **Release Workflow:** `.github/workflows/release.yml` baut bei Git-Tags ein natives Windows 11 x64 Single-File Release.
-- **Lokaler Runner:** Kann bei Bedarf jederzeit über `./scripts/runner/setup-runner.ps1` auf diesem Rechner eingerichtet und per `./scripts/runner/run-runner.ps1` gestartet werden.
-
----
-
-## 📄 Lizenz
-
-Dieses Projekt ist unter der **GNU Affero General Public License v3.0 (AGPL-3.0)** lizenziert. Siehe die [LICENSE](LICENSE) Datei für Details.
+Dieses Projekt ist lizenziert unter der **GNU Affero General Public License v3.0 (AGPL-3.0)**. Siehe [LICENSE](LICENSE) für den vollständigen Lizenztext.
