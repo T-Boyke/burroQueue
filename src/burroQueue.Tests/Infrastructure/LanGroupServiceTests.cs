@@ -95,4 +95,43 @@ public sealed class LanGroupServiceTests : IAsyncLifetime, IDisposable
         Func<Task> act = async () => await _service.SendSkipVoteAsync(GroupId.New(), "track-123", ClientId.New());
         await act.Should().NotThrowAsync();
     }
+
+    [Fact]
+    public async Task SendMethods_WhenNotStarted_ShouldReturnGracefully()
+    {
+        LanGroupService unstarted = new();
+        BurroGroup group = new(GroupId.New(), "Office");
+
+        Func<Task> act1 = async () => await unstarted.BroadcastBeaconAsync(group, ClientId.New(), "User");
+        Func<Task> act2 = async () => await unstarted.SendPlaybackCommandAsync(group.Id, ClientId.New(), "Play");
+        Func<Task> act3 = async () => await unstarted.SendGroupActionAsync(group.Id, ClientId.New(), "Rename", "Name");
+        Func<Task> act4 = async () => await unstarted.ShareCollaborativePlaylistAsync(group.Id, "url", "User");
+        Func<Task> act5 = async () => await unstarted.SendSkipVoteAsync(group.Id, "track-1", ClientId.New());
+
+        await act1.Should().NotThrowAsync();
+        await act2.Should().NotThrowAsync();
+        await act3.Should().NotThrowAsync();
+        await act4.Should().NotThrowAsync();
+        await act5.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task StopAsync_WhenCalledMultipleTimes_ShouldBeIdempotent()
+    {
+        await _service.StartAsync();
+        await _service.StopAsync();
+        Func<Task> act = async () => await _service.StopAsync();
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task DisposeAsync_WhenCalledMultipleTimes_ShouldBeIdempotent()
+    {
+        LanGroupService svc = new();
+        await svc.DisposeAsync();
+        Func<Task> act = async () => await svc.DisposeAsync();
+        await act.Should().NotThrowAsync();
+    }
 }
+
+

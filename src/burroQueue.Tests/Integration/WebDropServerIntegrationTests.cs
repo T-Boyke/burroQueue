@@ -133,4 +133,41 @@ public sealed class WebDropServerIntegrationTests : IAsyncLifetime, IDisposable
         await _server.StopAsync();
         _server.IsRunning.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task StartAsync_WhenAlreadyRunning_ShouldBeIdempotent()
+    {
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
+        Func<Task> act = async () => await _server.StartAsync();
+        await act.Should().NotThrowAsync();
+        _server.IsRunning.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task StopAsync_WhenAlreadyStopped_ShouldBeIdempotent()
+    {
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
+        await _server.StopAsync();
+        Func<Task> act = async () => await _server.StopAsync();
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task DisposeAsync_WhenCalledMultipleTimes_ShouldBeIdempotent()
+    {
+        EmbeddedWebDropServer server = new(0, new BurroGroup(GroupId.New(), "Temp"));
+        await server.DisposeAsync();
+        Func<Task> act = async () => await server.DisposeAsync();
+        await act.Should().NotThrowAsync();
+    }
 }
+
+

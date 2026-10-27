@@ -365,6 +365,29 @@ public sealed class MainWindowViewModelPlaybackTests
         _group.Playlist.CurrentTrack.Should().NotBeNull();
         _group.Playlist.CurrentTrack!.VideoId.Should().Be("init-1");
     }
+
+    [Fact]
+    public void CopyWebDropUrl_ShouldSetStatusMessage()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+
+        Action act = () => vm.CopyWebDropUrl();
+
+        act.Should().NotThrow();
+        vm.StatusMessage.Should().Match(s => s == "WebDrop-Link kopiert!" || s == "Kopieren fehlgeschlagen");
+    }
+
+    [Fact]
+    public void OpenCollaborativePlaylist_WhenUrlNullOrEmpty_ShouldReturnSilently()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.CollaborativePlaylistUrl = null;
+
+        Action act = () => vm.OpenCollaborativePlaylist();
+
+        act.Should().NotThrow();
+    }
 }
+
 
 

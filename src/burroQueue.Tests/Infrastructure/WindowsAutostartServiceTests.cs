@@ -26,4 +26,22 @@ public sealed class WindowsAutostartServiceTests
         result.Should().BeTrue();
         service.IsAutostartEnabled.Should().BeFalse();
     }
+
+    [Fact]
+    public void SetAutostart_EnableThenDisable_ShouldUpdateRegistryAndCleanUp()
+    {
+        WindowsAutostartService service = new();
+        try
+        {
+            bool enableResult = service.SetAutostart(true);
+            enableResult.Should().BeTrue();
+            service.IsAutostartEnabled.Should().BeTrue();
+        }
+        finally
+        {
+            service.SetAutostart(false);
+            service.IsAutostartEnabled.Should().BeFalse();
+        }
+    }
 }
+
