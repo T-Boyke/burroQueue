@@ -47,19 +47,24 @@ public sealed class SwyxItTelephonyProvider : ITelephonyProvider
         return Task.CompletedTask;
     }
 
-    internal static Func<string, object?> ComActivator { get; set; } = progId =>
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal static object? DefaultComActivator(string progId)
     {
         Type? type = Type.GetTypeFromProgID(progId);
         return type is not null ? Activator.CreateInstance(type) : null;
-    };
+    }
 
-    internal static Action<object> ComReleaser { get; set; } = obj =>
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal static void DefaultComReleaser(object obj)
     {
         if (Marshal.IsComObject(obj))
         {
             Marshal.ReleaseComObject(obj);
         }
-    };
+    }
+
+    internal static Func<string, object?> ComActivator { get; set; } = DefaultComActivator;
+    internal static Action<object> ComReleaser { get; set; } = DefaultComReleaser;
 
     private void EnsureConnected()
     {

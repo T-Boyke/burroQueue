@@ -66,6 +66,14 @@ public sealed class GlobalHotkeyServiceTests
     }
 
     [Fact]
+    public void DefaultDelegates_WhenCalledWithNonZeroHandle_ShouldQueryFromHwndAndReturnNull()
+    {
+        GlobalHotkeyService service = new();
+        System.Windows.Interop.HwndSource? source = service.HwndHookAttacher(new IntPtr(12345), service.HwndHook);
+        source.Should().BeNull();
+    }
+
+    [Fact]
     public void ProcessMessage_WithPlayPause_ShouldFireEventAndReturnTrue()
     {
         GlobalHotkeyService service = new();

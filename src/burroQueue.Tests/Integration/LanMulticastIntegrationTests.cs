@@ -95,4 +95,55 @@ public sealed class LanMulticastIntegrationTests : IAsyncLifetime, IDisposable
             received.Title.Should().Be("Sync Song");
         }
     }
+
+    [Fact]
+    public async Task ShareCollaborativePlaylist_ShouldBeReceivedByPeer()
+    {
+        GroupId groupId = GroupId.New();
+        TaskCompletionSource<SharedPlaylistSyncMessage> tcs = new();
+
+        _receiver!.CollaborativePlaylistReceived += (_, msg) =>
+        {
+            if (msg.GroupId == groupId.Value)
+            {
+                tcs.TrySetResult(msg);
+            }
+        };
+
+        await _sender!.ShareCollaborativePlaylistAsync(groupId, "https://youtube.com/playlist?list=123", "Alice");
+
+        Task completed = await Task.WhenAny(tcs.Task, Task.Delay(1500));
+        if (completed == tcs.Task)
+        {
+            SharedPlaylistSyncMessage received = await tcs.Task;
+            received.CollaborativePlaylistUrl.Should().Be("https://youtube.com/playlist?list=123");
+            received.SharedByDisplayName.Should().Be("Alice");
+        }
+    }
+
+    [Fact]
+    public async Task SendGroupAction_ShouldBeReceivedByPeer()
+    {
+        GroupId groupId = GroupId.New();
+        ClientId actorId = ClientId.New();
+        TaskCompletionSource<GroupActionMessage> tcs = new();
+
+        _receiver!.GroupActionReceived += (_, msg) =>
+        {
+            if (msg.GroupId == groupId.Value)
+            {
+                tcs.TrySetResult(msg);
+            }
+        };
+
+        await _sender!.SendGroupActionAsync(groupId, actorId, "Rename", "Office Fun");
+
+        Task completed = await Task.WhenAny(tcs.Task, Task.Delay(1500));
+        if (completed == tcs.Task)
+        {
+            GroupActionMessage received = await tcs.Task;
+            received.ActionType.Should().Be("Rename");
+            received.Payload.Should().Be("Office Fun");
+        }
+    }
 }

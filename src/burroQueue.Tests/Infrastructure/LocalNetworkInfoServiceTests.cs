@@ -124,4 +124,14 @@ public sealed class LocalNetworkInfoServiceTests
 
         ip.Should().NotBeNullOrWhiteSpace();
     }
+
+    [Fact]
+    public void ResolvePrimaryIPv4Address_WhenNoAdaptersAndFallbackReturnsNull_ShouldFallbackToLoopback()
+    {
+        string ip = LocalNetworkInfoService.ResolvePrimaryIPv4Address(
+            getInterfaces: () => [],
+            fallbackSocketResolver: () => null);
+
+        ip.Should().Be("127.0.0.1");
+    }
 }

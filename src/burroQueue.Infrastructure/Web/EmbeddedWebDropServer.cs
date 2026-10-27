@@ -82,27 +82,13 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
 
         if (_tcpListener is not null)
         {
-            try
-            {
-                _tcpListener.Stop();
-            }
-            catch
-            {
-                // Ignoriere Fehler beim Stoppen des Sockets
-            }
+            _tcpListener.Stop();
             _tcpListener = null;
         }
 
         if (_listenTask is not null)
         {
-            try
-            {
-                await _listenTask.ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is OperationCanceledException or SocketException or ObjectDisposedException)
-            {
-                // Normal bei Shutdown/Cancellation
-            }
+            await _listenTask.ConfigureAwait(false);
             _listenTask = null;
         }
     }

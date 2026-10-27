@@ -711,6 +711,58 @@ public sealed class MainWindowViewModelPlaybackTests
         vm.IsCallActive.Should().BeTrue();
         vm.IsAudioDucked.Should().BeTrue();
     }
+
+    [Fact]
+    public void Constructor_WhenAudioDeviceConfigured_ShouldResolveActiveAudioDeviceName()
+    {
+        IAudioDeviceEnumerator audioEnumerator = Substitute.For<IAudioDeviceEnumerator>();
+        audioEnumerator.GetAvailableRenderDevices().Returns(new[]
+        {
+            new AudioDeviceOption("dev-1", "Office Speaker (Realtek)", true)
+        });
+
+        _settingsService.CurrentSettings.Returns(new AppSettingsData
+        {
+            SelectedAudioDeviceId = "dev-1"
+        });
+
+        MainWindowViewModel vm = new(
+            _group,
+            _urlParser,
+            _metadataFetcher,
+            _telephonyManager,
+            _lanGroupService,
+            _audioController,
+            _settingsService,
+            _webDropServer,
+            _networkInfoService,
+            _audioPlayerBackend,
+            _playlistStorage,
+            audioEnumerator);
+
+        vm.ActiveAudioDeviceName.Should().Be("Office Speaker (Realtek)");
+    }
+
+    [Fact]
+    public void AudioController_WhenVolumeChanged_ShouldUpdateMasterVolume()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+
+        _audioController.VolumeChanged += Raise.Event<EventHandler<double>>(_audioController, 0.42);
+
+        vm.MasterVolume.Should().Be(0.42);
+    }
+
+    [Fact]
+    public void OpenWebDropInBrowserCommand_WhenProcessStarterThrows_ShouldCatchAndSetErrorMessage()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        MainWindowViewModel.ProcessStarter = _ => throw new System.ComponentModel.Win32Exception("Browser not found");
+
+        vm.OpenWebDropInBrowserCommand.Execute(null);
+
+        vm.StatusMessage.Should().Be("Konnte Browser nicht öffnen");
+    }
 }
 
 

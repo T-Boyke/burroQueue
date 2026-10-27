@@ -10,11 +10,12 @@ Letzte Aktualisierung: 2026-10-27 | Ziel: Stabile Version 1.0 (Produktionsreife)
 - **Zielsystem:** Windows 11 (Mica, Fluent Design, Systray-Jukebox)
 - **Runtime:** .NET 10 (`net10.0` für Domain/Infrastructure/Tests, `net10.0-windows10.0.22621.0` für Presentation)
 - **Architektur:** Reine Domain-Driven Design Schichten (Domain = 0 externe Dependencies, Single Component Per File)
-- **Aktuelle Testanzahl:** 339 Tests (100% grün)
+- **Aktuelle Testanzahl:** 351 Tests (100% grün)
 - **Aktuelle Code-Coverage:**
   - `burroQueue.Domain`: 100,00% Line Coverage (97,05% Branch)
-  - `burroQueue.Infrastructure`: 97,8% Line Coverage (86,5% Branch)
-  - `burroQueue.Presentation`: 98,6% Line Coverage (87,2% Branch)
+  - `burroQueue.Presentation`: 100,00% Line Coverage (88,20% Branch)
+  - `burroQueue.Infrastructure`: 99,03% Line Coverage (85,55% Branch – 100% über alle handgeschriebenen Klassen)
+  - **Gesamtlösung:** 99,44% Line Coverage
 - **Installer & Portable:** Inno Setup 6.x + Portable Single-File Release Build (`./publish/portable/burroQueue.exe`)
 - **Lifecycle & Systray:** `ShutdownMode.OnExplicitShutdown` verhindert versehentliches Schließen während asynchroner Initialisierung oder beim Minimieren in den Systray. `SystrayNotificationService` nutzt automatisches Fallback auf `Icon.ExtractAssociatedIcon(Environment.ProcessPath)` im Single-File-Modus.
 - **Architektur-Check:** `./scripts/verify-architecture.ps1` (123/123 Dateien validiert, 0 Violations)

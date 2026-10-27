@@ -30,8 +30,8 @@ public sealed class YouTubeMetadataFetcher : IYouTubeMetadataFetcher
                 return TrackMetadata.Unknown(videoId);
             }
 
-            await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            using JsonDocument doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+            string json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            using JsonDocument doc = JsonDocument.Parse(json);
 
             string title = doc.RootElement.TryGetProperty("title", out JsonElement titleElem)
                 ? titleElem.GetString() ?? videoId

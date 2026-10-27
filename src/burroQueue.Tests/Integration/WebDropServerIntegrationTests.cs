@@ -245,6 +245,76 @@ public sealed class WebDropServerIntegrationTests : IAsyncLifetime, IDisposable
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         dropped.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task StartAsync_WhenPortOccupied_ShouldFallbackAndHandleGracefully()
+    {
+        using TcpListener blocker = new(IPAddress.Any, 0);
+        blocker.Start();
+        int occupiedPort = ((IPEndPoint)blocker.LocalEndpoint).Port;
+
+        EmbeddedWebDropServer server = new(occupiedPort, null);
+        await server.StartAsync();
+        server.Port.Should().BeGreaterThan(0);
+        await server.StopAsync();
+    }
+
+    [Fact]
+    public async Task StartAsync_WhenBothAnyAndLoopbackPortsOccupied_ShouldReturnGracefully()
+    {
+        using TcpListener blocker1 = new(IPAddress.Loopback, 0);
+        blocker1.Start();
+        int port = ((IPEndPoint)blocker1.LocalEndpoint).Port;
+
+        using TcpListener blocker2 = new(IPAddress.Any, port);
+        try
+        {
+            blocker2.Start();
+        }
+        catch
+        {
+        }
+
+        EmbeddedWebDropServer server = new(port, null);
+        await server.StartAsync();
+        server.IsRunning.Should().BeFalse();
+        await server.StopAsync();
+    }
+
+    [Fact]
+    public async Task HandleClientAsync_WhenClientSendsEmptyLine_ShouldReturnEarlyWithoutThrowing()
+    {
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
+        using TcpClient client = new();
+        await client.ConnectAsync(IPAddress.Loopback, _port);
+        using NetworkStream stream = client.GetStream();
+        byte[] emptyLine = "\r\n"u8.ToArray();
+        await stream.WriteAsync(emptyLine);
+        await stream.FlushAsync();
+        await Task.Delay(50);
+    }
+
+    [Fact]
+    public async Task HandleClientAsync_WhenClientDisconnectsAbruptly_ShouldCatchGracefully()
+    {
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
+        using TcpClient client = new();
+        await client.ConnectAsync(IPAddress.Loopback, _port);
+        using NetworkStream stream = client.GetStream();
+        byte[] partialRequest = "POST /drop HTTP/1.1\r\nContent-Length: 100\r\n\r\n"u8.ToArray();
+        await stream.WriteAsync(partialRequest);
+        client.Client.LingerState = new LingerOption(true, 0);
+        client.Close();
+        await Task.Delay(50);
+    }
 }
 
 

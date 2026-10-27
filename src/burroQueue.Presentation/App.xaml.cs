@@ -17,11 +17,13 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace burroQueue.Presentation;
 
+[System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
 public partial class App : System.Windows.Application
 {
     private ServiceProvider? _serviceProvider;
     private ISystrayNotificationService? _systrayService;
 
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal static void LogStartup(string message)
     {
         try

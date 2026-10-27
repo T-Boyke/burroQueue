@@ -34,7 +34,8 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal static IntPtr DefaultWindowHandleProvider(Window window) => new WindowInteropHelper(window).EnsureHandle();
 
-    internal Func<IntPtr, HwndSourceHook, HwndSource?> HwndHookAttacher { get; set; } = (hwnd, hook) =>
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal static HwndSource? DefaultHwndHookAttacher(IntPtr hwnd, HwndSourceHook hook)
     {
         if (hwnd == IntPtr.Zero)
         {
@@ -44,12 +45,17 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
         HwndSource? source = HwndSource.FromHwnd(hwnd);
         source?.AddHook(hook);
         return source;
-    };
-    internal Action<IntPtr> HotkeyRegistrar { get; set; } = hwnd =>
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal static void DefaultHotkeyRegistrar(IntPtr hwnd)
     {
         RegisterHotKey(hwnd, _hotkeyPlayPauseId, 0, _vkMediaPlayPause);
         RegisterHotKey(hwnd, _hotkeyNextId, 0, _vkMediaNextTrack);
-    };
+    }
+
+    internal Func<IntPtr, HwndSourceHook, HwndSource?> HwndHookAttacher { get; set; } = DefaultHwndHookAttacher;
+    internal Action<IntPtr> HotkeyRegistrar { get; set; } = DefaultHotkeyRegistrar;
 
     public void Register(Window window)
     {

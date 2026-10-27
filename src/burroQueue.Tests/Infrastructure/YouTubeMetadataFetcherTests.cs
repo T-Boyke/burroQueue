@@ -90,5 +90,17 @@ public sealed class YouTubeMetadataFetcherTests
         meta.AuthorName.Should().Be("YouTube Artist");
         meta.ThumbnailUri.Should().BeNull();
     }
+
+    [Fact]
+    public async Task FetchMetadataAsync_WhenInvalidJsonReturned_ShouldCatchAndReturnFallback()
+    {
+        using HttpClient client = new(MockHttpMessageHandler.WithJsonResponse("not valid json at all"));
+        YouTubeMetadataFetcher fetcher = new(client);
+
+        TrackMetadata meta = await fetcher.FetchMetadataAsync("corruptVid");
+
+        meta.Title.Should().Be("corruptVid");
+        meta.AuthorName.Should().Be("Unknown Artist");
+    }
 }
 
