@@ -358,6 +358,68 @@ public sealed class MainWindowViewModelNetworkSyncTests
 
         vm.CollaborativePlaylistUrl.Should().BeNull();
     }
+
+    [Fact]
+    public void QueueSyncReceived_WhenDifferentGroupId_ShouldIgnore()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+
+        QueueSyncMessage otherGroupMsg = new(
+            Guid.NewGuid(),
+            "Enqueue",
+            "dQw4w9WgXcQ",
+            "https://youtube.com/watch?v=dQw4w9WgXcQ",
+            "Rick",
+            "Bob",
+            DateTimeOffset.UtcNow);
+
+        _lanGroupService.QueueSyncReceived += Raise.Event<EventHandler<QueueSyncMessage>>(this, otherGroupMsg);
+
+        vm.QueuedCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task QueueSyncReceived_EnqueueAction_WhenFirstTrack_ShouldTriggerMetadataLoad()
+    {
+        _metadataFetcher.FetchMetadataAsync("peer-1", Arg.Any<CancellationToken>())
+            .Returns(new TrackMetadata("Peer Title", "Peer Artist", null));
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        QueueSyncMessage firstMsg = new(
+            _group.Id.Value,
+            "Enqueue",
+            "peer-1",
+            "https://youtube.com/watch?v=peer-1",
+            "Initial Title",
+            "Bob",
+            DateTimeOffset.UtcNow);
+
+        _lanGroupService.QueueSyncReceived += Raise.Event<EventHandler<QueueSyncMessage>>(this, firstMsg);
+
+        await Task.Delay(50);
+        vm.CurrentTrackTitle.Should().Be("Peer Title");
+        vm.CurrentTrackArtist.Should().Be("Peer Artist");
+    }
+
+    [Fact]
+    public void CollaborativePlaylistReceived_WhenAutoOpenEnabled_ShouldAttemptOpen()
+    {
+        _settingsService.CurrentSettings.Returns(new AppSettingsData
+        {
+            ClientDisplayName = "LocalUser",
+            AutoOpenCollaborativePlaylistOnJoin = true,
+            CollaborativePlaylistUrl = null
+        });
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        _lanGroupService.CollaborativePlaylistReceived += Raise.Event<EventHandler<SharedPlaylistSyncMessage>>(
+            this,
+            new SharedPlaylistSyncMessage(_group.Id.Value, "https://youtube.com/playlist?list=PLopen", "Bob", DateTimeOffset.UtcNow));
+
+        vm.CollaborativePlaylistUrl.Should().Be("https://youtube.com/playlist?list=PLopen");
+    }
 }
 
 

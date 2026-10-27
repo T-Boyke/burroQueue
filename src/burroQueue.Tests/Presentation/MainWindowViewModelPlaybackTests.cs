@@ -478,6 +478,39 @@ public sealed class MainWindowViewModelPlaybackTests
         vm.CurrentTrackArtist.Should().Be("Unknown Artist");
         vm.CurrentTrackThumbnailUrl.Should().BeNull();
     }
+
+    [Fact]
+    public async Task AutoSavePlaylist_WhenStorageThrows_ShouldCatchGracefully()
+    {
+        _urlParser.TryExtractVideoId("https://youtube.com/watch?v=err-save", out Arg.Any<string>()!, out Arg.Any<Uri>()!)
+            .Returns(x =>
+            {
+                x[1] = "err-save";
+                x[2] = new Uri("https://youtube.com/watch?v=err-save");
+                return true;
+            });
+
+        _playlistStorage.When(s => s.SavePlaylistAsync(Arg.Any<Playlist>(), Arg.Any<CancellationToken>()))
+            .Do(_ => throw new IOException("Write failed"));
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        Action act = () => vm.EnqueueRawUrl("https://youtube.com/watch?v=err-save");
+
+        act.Should().NotThrow();
+        await Task.Delay(50);
+    }
+
+    [Fact]
+    public void OpenCollaborativePlaylist_WhenUrlSet_ShouldAttemptOpen()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.CollaborativePlaylistUrl = "https://youtube.com/playlist?list=PLvalid";
+
+        Action act = () => vm.OpenCollaborativePlaylist();
+
+        act.Should().NotThrow();
+    }
 }
 
 
