@@ -13,6 +13,10 @@ public interface ILanGroupService : IAsyncDisposable
 
     event EventHandler<PlaybackCommandMessage>? PlaybackCommandReceived;
 
+    event EventHandler<QueueSyncMessage>? QueueSyncReceived;
+
+    event EventHandler<SkipVoteMessage>? SkipVoteReceived;
+
     Task StartAsync(CancellationToken cancellationToken = default);
 
     Task StopAsync(CancellationToken cancellationToken = default);
@@ -24,5 +28,9 @@ public interface ILanGroupService : IAsyncDisposable
     Task SendPlaybackCommandAsync(GroupId groupId, ClientId issuerId, string command, CancellationToken cancellationToken = default);
 
     Task SendGroupActionAsync(GroupId groupId, ClientId actorId, string actionType, string? payload, CancellationToken cancellationToken = default);
+
+    Task SendQueueSyncAsync(GroupId groupId, string action, Track track, CancellationToken cancellationToken = default);
+
+    Task SendSkipVoteAsync(GroupId groupId, string trackId, ClientId voterId, CancellationToken cancellationToken = default);
 }
 

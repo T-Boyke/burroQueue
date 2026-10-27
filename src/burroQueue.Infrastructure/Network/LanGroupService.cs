@@ -27,6 +27,10 @@ public sealed class LanGroupService : ILanGroupService
 
     public event EventHandler<PlaybackCommandMessage>? PlaybackCommandReceived;
 
+    public event EventHandler<QueueSyncMessage>? QueueSyncReceived;
+
+    public event EventHandler<SkipVoteMessage>? SkipVoteReceived;
+
     public LanGroupService()
     {
         _multicastEndpoint = new IPEndPoint(_multicastAddress, _multicastPort);
@@ -148,6 +152,33 @@ public sealed class LanGroupService : ILanGroupService
         await SendMessageAsync("GROUP_ACTION", message, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task SendQueueSyncAsync(GroupId groupId, string action, Track track, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+
+        QueueSyncMessage message = new(
+            groupId.Value,
+            action,
+            track.VideoId,
+            track.Url.ToString(),
+            track.Title,
+            track.SubmittedBy,
+            DateTimeOffset.UtcNow);
+
+        await SendMessageAsync("QUEUE_SYNC", message, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task SendSkipVoteAsync(GroupId groupId, string trackId, ClientId voterId, CancellationToken cancellationToken = default)
+    {
+        SkipVoteMessage message = new(
+            groupId.Value,
+            trackId,
+            voterId.Value,
+            DateTimeOffset.UtcNow);
+
+        await SendMessageAsync("SKIP_VOTE", message, cancellationToken).ConfigureAwait(false);
+    }
+
     private async Task SendMessageAsync<T>(string type, T payload, CancellationToken cancellationToken)
     {
         if (_udpClient is null)
@@ -222,6 +253,22 @@ public sealed class LanGroupService : ILanGroupService
                         if (action is not null)
                         {
                             GroupActionReceived?.Invoke(this, action);
+                        }
+                        break;
+
+                    case "QUEUE_SYNC":
+                        QueueSyncMessage? queueSync = JsonSerializer.Deserialize<QueueSyncMessage>(rawData);
+                        if (queueSync is not null)
+                        {
+                            QueueSyncReceived?.Invoke(this, queueSync);
+                        }
+                        break;
+
+                    case "SKIP_VOTE":
+                        SkipVoteMessage? skipVote = JsonSerializer.Deserialize<SkipVoteMessage>(rawData);
+                        if (skipVote is not null)
+                        {
+                            SkipVoteReceived?.Invoke(this, skipVote);
                         }
                         break;
                 }

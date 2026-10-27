@@ -48,5 +48,40 @@ public sealed class LanGroupMessagesTests
         deserialized!.CollaborativePlaylistUrl.Should().Be("https://youtube.com/playlist?list=XYZ&jct=TOKEN");
         deserialized.SharedByDisplayName.Should().Be("Alice");
     }
+
+    [Fact]
+    public void QueueSyncMessage_ShouldSerializeAndDeserializeProperly()
+    {
+        Guid groupId = Guid.NewGuid();
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        QueueSyncMessage original = new(groupId, "Enqueue", "abc12345678", "https://www.youtube.com/watch?v=abc12345678", "Super Song", "UserX", now);
+
+        string json = JsonSerializer.Serialize(original);
+        QueueSyncMessage? deserialized = JsonSerializer.Deserialize<QueueSyncMessage>(json);
+
+        deserialized.Should().NotBeNull();
+        deserialized!.GroupId.Should().Be(groupId);
+        deserialized.Action.Should().Be("Enqueue");
+        deserialized.VideoId.Should().Be("abc12345678");
+        deserialized.Title.Should().Be("Super Song");
+        deserialized.AddedBy.Should().Be("UserX");
+    }
+
+    [Fact]
+    public void SkipVoteMessage_ShouldSerializeAndDeserializeProperly()
+    {
+        Guid groupId = Guid.NewGuid();
+        Guid voterId = Guid.NewGuid();
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        SkipVoteMessage original = new(groupId, "track-99", voterId, now);
+
+        string json = JsonSerializer.Serialize(original);
+        SkipVoteMessage? deserialized = JsonSerializer.Deserialize<SkipVoteMessage>(json);
+
+        deserialized.Should().NotBeNull();
+        deserialized!.GroupId.Should().Be(groupId);
+        deserialized.TrackId.Should().Be("track-99");
+        deserialized.VoterClientId.Should().Be(voterId);
+    }
 }
 

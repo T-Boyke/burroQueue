@@ -99,6 +99,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _lanGroupService.GroupActionReceived += OnGroupActionReceived;
         _lanGroupService.PlaybackCommandReceived += OnPlaybackCommandReceived;
         _lanGroupService.CollaborativePlaylistReceived += OnCollaborativePlaylistReceived;
+        _lanGroupService.QueueSyncReceived += OnQueueSyncReceived;
+        _lanGroupService.SkipVoteReceived += OnSkipVoteReceived;
         _webDropServer.LinkDropped += (_, droppedUrl) => EnqueueRawUrl(droppedUrl);
     }
 
@@ -139,6 +141,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         SyncQueuedItems();
         StatusMessage = $"Enqueued: {videoId}";
 
+        _ = _lanGroupService.SendQueueSyncAsync(_group.Id, "Enqueue", track);
+
         if (_group.Playlist.CurrentTrack == track)
         {
             _ = LoadTrackMetadataAsync(track);
@@ -157,6 +161,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             SyncQueuedItems();
             StatusMessage = $"Removed: {track.Title}";
+            _ = _lanGroupService.SendQueueSyncAsync(_group.Id, "Remove", track);
         }
     }
 
@@ -189,8 +194,15 @@ public sealed partial class MainWindowViewModel : ObservableObject
             return;
         }
 
+        if (_skipVotePool.TrackId != _group.Playlist.CurrentTrack.Id)
+        {
+            _skipVotePool = new SkipVotePool(_group.Playlist.CurrentTrack.Id, requiredVotes: 3);
+        }
+
         bool voted = _skipVotePool.CastVote(_localClientId);
         UpdateSkipVoteStatus();
+
+        _ = _lanGroupService.SendSkipVoteAsync(_group.Id, _group.Playlist.CurrentTrack.VideoId, _localClientId);
 
         if (_skipVotePool.IsThresholdReached)
         {
@@ -354,4 +366,100 @@ public sealed partial class MainWindowViewModel : ObservableObject
             OpenCollaborativePlaylist();
         }
     }
+
+    private void OnQueueSyncReceived(object? sender, QueueSyncMessage message)
+    {
+        if (message.GroupId != _group.Id.Value)
+        {
+            return;
+        }
+
+        RunOnUi(() =>
+        {
+            if (message.Action == "Enqueue")
+            {
+                if (_group.Playlist.QueuedTracks.Any(t => t.VideoId == message.VideoId) ||
+                    _group.Playlist.CurrentTrack?.VideoId == message.VideoId)
+                {
+                    return;
+                }
+
+                if (Uri.TryCreate(message.TrackUrl, UriKind.Absolute, out Uri? trackUri))
+                {
+                    Track peerTrack = new(
+                        message.VideoId,
+                        trackUri,
+                        message.Title,
+                        message.AddedBy,
+                        message.Timestamp);
+
+                    _group.Playlist.Enqueue(peerTrack);
+                    SyncQueuedItems();
+                    StatusMessage = $"{message.AddedBy} hat hinzugefügt: {message.Title}";
+
+                    if (_group.Playlist.CurrentTrack == peerTrack)
+                    {
+                        _ = LoadTrackMetadataAsync(peerTrack);
+                    }
+                }
+            }
+            else if (message.Action == "Remove")
+            {
+                Track? existing = _group.Playlist.QueuedTracks.FirstOrDefault(t => t.VideoId == message.VideoId);
+                if (existing is not null && _group.Playlist.Remove(existing.Id))
+                {
+                    SyncQueuedItems();
+                    StatusMessage = $"Entfernt von Peer: {message.Title}";
+                }
+            }
+        });
+    }
+
+    private async void OnSkipVoteReceived(object? sender, SkipVoteMessage vote)
+    {
+        if (vote.GroupId != _group.Id.Value)
+        {
+            return;
+        }
+
+        if (_group.Playlist.CurrentTrack is null || _group.Playlist.CurrentTrack.VideoId != vote.TrackId)
+        {
+            return;
+        }
+
+        if (_skipVotePool.TrackId != _group.Playlist.CurrentTrack.Id)
+        {
+            _skipVotePool = new SkipVotePool(_group.Playlist.CurrentTrack.Id, requiredVotes: 3);
+        }
+
+        ClientId remoteVoter = new(vote.VoterClientId);
+        bool voted = _skipVotePool.CastVote(remoteVoter);
+        if (voted)
+        {
+            RunOnUi(() =>
+            {
+                UpdateSkipVoteStatus();
+                StatusMessage = $"Skip-Vote eingegangen ({_skipVotePool.CurrentVotes}/{_skipVotePool.RequiredVotes})";
+            });
+
+            if (_skipVotePool.IsThresholdReached)
+            {
+                RunOnUi(() => StatusMessage = "Vote threshold reached! Skipping song...");
+                await SkipAsync().ConfigureAwait(true);
+            }
+        }
+    }
+
+    private static void RunOnUi(Action action)
+    {
+        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
+        {
+            dispatcher.Invoke(action);
+        }
+        else
+        {
+            action();
+        }
+    }
 }
+
