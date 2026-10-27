@@ -74,5 +74,57 @@ public sealed class GlobalHotkeyServiceTests
         playFired.Should().BeFalse();
         nextFired.Should().BeFalse();
     }
+
+    [Fact]
+    public void HwndHook_WithPlayPauseMessage_ShouldSetHandledTrueAndReturnZero()
+    {
+        GlobalHotkeyService service = new();
+        bool playFired = false;
+        service.PlayPausePressed += (_, _) => playFired = true;
+
+        bool handled = false;
+        IntPtr result = service.HwndHook(IntPtr.Zero, 0x0312, new IntPtr(9001), IntPtr.Zero, ref handled);
+
+        handled.Should().BeTrue();
+        result.Should().Be(IntPtr.Zero);
+        playFired.Should().BeTrue();
+    }
+
+    [Fact]
+    public void HwndHook_WithNextTrackMessage_ShouldSetHandledTrueAndReturnZero()
+    {
+        GlobalHotkeyService service = new();
+        bool nextFired = false;
+        service.NextTrackPressed += (_, _) => nextFired = true;
+
+        bool handled = false;
+        IntPtr result = service.HwndHook(IntPtr.Zero, 0x0312, new IntPtr(9002), IntPtr.Zero, ref handled);
+
+        handled.Should().BeTrue();
+        result.Should().Be(IntPtr.Zero);
+        nextFired.Should().BeTrue();
+    }
+
+    [Fact]
+    public void HwndHook_WithIrrelevantMessage_ShouldLeaveHandledFalse()
+    {
+        GlobalHotkeyService service = new();
+        bool handled = false;
+        IntPtr result = service.HwndHook(IntPtr.Zero, 0x00A0, IntPtr.Zero, IntPtr.Zero, ref handled);
+
+        handled.Should().BeFalse();
+        result.Should().Be(IntPtr.Zero);
+    }
+
+    [Fact]
+    public void Dispose_WhenWindowHandleSet_ShouldUnregisterAndResetHandle()
+    {
+        GlobalHotkeyService service = new();
+        service.WindowHandle = new IntPtr(12345);
+
+        service.Dispose();
+
+        service.WindowHandle.Should().Be(IntPtr.Zero);
+    }
 }
 

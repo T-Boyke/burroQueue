@@ -15,14 +15,21 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
     {
         ArgumentNullException.ThrowIfNull(mainWindow);
 
-        ContextMenuStrip menu = new();
-        menu.Items.Add("burroQueue anzeigen", null, (_, _) =>
-        {
-            mainWindow.Show();
-            mainWindow.WindowState = System.Windows.WindowState.Normal;
-            mainWindow.Activate();
-        });
+        InitializeCore(
+            onRestoreWindow: () =>
+            {
+                mainWindow.Show();
+                mainWindow.WindowState = System.Windows.WindowState.Normal;
+                mainWindow.Activate();
+            },
+            onOpenSettings,
+            onExitApp);
+    }
 
+    internal void InitializeCore(Action onRestoreWindow, Action onOpenSettings, Action onExitApp, string? customIconPath = null)
+    {
+        ContextMenuStrip menu = new();
+        menu.Items.Add("burroQueue anzeigen", null, (_, _) => onRestoreWindow?.Invoke());
         menu.Items.Add("Einstellungen...", null, (_, _) => onOpenSettings?.Invoke());
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Beenden", null, (_, _) => onExitApp?.Invoke());
@@ -30,8 +37,7 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
         Icon iconToUse = SystemIcons.Application;
         try
         {
-            string appDir = AppDomain.CurrentDomain.BaseDirectory;
-            string iconPath = Path.Combine(appDir, "Assets", "app.ico");
+            string iconPath = customIconPath ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "app.ico");
             if (File.Exists(iconPath))
             {
                 _customIcon = new Icon(iconPath);
@@ -51,13 +57,12 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
             Visible = true
         };
 
-        _notifyIcon.DoubleClick += (_, _) =>
-        {
-            mainWindow.Show();
-            mainWindow.WindowState = System.Windows.WindowState.Normal;
-            mainWindow.Activate();
-        };
+        _notifyIcon.DoubleClick += (_, _) => onRestoreWindow?.Invoke();
     }
+
+    internal ContextMenuStrip? ContextMenu => _notifyIcon?.ContextMenuStrip;
+
+    internal bool IsIconVisible => _notifyIcon?.Visible ?? false;
 
     public void ShowNotification(string title, string message)
     {

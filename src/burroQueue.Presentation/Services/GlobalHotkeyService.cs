@@ -63,7 +63,13 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
         return false;
     }
 
-    private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    internal IntPtr WindowHandle
+    {
+        get => _windowHandle;
+        set => _windowHandle = value;
+    }
+
+    internal IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         if (ProcessMessage(msg, wParam))
         {
