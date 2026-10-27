@@ -31,5 +31,16 @@ public sealed class CollaborativePlaylistLinkTests
 
         act.Should().Throw<InvalidTrackUrlException>();
     }
+
+    [Fact]
+    public void Constructor_WithStandaloneQueryFlags_ShouldIgnoreMalformedPairsAndParse()
+    {
+        string rawUrl = "https://www.youtube.com/playlist?flag&list=PLTest12345&jct=token123";
+        CollaborativePlaylistLink link = new(rawUrl);
+
+        link.PlaylistId.Should().Be("PLTest12345");
+        link.CollaborationToken.Should().Be("token123");
+        link.ToString().Should().Be(rawUrl);
+    }
 }
 

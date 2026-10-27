@@ -93,5 +93,68 @@ public sealed class BurroGroupTests
         group.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<CollaborativePlaylistLinkUpdatedDomainEvent>();
     }
+
+    [Fact]
+    public void Join_WhenMemberAlreadyPresent_ShouldUpdateExistingMember()
+    {
+        BurroGroup group = new(GroupId.New(), "Sound");
+        ClientId client = ClientId.New();
+        GroupMember initial = new(client, "Old Nickname", "192.168.1.10", DateTimeOffset.UtcNow);
+        GroupMember updated = new(client, "New Nickname", "192.168.1.20", DateTimeOffset.UtcNow);
+
+        group.Join(initial);
+        group.Join(updated);
+
+        group.Members.Should().ContainSingle()
+            .Which.DisplayName.Should().Be("New Nickname");
+    }
+
+    [Fact]
+    public void Leave_WhenMemberNotFound_ShouldReturnFalse()
+    {
+        BurroGroup group = new(GroupId.New(), "Sound");
+        bool left = group.Leave(ClientId.New());
+        left.Should().BeFalse();
+    }
+
+    [Fact]
+    public void PlaybackStates_WhenAlreadyInTargetState_ShouldBeNoOp()
+    {
+        BurroGroup group = new(GroupId.New(), "Sound");
+
+        group.Stop(); // Already stopped
+        group.DomainEvents.Should().BeEmpty();
+
+        group.Play();
+        group.DomainEvents.Should().HaveCount(1);
+        group.Play(); // Already playing
+        group.DomainEvents.Should().HaveCount(1);
+
+        group.Pause();
+        group.DomainEvents.Should().HaveCount(2);
+        group.Pause(); // Already paused
+        group.DomainEvents.Should().HaveCount(2);
+
+        group.ClearEvents();
+        group.DomainEvents.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Rename_WhenSameName_ShouldBeNoOp()
+    {
+        BurroGroup group = new(GroupId.New(), "Office Sound");
+        group.Rename("Office Sound");
+        group.DomainEvents.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void Constructor_WhenInvalidName_ShouldThrowArgumentException(string? invalidName)
+    {
+        Action act = () => _ = new BurroGroup(GroupId.New(), invalidName!);
+        act.Should().Throw<ArgumentException>();
+    }
 }
 

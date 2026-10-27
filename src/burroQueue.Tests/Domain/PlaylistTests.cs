@@ -77,6 +77,69 @@ public sealed class PlaylistTests
         playlist.QueuedTracks[1].Should().BeSameAs(t1);
     }
 
+    [Theory]
+    [InlineData(-1, 0)]
+    [InlineData(0, -1)]
+    [InlineData(0, 5)]
+    [InlineData(5, 0)]
+    [InlineData(0, 0)]
+    public void Move_WhenInvalidIndices_ShouldReturnFalse(int fromIndex, int toIndex)
+    {
+        Playlist playlist = new();
+        Track current = CreateSampleTrack("00000000000", "Current");
+        Track t1 = CreateSampleTrack("11111111111", "Song 1");
+        playlist.Enqueue(current);
+        playlist.Enqueue(t1);
+
+        bool moved = playlist.Move(fromIndex, toIndex);
+        moved.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Remove_WhenTrackNotInQueue_ShouldReturnFalse()
+    {
+        Playlist playlist = new();
+        Track current = CreateSampleTrack("00000000000", "Current");
+        playlist.Enqueue(current);
+
+        bool removed = playlist.Remove(TrackId.New());
+        removed.Should().BeFalse();
+    }
+
+    [Fact]
+    public void AdvanceNext_WhenQueueEmpty_ShouldSetCurrentTrackToNull()
+    {
+        Playlist playlist = new();
+        Track current = CreateSampleTrack("00000000000", "Current");
+        playlist.Enqueue(current);
+
+        Track? next = playlist.AdvanceNext();
+        next.Should().BeNull();
+        playlist.CurrentTrack.Should().BeNull();
+    }
+
+    [Fact]
+    public void Clear_ShouldEmptyQueueAndResetCurrentTrack()
+    {
+        Playlist playlist = new();
+        playlist.Enqueue(CreateSampleTrack("11111111111", "Track 1"));
+        playlist.Enqueue(CreateSampleTrack("22222222222", "Track 2"));
+
+        playlist.Clear();
+
+        playlist.CurrentTrack.Should().BeNull();
+        playlist.QueuedTracks.Should().BeEmpty();
+        playlist.Count.Should().Be(0);
+    }
+
+    [Fact]
+    public void Enqueue_WhenTrackNull_ShouldThrowArgumentNullException()
+    {
+        Playlist playlist = new();
+        Action act = () => playlist.Enqueue(null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
     private static Track CreateSampleTrack(string videoId, string title) =>
         new(videoId, new Uri($"https://www.youtube.com/watch?v={videoId}"), title, "Tester", DateTimeOffset.UtcNow);
 }

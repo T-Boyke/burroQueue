@@ -46,5 +46,19 @@ public sealed class SkipVotePoolTests
         pool.CurrentVotes.Should().Be(2);
         pool.IsThresholdReached.Should().BeTrue();
     }
+
+    [Fact]
+    public void Reset_ShouldClearAllVotes()
+    {
+        TrackId trackId = TrackId.New();
+        SkipVotePool pool = new(trackId, requiredVotes: 2);
+        pool.CastVote(ClientId.New());
+        pool.CurrentVotes.Should().Be(1);
+
+        pool.Reset();
+
+        pool.CurrentVotes.Should().Be(0);
+        pool.IsThresholdReached.Should().BeFalse();
+    }
 }
 
