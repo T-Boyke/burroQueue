@@ -1,5 +1,4 @@
 using System.Windows;
-using Application = System.Windows.Application;
 using burroQueue.Domain.Model;
 using burroQueue.Infrastructure.Audio;
 using burroQueue.Infrastructure.Configuration;

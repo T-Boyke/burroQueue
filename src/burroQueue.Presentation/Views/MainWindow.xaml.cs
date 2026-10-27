@@ -2,9 +2,6 @@ using System.Windows;
 using burroQueue.Presentation.Services;
 using burroQueue.Presentation.ViewModels;
 using Wpf.Ui.Controls;
-using DataFormats = System.Windows.DataFormats;
-using DragDropEffects = System.Windows.DragDropEffects;
-using DragEventArgs = System.Windows.DragEventArgs;
 
 namespace burroQueue.Presentation.Views;
 
@@ -52,30 +49,30 @@ public partial class MainWindow : FluentWindow
         Hide();
     }
 
-    private void OnDragOver(object sender, DragEventArgs e)
+    private void OnDragOver(object sender, System.Windows.DragEventArgs e)
     {
-        if (e.Data.GetDataPresent(DataFormats.Text) || e.Data.GetDataPresent(DataFormats.UnicodeText))
+        if (e.Data.GetDataPresent(System.Windows.DataFormats.Text) || e.Data.GetDataPresent(System.Windows.DataFormats.UnicodeText))
         {
-            e.Effects = DragDropEffects.Copy;
+            e.Effects = System.Windows.DragDropEffects.Copy;
             e.Handled = true;
         }
         else
         {
-            e.Effects = DragDropEffects.None;
+            e.Effects = System.Windows.DragDropEffects.None;
         }
     }
 
-    private void OnDrop(object sender, DragEventArgs e)
+    private void OnDrop(object sender, System.Windows.DragEventArgs e)
     {
         string? droppedText = null;
 
-        if (e.Data.GetDataPresent(DataFormats.UnicodeText))
+        if (e.Data.GetDataPresent(System.Windows.DataFormats.UnicodeText))
         {
-            droppedText = e.Data.GetData(DataFormats.UnicodeText) as string;
+            droppedText = e.Data.GetData(System.Windows.DataFormats.UnicodeText) as string;
         }
-        else if (e.Data.GetDataPresent(DataFormats.Text))
+        else if (e.Data.GetDataPresent(System.Windows.DataFormats.Text))
         {
-            droppedText = e.Data.GetData(DataFormats.Text) as string;
+            droppedText = e.Data.GetData(System.Windows.DataFormats.Text) as string;
         }
 
         if (!string.IsNullOrWhiteSpace(droppedText))
