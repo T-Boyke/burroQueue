@@ -339,7 +339,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     private void OnGroupActionReceived(object? sender, GroupActionMessage action)
     {
-        if (action.GroupId != _group.Id.Value)
+        if (action.GroupId != _group.Id.Value || action.ActorClientId == _localClientId.Value)
         {
             return;
         }
@@ -353,7 +353,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     private void OnPlaybackCommandReceived(object? sender, PlaybackCommandMessage cmd)
     {
-        if (cmd.GroupId != _group.Id.Value)
+        if (cmd.GroupId != _group.Id.Value || cmd.IssuerClientId == _localClientId.Value)
         {
             return;
         }
@@ -448,7 +448,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     private async void OnSkipVoteReceived(object? sender, SkipVoteMessage vote)
     {
-        if (vote.GroupId != _group.Id.Value)
+        if (vote.GroupId != _group.Id.Value || vote.VoterClientId == _localClientId.Value)
         {
             return;
         }

@@ -38,8 +38,9 @@ public sealed class PlaylistStorageService : IPlaylistStorageService
             tracks.Add(StoredTrackDto.FromDomain(item, isCurrent: false));
         }
 
-        await using FileStream stream = File.Create(_storageFilePath);
+        await using FileStream stream = new(_storageFilePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
         await JsonSerializer.SerializeAsync(stream, tracks, cancellationToken: cancellationToken).ConfigureAwait(false);
+        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task LoadPlaylistAsync(Playlist playlist, CancellationToken cancellationToken = default)
@@ -53,7 +54,7 @@ public sealed class PlaylistStorageService : IPlaylistStorageService
 
         try
         {
-            await using FileStream stream = File.OpenRead(_storageFilePath);
+            await using FileStream stream = new(_storageFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             List<StoredTrackDto>? tracks = await JsonSerializer.DeserializeAsync<List<StoredTrackDto>>(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (tracks is null || tracks.Count == 0)
             {
