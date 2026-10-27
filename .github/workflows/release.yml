@@ -1,4 +1,4 @@
-name: burroQueue Release
+name: burroQueue Release & Installer
 
 on:
   push:
@@ -15,9 +15,9 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
-  publish-win11-x64:
-    name: Publish Native Windows 11 x64 App
-    runs-on: ${{ vars.USE_SELF_HOSTED_RUNNER == 'true' && 'self-hosted' || 'windows-latest' }}
+  build-and-package:
+    name: Build Self-Contained Win11 Exe & Inno Setup Installer
+    runs-on: windows-latest
 
     steps:
       - name: Checkout Repository
@@ -28,39 +28,53 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Run Architecture & TDD Gate
+      - name: Run Architecture & 1CPF Verification
         shell: pwsh
-        run: |
-          ./scripts/verify-architecture.ps1
-          dotnet test burroQueue.sln --configuration Release
+        run: ./scripts/verify-architecture.ps1
 
-      - name: Publish Single-File Native Win11 App
+      - name: Run Unit & Integration Tests
+        run: dotnet test burroQueue.sln --configuration Release
+
+      - name: Publish Self-Contained Single-File Executable
         run: >
           dotnet publish src/burroQueue.Presentation/burroQueue.Presentation.csproj
           --configuration Release
           --runtime win-x64
-          --self-contained false
+          --self-contained true
           -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
           -p:EnableCompressionInSingleFile=true
           -p:DebugType=none
           --output ./publish/burroQueue-win-x64
 
-      - name: Package Release ZIP
+      - name: Ensure Assets in Publish Directory
         shell: pwsh
         run: |
-          Copy-Item LICENSE, README.md -Destination ./publish/burroQueue-win-x64/
-          Compress-Archive -Path ./publish/burroQueue-win-x64/* -DestinationPath ./publish/burroQueue-win11-x64.zip -Force
+          New-Item -ItemType Directory -Force -Path ./publish/burroQueue-win-x64/Assets | Out-Null
+          Copy-Item assets/app.ico, assets/logo.png -Destination ./publish/burroQueue-win-x64/Assets/ -Force
+          Copy-Item LICENSE, README.md -Destination ./publish/burroQueue-win-x64/ -Force
 
-      - name: Upload Build Artifact
+      - name: Build Inno Setup Installer (.exe)
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+        with:
+          path: scripts/installer/burroQueue.iss
+
+      - name: Package Portable ZIP (Standalone Exe)
+        shell: pwsh
+        run: |
+          Compress-Archive -Path ./publish/burroQueue-win-x64/* -DestinationPath ./publish-installer/burroQueue-portable-win-x64.zip -Force
+
+      - name: Upload Build Artifacts (Installer & Portable)
         uses: actions/upload-artifact@v4
         with:
-          name: burroQueue-win11-x64
-          path: ./publish/burroQueue-win11-x64.zip
+          name: burroQueue-windows-binaries
+          path: ./publish-installer/*
 
-      - name: Create GitHub Release (on Tag)
+      - name: Create GitHub Release with Installer & Exe Assets
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: ./publish/burroQueue-win11-x64.zip
+          files: |
+            ./publish-installer/burroQueue-Setup-x64.exe
+            ./publish-installer/burroQueue-portable-win-x64.zip
           generate_release_notes: true
-
