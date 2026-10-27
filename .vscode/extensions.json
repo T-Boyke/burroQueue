@@ -1,0 +1,15 @@
+{
+  "recommendations": [
+    "ms-dotnettools.csdevkit",
+    "ms-dotnettools.csharp",
+    "ms-dotnettools.vscode-dotnet-runtime",
+    "github.vscode-github-actions",
+    "editorconfig.editorconfig",
+    "ms-vscode.powershell",
+    "usernamehw.errorlens",
+    "ryanluker.vscode-coverage-gutters",
+    "streetsidesoftware.code-spell-checker",
+    "streetsidesoftware.code-spell-checker-german"
+  ]
+}
+

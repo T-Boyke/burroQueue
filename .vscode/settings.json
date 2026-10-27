@@ -1,0 +1,41 @@
+{
+  "dotnet.defaultSolution": "burroQueue.sln",
+  "dotnet.server.useOmnisharp": false,
+  "csharp.experimental.debug.hotReload": true,
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "files.eol": "\n",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.exclude": {
+    "**/bin": true,
+    "**/obj": true
+  },
+  "search.exclude": {
+    "**/bin": true,
+    "**/obj": true,
+    "**/TestResults": true,
+    "**/publish": true
+  },
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "*.xaml": "${capture}.xaml.cs",
+    "Directory.Build.props": "Directory.Packages.props, global.json, .editorconfig"
+  },
+  "cSpell.language": "en,de",
+  "cSpell.words": [
+    "burro",
+    "burroQueue",
+    "FluentAssertions",
+    "Mica",
+    "Mvvm",
+    "NSubstitute",
+    "Systray",
+    "Wpf",
+    "xunit"
+  ]
+}
+
