@@ -6,3 +6,4 @@ public interface IYouTubeMetadataFetcher
 {
     Task<TrackMetadata> FetchMetadataAsync(string videoId, CancellationToken cancellationToken = default);
 }
+

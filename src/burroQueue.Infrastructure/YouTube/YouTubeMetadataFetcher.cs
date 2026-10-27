@@ -59,3 +59,4 @@ public sealed class YouTubeMetadataFetcher : IYouTubeMetadataFetcher
         }
     }
 }
+

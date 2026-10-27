@@ -47,3 +47,4 @@ public sealed class SkipVotePoolTests
         pool.IsThresholdReached.Should().BeTrue();
     }
 }
+

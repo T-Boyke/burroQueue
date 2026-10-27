@@ -31,3 +31,4 @@ public sealed class SkipVotePool
         _voters.Clear();
     }
 }
+

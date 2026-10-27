@@ -6,3 +6,4 @@ public interface IWindowsAutostartService
 
     bool SetAutostart(bool enable);
 }
+

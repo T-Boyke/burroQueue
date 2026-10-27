@@ -10,3 +10,4 @@ public interface IGlobalHotkeyService : IDisposable
 
     void Register(Window window);
 }
+
