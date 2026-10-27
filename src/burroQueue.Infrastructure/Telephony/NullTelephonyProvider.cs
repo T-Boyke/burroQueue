@@ -10,7 +10,11 @@ public sealed class NullTelephonyProvider : ITelephonyProvider
 
     public bool IsAvailable => true;
 
-    public event EventHandler<TelephonyCallEventArgs>? CallStateChanged;
+    public event EventHandler<TelephonyCallEventArgs>? CallStateChanged
+    {
+        add { }
+        remove { }
+    }
 
     public Task StartAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
