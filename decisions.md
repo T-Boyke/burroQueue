@@ -68,3 +68,21 @@ Dieses Dokument hält alle zentralen architektonischen Entscheidungen für `burr
   3. **System Tests:** End-to-End Zusammenspiel der Komponenten über den DI-Container.
   4. **Architektur-Tests:** Automatisierte Durchsetzung aller 1CPF- und DDD-Regeln via CI-Skript.
 - **Konsequenzen:** Regressionsfreiheit bei jedem Release, hohe Zuversicht für kontinuierliche Weiterentwicklung.
+
+---
+
+## ADR-008: Loopback-Filterung für Multicast-Nachrichten in MainWindowViewModel
+
+- **Status:** Angenommen
+- **Kontext:** Lokale UDP-Multicast-Pakete (z. B. `PlaybackCommandMessage`, `GroupActionMessage`, `SkipVoteMessage`) werden durch Windows Loopback an denselben Rechner zurückgespiegelt. Ohne Filterung würden Befehle wie `Skip` oder `Rename` auf dem Sender doppelt ausgeführt.
+- **Entscheidung:** Jede gesendete Multicast-Nachricht enthält die `ClientId` des Absenders. Der Empfänger prüft `if (message.IssuerClientId == _localClientId.Value) return;` und ignoriert eigene gespiegelte Pakete.
+- **Konsequenzen:** Absolute Stabilität im lokalen Netzwerkbetrieb ohne Doppelausführungen.
+
+---
+
+## ADR-009: Robuste HttpListener-Instanziierung mit dynamischem Fallback
+
+- **Status:** Angenommen
+- **Kontext:** `HttpListener` verlangt unter Windows Administrator-Rechte für Wildcard-Präfixe (`http://*:8080/`). Scheitert der Start, wird die Instanz von der .NET-Runtime als verworfen markiert und wirft bei Wiederverwendung eine `ObjectDisposedException`.
+- **Entscheidung:** Bei Fehlschlagen des Wildcard-Präfixes wird eine frische `HttpListener`-Instanz mit Präfix `http://localhost:{Port}/` erzeugt und gestartet.
+- **Konsequenzen:** Zuverlässiger Serverstart sowohl mit als auch ohne Administrator-Rechte in allen Benutzer- und Testumgebungen.

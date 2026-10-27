@@ -10,9 +10,13 @@ Letzte Aktualisierung: 2026-10-27 | Ziel: Stabile Version 1.0 (Produktionsreife)
 - **Zielsystem:** Windows 11 (Mica, Fluent Design, Systray-Jukebox)
 - **Runtime:** .NET 10 (`net10.0` für Domain/Infrastructure/Tests, `net10.0-windows10.0.22621.0` für Presentation)
 - **Architektur:** Reine Domain-Driven Design Schichten (Domain = 0 externe Dependencies, Single Component Per File)
-- **Aktuelle Testanzahl:** 69 Tests (alle grün)
-- **Aktuelle Code-Coverage:** 42,66% Line Coverage (Ziel: ~100% über Unit, Integration, System, E2E)
+- **Aktuelle Testanzahl:** 220 Tests (100% grün in ~250ms)
+- **Aktuelle Code-Coverage:**
+  - `burroQueue.Domain`: 100,00% Line Coverage (97,05% Branch)
+  - `burroQueue.Infrastructure`: 83,69% Line Coverage (69,05% Branch)
+  - `burroQueue.Presentation`: 60,21% Line Coverage (57,65% Branch)
 - **Installer:** Inno Setup 6.x mit unkomprimiertem 32bpp DIB Multi-Res `.ico` (16–256 px)
+- **Architektur-Check:** `./scripts/verify-architecture.ps1` (118/118 Dateien validiert, 0 Violations)
 
 ---
 
@@ -31,36 +35,45 @@ Letzte Aktualisierung: 2026-10-27 | Ziel: Stabile Version 1.0 (Produktionsreife)
 - **Playback:** `AudioPlayerBackend`, `YouTubeAudioStreamResolver`, `IStreamUriResolver`.
 - **Network:** `LanGroupService` (UDP Multicast `239.255.42.99:41234`), `LocalNetworkInfoService` (LAN IPv4 Discovery).
 - **Messages:** `DiscoveryBeaconMessage`, `QueueSyncMessage`, `SkipVoteMessage`, `SharedPlaylistSyncMessage`, `GroupActionMessage`, `PlaybackCommandMessage`.
-- **Web:** `EmbeddedWebDropServer` (HTTP Server Port 8080 für No-Install Drop & Queue-View).
+- **Web:** `EmbeddedWebDropServer` (HTTP Server Port 8080 für No-Install Drop & Queue-View mit dynamischem Fallback).
 - **Telephony:** `TelephonyManager`, `SwyxItTelephonyProvider`, `WindowsCoreAudioTelephonyProvider`, `NullTelephonyProvider`.
 - **Persistence:** `PlaylistStorageService` (JSON File Storage in `%AppData%/burroQueue`).
 - **Windows:** `WindowsAutostartService` (Registry Run Key Management).
-- **YouTube:** `YouTubeUrlParser`, `YouTubeMetadataFetcher` (oEmbed / Invidious fallback).
+- **YouTube:** `YouTubeUrlParser` (Shorts, Embeds, Live, Music, Timestamps), `YouTubeMetadataFetcher` (oEmbed / Invidious fallback).
 
 ### C. Presentation (`src/burroQueue.Presentation`)
 
 - **Views:** `MainWindow.xaml` (Mica, Fluent Design, Taskleisten-Docking), `SettingsWindow.xaml`.
-- **ViewModels:** `MainWindowViewModel` (CommunityToolkit.Mvvm, Queue-Binding, Hotkeys, Telephony Ducking), `SettingsViewModel`.
+- **ViewModels:** `MainWindowViewModel` (CommunityToolkit.Mvvm, Queue-Binding, Hotkeys, Telephony Ducking, Loopback-Filtering), `SettingsViewModel`.
 - **Services:** `SystrayNotificationService`, `GlobalHotkeyService`.
 - **Converters:** `BooleanToVisibilityConverter`, `NullToVisibilityConverter`.
 
 ---
 
-## 3. Aktueller Ausbauplan zu 1.0
+## 3. Test-Harness Übersicht
 
-1. **ADRs dokumentieren (`decisions.md`):** Alle Kernentscheidungen festhalten.
-2. **Settings & Auto-Persistence Refactoring:**
-   - Playlist speichert sich bei jeder Enqueue/Remove/Advance Operation automatisch.
-   - `SettingsViewModel` voll an `IAppSettingsService`, `IAudioDeviceEnumerator` und `IWindowsAutostartService` anbinden.
-3. **Global Hotkeys & Systray:**
-   - Tastenkombinationen (`MediaPlayPause`, `MediaNextTrack`, etc.) registrieren und testen.
-   - Systray-Notifications bei Trackwechsel und Skip-Votes.
-4. **YouTube URL Parser Erweiterung:**
-   - Vollständige Unterstützung für YouTube Music, Shorts, Timestamps (`t=...`) und Bereinigung von Tracking-Parametern (`si=...`).
-5. **Umfassendes Test-Harness (Ziel 100%):**
-   - Unit Tests für alle verbleibenden Typen in Domain, Infrastructure und Presentation.
-   - Integrationstests für Netzwerk (Multicast), WebDrop (HTTP), Telephony-Ducking und Storage Roundtrip.
-   - System & E2E Tests mit vollständigem Flow (DI -> Drop -> P2P -> Ducking -> Skip -> Persist).
-6. **Repository & CI Ausbau:**
-   - GitHub Actions CI mit Coverage-Reporting, Architektur-Gate und Release-Build.
-   - Issue- und PR-Templates.
+1. **Unit Tests:**
+   - 100% Coverage der Domain (Modelle, Value Objects, Events, Exceptions).
+   - Ausführliche Tests für alle Infrastructure-Services (`YouTubeUrlParser`, `PlaylistStorageService`, `TelephonyManager`, etc.).
+   - Ausführliche Tests für ViewModels und Converter (`MainWindowViewModelPlaybackTests`, `MainWindowViewModelNetworkSyncTests`, `SettingsViewModelTests`, `AppServiceRegistrationTests`).
+2. **Integration Tests:**
+   - `WebDropServerIntegrationTests`: Live HTTP GET/POST auf `EmbeddedWebDropServer`.
+   - `LanMulticastIntegrationTests`: Lokale UDP-Multicast-Synchronisation zwischen zwei unabhängigen Instanzen.
+   - `TelephonyDuckingIntegrationTests`: End-to-End Reaktion auf Anrufe mit Lautstärke-Ducking auf dem AudioPlayerBackend.
+3. **E2E System Tests:**
+   - `EndToEndWorkflowTests`: Kompletter End-to-End Workflow über den registrierten DI-Container (WebDrop -> Enqueue -> Play -> Skip Vote -> Dateipersistenz -> Wiederherstellung).
+
+---
+
+## 4. Aktueller Ausbauplan zu 1.0
+
+1. **Playlist Auto-Persistence im UI-Flow:**
+   - Automatische Speicherung der Queue bei Enqueue-, Remove- und Track-Advance-Ereignissen im `MainWindowViewModel`.
+   - Automatisches Laden persistierter Titel beim Start.
+2. **Global Hotkeys & Systray-Integration:**
+   - Erweiterte Unit-Tests für `GlobalHotkeyService` und `SystrayNotificationService`.
+   - Zusammenspiel von Minimieren ins Tray und Hotkey-Event-Handling absichern.
+3. **Code-Coverage weiter ausbauen:**
+   - Weitere Randfälle in Infrastructure und Presentation abdecken (Coverage > 85-90% gesamt).
+4. **Git-Veröffentlichung:**
+   - Alle Commits sauber auf `origin/main` pushen.
