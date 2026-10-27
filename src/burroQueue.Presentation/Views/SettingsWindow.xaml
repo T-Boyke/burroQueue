@@ -5,7 +5,7 @@
   xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
   Title="burroQueue – Einstellungen"
   Width="480"
-  Height="440"
+  Height="490"
   ExtendsContentIntoTitleBar="True"
   WindowBackdropType="Mica"
   WindowStartupLocation="CenterOwner">
@@ -34,9 +34,14 @@
         Text="{Binding CollaborativePlaylistUrl, UpdateSourceTrigger=PropertyChanged}" />
 
       <CheckBox
-        Margin="0,4,0,16"
+        Margin="0,4,0,12"
         Content="Gemeinsame Playlist beim Gruppenbeitritt automatisch im Browser öffnen"
         IsChecked="{Binding AutoOpenCollaborativePlaylistOnJoin}" />
+
+      <CheckBox
+        Margin="0,0,0,16"
+        Content="burroQueue beim Windows-Start automatisch im Hintergrund ausführen"
+        IsChecked="{Binding IsAutostartEnabled}" />
 
       <TextBlock Text="Dein Anzeigename in der Gruppe" FontWeight="SemiBold" />
       <ui:TextBox
@@ -57,4 +62,3 @@
       Command="{Binding SaveSettingsCommand}" />
   </Grid>
 </ui:FluentWindow>
-

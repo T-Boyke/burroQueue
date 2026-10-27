@@ -6,6 +6,8 @@ using burroQueue.Infrastructure.Network;
 using burroQueue.Infrastructure.Persistence;
 using burroQueue.Infrastructure.Playback;
 using burroQueue.Infrastructure.Telephony;
+using burroQueue.Infrastructure.Web;
+using burroQueue.Infrastructure.Windows;
 using burroQueue.Infrastructure.YouTube;
 using burroQueue.Presentation.Services;
 using burroQueue.Presentation.ViewModels;
@@ -41,6 +43,9 @@ public partial class App : Application
         ILanGroupService lan = _serviceProvider.GetRequiredService<ILanGroupService>();
         await lan.StartAsync().ConfigureAwait(true);
 
+        IEmbeddedWebDropServer webDrop = _serviceProvider.GetRequiredService<IEmbeddedWebDropServer>();
+        await webDrop.StartAsync().ConfigureAwait(true);
+
         MainWindow mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
 
         _systrayService = _serviceProvider.GetRequiredService<ISystrayNotificationService>();
@@ -66,9 +71,12 @@ public partial class App : Application
         services.AddSingleton<IAppSettingsService, AppSettingsService>();
         services.AddSingleton<IPlaylistStorageService, PlaylistStorageService>();
         services.AddSingleton<IYouTubeUrlParser, YouTubeUrlParser>();
+        services.AddSingleton<IYouTubeMetadataFetcher, YouTubeMetadataFetcher>();
         services.AddSingleton<IAudioOutputController, AudioOutputController>();
         services.AddSingleton<IAudioPlayerBackend, AudioPlayerBackend>();
         services.AddSingleton<ILanGroupService, LanGroupService>();
+        services.AddSingleton<IEmbeddedWebDropServer, EmbeddedWebDropServer>();
+        services.AddSingleton<IWindowsAutostartService, WindowsAutostartService>();
 
         // Modulare Telephony Providers
         services.AddSingleton<ITelephonyProvider, SwyxItTelephonyProvider>();
@@ -78,6 +86,7 @@ public partial class App : Application
 
         // Presentation Services & Views
         services.AddSingleton<ISystrayNotificationService, SystrayNotificationService>();
+        services.AddSingleton<IGlobalHotkeyService, GlobalHotkeyService>();
         services.AddTransient<MainWindowViewModel>();
         services.AddTransient<SettingsViewModel>();
         services.AddSingleton<MainWindow>();

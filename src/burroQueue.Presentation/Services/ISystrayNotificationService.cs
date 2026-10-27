@@ -8,3 +8,4 @@ public interface ISystrayNotificationService : IDisposable
 
     void ShowNotification(string title, string message);
 }
+

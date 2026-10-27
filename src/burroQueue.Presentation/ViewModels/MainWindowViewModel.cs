@@ -5,6 +5,7 @@ using burroQueue.Infrastructure.Configuration;
 using burroQueue.Infrastructure.Network;
 using burroQueue.Infrastructure.Network.Messages;
 using burroQueue.Infrastructure.Telephony;
+using burroQueue.Infrastructure.Web;
 using burroQueue.Infrastructure.YouTube;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -15,11 +16,14 @@ public sealed partial class MainWindowViewModel : ObservableObject
 {
     private readonly BurroGroup _group;
     private readonly IYouTubeUrlParser _urlParser;
+    private readonly IYouTubeMetadataFetcher _metadataFetcher;
     private readonly ITelephonyManager _telephonyManager;
     private readonly ILanGroupService _lanGroupService;
     private readonly IAudioOutputController _audioController;
     private readonly IAppSettingsService _settingsService;
+    private readonly IEmbeddedWebDropServer _webDropServer;
     private readonly ClientId _localClientId = ClientId.New();
+    private SkipVotePool _skipVotePool;
 
     [ObservableProperty]
     private string _groupName;
@@ -42,28 +46,49 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private string? _collaborativePlaylistUrl;
 
+    [ObservableProperty]
+    private string _currentTrackTitle = "No song playing";
+
+    [ObservableProperty]
+    private string _currentTrackArtist = string.Empty;
+
+    [ObservableProperty]
+    private string? _currentTrackThumbnailUrl;
+
+    [ObservableProperty]
+    private string _skipVoteStatus = "0 / 3 Votes";
+
+    [ObservableProperty]
+    private string _webDropUrl = "http://localhost:8080";
+
     public MainWindowViewModel(
         BurroGroup group,
         IYouTubeUrlParser urlParser,
+        IYouTubeMetadataFetcher metadataFetcher,
         ITelephonyManager telephonyManager,
         ILanGroupService lanGroupService,
         IAudioOutputController audioController,
-        IAppSettingsService settingsService)
+        IAppSettingsService settingsService,
+        IEmbeddedWebDropServer webDropServer)
     {
         _group = group ?? throw new ArgumentNullException(nameof(group));
         _urlParser = urlParser ?? throw new ArgumentNullException(nameof(urlParser));
+        _metadataFetcher = metadataFetcher ?? throw new ArgumentNullException(nameof(metadataFetcher));
         _telephonyManager = telephonyManager ?? throw new ArgumentNullException(nameof(telephonyManager));
         _lanGroupService = lanGroupService ?? throw new ArgumentNullException(nameof(lanGroupService));
         _audioController = audioController ?? throw new ArgumentNullException(nameof(audioController));
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+        _webDropServer = webDropServer ?? throw new ArgumentNullException(nameof(webDropServer));
 
         _groupName = _group.Name;
         _collaborativePlaylistUrl = _settingsService.CurrentSettings.CollaborativePlaylistUrl;
+        _skipVotePool = new SkipVotePool(TrackId.New(), requiredVotes: 3);
 
         _telephonyManager.StateChanged += OnTelephonyStateChanged;
         _lanGroupService.GroupActionReceived += OnGroupActionReceived;
         _lanGroupService.PlaybackCommandReceived += OnPlaybackCommandReceived;
         _lanGroupService.CollaborativePlaylistReceived += OnCollaborativePlaylistReceived;
+        _webDropServer.LinkDropped += (_, droppedUrl) => EnqueueRawUrl(droppedUrl);
     }
 
     [RelayCommand]
@@ -79,6 +104,44 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _group.Playlist.Enqueue(track);
         QueuedCount = _group.Playlist.Count;
         StatusMessage = $"Enqueued: {videoId}";
+
+        if (_group.Playlist.CurrentTrack == track)
+        {
+            _ = LoadTrackMetadataAsync(track);
+        }
+    }
+
+    private async Task LoadTrackMetadataAsync(Track track)
+    {
+        TrackMetadata meta = await _metadataFetcher.FetchMetadataAsync(track.VideoId).ConfigureAwait(true);
+        CurrentTrackTitle = meta.Title;
+        CurrentTrackArtist = meta.AuthorName;
+        CurrentTrackThumbnailUrl = meta.ThumbnailUri?.ToString();
+        _skipVotePool = new SkipVotePool(track.Id, requiredVotes: 3);
+        UpdateSkipVoteStatus();
+    }
+
+    [RelayCommand]
+    public async Task VoteToSkipAsync()
+    {
+        if (_group.Playlist.CurrentTrack is null)
+        {
+            return;
+        }
+
+        bool voted = _skipVotePool.CastVote(_localClientId);
+        UpdateSkipVoteStatus();
+
+        if (_skipVotePool.IsThresholdReached)
+        {
+            StatusMessage = "Vote threshold reached! Skipping song...";
+            await SkipAsync().ConfigureAwait(true);
+        }
+    }
+
+    private void UpdateSkipVoteStatus()
+    {
+        SkipVoteStatus = $"{_skipVotePool.CurrentVotes} / {_skipVotePool.RequiredVotes} Votes";
     }
 
     [RelayCommand]
@@ -125,7 +188,19 @@ public sealed partial class MainWindowViewModel : ObservableObject
         Track? next = _group.Skip();
         PlaybackState = _group.PlaybackState;
         QueuedCount = _group.Playlist.Count;
-        StatusMessage = next is not null ? $"Playing: {next.Title}" : "Queue empty";
+
+        if (next is not null)
+        {
+            StatusMessage = $"Playing: {next.Title}";
+            await LoadTrackMetadataAsync(next).ConfigureAwait(true);
+        }
+        else
+        {
+            StatusMessage = "Queue empty";
+            CurrentTrackTitle = "No song playing";
+            CurrentTrackArtist = string.Empty;
+            CurrentTrackThumbnailUrl = null;
+        }
 
         await _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "Skip").ConfigureAwait(false);
     }
@@ -200,9 +275,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 PlaybackState = _group.PlaybackState;
                 break;
             case "Skip":
-                _ = _group.Skip();
-                PlaybackState = _group.PlaybackState;
-                QueuedCount = _group.Playlist.Count;
+                _ = SkipAsync();
                 break;
         }
     }

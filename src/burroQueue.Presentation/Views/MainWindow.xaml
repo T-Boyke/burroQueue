@@ -4,8 +4,8 @@
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
   Title="burroQueue"
-  Width="420"
-  Height="340"
+  Width="440"
+  Height="460"
   AllowDrop="True"
   ExtendsContentIntoTitleBar="True"
   WindowBackdropType="Mica"
@@ -17,7 +17,9 @@
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
@@ -50,13 +52,64 @@
         Command="{Binding OpenCollaborativePlaylistCommand}" />
     </Grid>
 
-    <!-- Drop Zone -->
+    <!-- Now Playing Card with Thumbnail -->
     <Border
       Grid.Row="2"
-      Margin="0,4,0,8"
+      Margin="0,0,0,8"
       Padding="12"
       CornerRadius="8"
-      Background="#1AFFFFFF">
+      Background="#22FFFFFF">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <Image
+          Grid.Column="0"
+          Width="64"
+          Height="48"
+          Margin="0,0,12,0"
+          Source="{Binding CurrentTrackThumbnailUrl}"
+          Stretch="UniformToFill" />
+
+        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+          <TextBlock
+            FontSize="14"
+            FontWeight="SemiBold"
+            TextTrimming="CharacterEllipsis"
+            Text="{Binding CurrentTrackTitle}" />
+          <TextBlock
+            Margin="0,2,0,0"
+            FontSize="12"
+            Opacity="0.7"
+            TextTrimming="CharacterEllipsis"
+            Text="{Binding CurrentTrackArtist}" />
+        </StackPanel>
+
+        <!-- Vote To Skip Button -->
+        <Button
+          Grid.Column="2"
+          VerticalAlignment="Center"
+          Padding="8,6"
+          Command="{Binding VoteToSkipCommand}">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Text="🗳️ Skip (" />
+            <TextBlock Text="{Binding SkipVoteStatus}" />
+            <TextBlock Text=")" />
+          </StackPanel>
+        </Button>
+      </Grid>
+    </Border>
+
+    <!-- Drop Zone -->
+    <Border
+      Grid.Row="3"
+      Margin="0,0,0,8"
+      Padding="12"
+      CornerRadius="8"
+      Background="#15FFFFFF">
       <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
         <TextBlock
           HorizontalAlignment="Center"
@@ -72,9 +125,22 @@
       </StackPanel>
     </Border>
 
+    <!-- Mobile Web Drop Banner -->
+    <Border
+      Grid.Row="4"
+      Margin="0,0,0,8"
+      Padding="8"
+      CornerRadius="6"
+      Background="#1A4FC3F7">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+        <TextBlock Text="📱 Handy Web-Drop aktiv: " FontSize="12" Opacity="0.8" />
+        <TextBlock Text="{Binding WebDropUrl}" FontSize="12" FontWeight="SemiBold" Foreground="#4FC3F7" />
+      </StackPanel>
+    </Border>
+
     <!-- Telephony / Call Ducking Banner -->
     <Border
-      Grid.Row="3"
+      Grid.Row="5"
       Margin="0,0,0,8"
       Padding="8"
       CornerRadius="6"
@@ -88,7 +154,7 @@
     </Border>
 
     <!-- Playback Control Bar -->
-    <Grid Grid.Row="4" Margin="0,4,0,0">
+    <Grid Grid.Row="6" Margin="0,4,0,0">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
