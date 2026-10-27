@@ -1,0 +1,66 @@
+name: burroQueue Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  publish-win11-x64:
+    name: Publish Native Windows 11 x64 App
+    runs-on: ${{ vars.USE_SELF_HOSTED_RUNNER == 'true' && 'self-hosted' || 'windows-latest' }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Run Architecture & TDD Gate
+        shell: pwsh
+        run: |
+          ./scripts/verify-architecture.ps1
+          dotnet test burroQueue.sln --configuration Release
+
+      - name: Publish Single-File Native Win11 App
+        run: >
+          dotnet publish src/burroQueue.Presentation/burroQueue.Presentation.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained false
+          -p:PublishSingleFile=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=none
+          --output ./publish/burroQueue-win-x64
+
+      - name: Package Release ZIP
+        shell: pwsh
+        run: |
+          Copy-Item LICENSE, README.md -Destination ./publish/burroQueue-win-x64/
+          Compress-Archive -Path ./publish/burroQueue-win-x64/* -DestinationPath ./publish/burroQueue-win11-x64.zip -Force
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: burroQueue-win11-x64
+          path: ./publish/burroQueue-win11-x64.zip
+
+      - name: Create GitHub Release (on Tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./publish/burroQueue-win11-x64.zip
+          generate_release_notes: true
+

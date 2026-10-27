@@ -1,0 +1,67 @@
+name: burroQueue CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      runner_target:
+        description: 'Runner environment (windows-latest or self-hosted)'
+        required: false
+        default: 'windows-latest'
+        type: choice
+        options:
+          - windows-latest
+          - self-hosted
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  verify-and-test:
+    name: Architecture Audit, Build & TDD Suite
+    # Nutzt standardmäßig windows-latest, kann aber über Repository-Variable USE_SELF_HOSTED_RUNNER=='true'
+    # oder per workflow_dispatch direkt auf dem lokalen Self-Hosted Runner laufen.
+    runs-on: ${{ (github.event.inputs.runner_target == 'self-hosted' || vars.USE_SELF_HOSTED_RUNNER == 'true') && 'self-hosted' || 'windows-latest' }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-quality: 'ga'
+
+      - name: Verify DDD Boundaries & SFC / 1CPF Rule
+        shell: pwsh
+        run: ./scripts/verify-architecture.ps1
+
+      - name: Restore Dependencies
+        run: dotnet restore burroQueue.sln
+
+      - name: Verify Code Formatting (.editorconfig)
+        run: dotnet format burroQueue.sln --no-restore --verify-no-changes
+
+      - name: Build Solution (Release, Warnings as Errors)
+        run: dotnet build burroQueue.sln --configuration Release --no-restore -warnaserror
+
+      - name: Run TDD Unit & Integration Tests
+        run: dotnet test burroQueue.sln --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./TestResults
+
+      - name: Upload Code Coverage Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-coverage-report
+          path: ./TestResults/**/coverage.cobertura.xml
+          if-no-files-found: ignore
+
