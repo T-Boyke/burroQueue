@@ -75,7 +75,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         ILanGroupService lanGroupService,
         IAudioOutputController audioController,
         IAppSettingsService settingsService,
-        IEmbeddedWebDropServer webDropServer)
+        IEmbeddedWebDropServer webDropServer,
+        ILocalNetworkInfoService networkInfoService)
     {
         _group = group ?? throw new ArgumentNullException(nameof(group));
         _urlParser = urlParser ?? throw new ArgumentNullException(nameof(urlParser));
@@ -85,9 +86,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _audioController = audioController ?? throw new ArgumentNullException(nameof(audioController));
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         _webDropServer = webDropServer ?? throw new ArgumentNullException(nameof(webDropServer));
+        ArgumentNullException.ThrowIfNull(networkInfoService);
 
         _groupName = _group.Name;
         _collaborativePlaylistUrl = _settingsService.CurrentSettings.CollaborativePlaylistUrl;
+        _webDropUrl = networkInfoService.GetWebDropUrl(8080);
         _skipVotePool = new SkipVotePool(TrackId.New(), requiredVotes: 3);
 
         SyncQueuedItems();
@@ -103,6 +106,23 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public void ToggleQueueExpanded()
     {
         IsQueueExpanded = !IsQueueExpanded;
+    }
+
+    [RelayCommand]
+    public void CopyWebDropUrl()
+    {
+        if (!string.IsNullOrWhiteSpace(WebDropUrl))
+        {
+            try
+            {
+                System.Windows.Clipboard.SetText(WebDropUrl);
+                StatusMessage = "WebDrop-Link kopiert!";
+            }
+            catch
+            {
+                StatusMessage = "Kopieren fehlgeschlagen";
+            }
+        }
     }
 
     [RelayCommand]

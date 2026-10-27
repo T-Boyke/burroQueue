@@ -77,6 +77,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IAudioOutputController, AudioOutputController>();
         services.AddSingleton<IAudioPlayerBackend, AudioPlayerBackend>();
         services.AddSingleton<ILanGroupService, LanGroupService>();
+        services.AddSingleton<ILocalNetworkInfoService, LocalNetworkInfoService>();
         services.AddSingleton<IEmbeddedWebDropServer, EmbeddedWebDropServer>();
         services.AddSingleton<IWindowsAutostartService, WindowsAutostartService>();
 
