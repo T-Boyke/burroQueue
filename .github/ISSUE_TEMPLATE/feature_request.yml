@@ -1,0 +1,33 @@
+name: "💡 Feature-Vorschlag"
+description: "Schlage eine neue Funktion oder Verbesserung für burroQueue vor."
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Problem oder Anwendungsfall"
+      description: "Welches konkrete Problem im Büro soll gelöst werden?"
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: "Vorgeschlagene Lösung"
+      description: "Wie stellst du dir die Umsetzung vor?"
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "In Betracht gezogene Alternativen"
+      description: "Gibt es alternative Lösungswege oder Workarounds?"
+  - type: checkboxes
+    id: guidelines
+    attributes:
+      label: "Architektur-Konformität"
+      options:
+        - label: "Ich habe verstanden, dass Domain-Logik strikt frei von UI- und externen NuGet-Dependencies bleiben muss."
+          required: true
+        - label: "Ich habe verstanden, dass burroQueue unter 30 MB RAM im Leerlauf bleiben soll (kein WebView2/Electron)."
+          required: true

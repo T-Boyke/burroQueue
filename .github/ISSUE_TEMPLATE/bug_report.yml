@@ -1,0 +1,56 @@
+name: "🐛 Fehlerbericht"
+description: "Melde einen unerwarteten Fehler oder ein Problem in burroQueue."
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Vielen Dank, dass du dir die Zeit nimmst, einen Fehler zu melden!
+  - type: input
+    id: version
+    attributes:
+      label: "burroQueue Version"
+      description: "Welche Version von burroQueue nutzt du? (z. B. v1.0.0)"
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: "Windows Version"
+      description: "Welche Windows 11 Build-Version ist installiert?"
+      placeholder: "Windows 11 Pro 24H2 (Build 26100)"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: "Was ist passiert?"
+      description: "Beschreibe das unerwartete Verhalten detailliert."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Schritte zur Reproduktion"
+      description: "Wie lässt sich der Fehler reproduzieren?"
+      value: |
+        1. Starte burroQueue
+        2. Droppe folgenden YouTube-Link: '...'
+        3. Beobachte das Verhalten: '...'
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Erwartetes Verhalten"
+      description: "Was hättest du stattdessen erwartet?"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Logs oder Konsolenausgabe"
+      description: "Füge relevante Ausgaben oder Stacktraces ein."
+      render: shell
