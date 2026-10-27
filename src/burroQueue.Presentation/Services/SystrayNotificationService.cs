@@ -1,3 +1,5 @@
+using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
 using burroQueue.Presentation.Views;
 
@@ -6,6 +8,7 @@ namespace burroQueue.Presentation.Services;
 public sealed class SystrayNotificationService : ISystrayNotificationService
 {
     private NotifyIcon? _notifyIcon;
+    private Icon? _customIcon;
     private bool _isDisposed;
 
     public void Initialize(MainWindow mainWindow, Action onOpenSettings, Action onExitApp)
@@ -24,10 +27,26 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("❌ Beenden", null, (_, _) => onExitApp?.Invoke());
 
+        Icon iconToUse = SystemIcons.Application;
+        try
+        {
+            string appDir = AppDomain.CurrentDomain.BaseDirectory;
+            string iconPath = Path.Combine(appDir, "Assets", "app.ico");
+            if (File.Exists(iconPath))
+            {
+                _customIcon = new Icon(iconPath);
+                iconToUse = _customIcon;
+            }
+        }
+        catch
+        {
+            iconToUse = SystemIcons.Application;
+        }
+
         _notifyIcon = new NotifyIcon
         {
             Text = "burroQueue – Office Jukebox",
-            Icon = System.Drawing.SystemIcons.Application,
+            Icon = iconToUse,
             ContextMenuStrip = menu,
             Visible = true
         };
@@ -59,6 +78,8 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
             _notifyIcon.Dispose();
             _notifyIcon = null;
         }
+
+        _customIcon?.Dispose();
+        _customIcon = null;
     }
 }
-

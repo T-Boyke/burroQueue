@@ -1,4 +1,14 @@
-# 🫏 burroQueue
+<p align="center">
+  <img src="assets/logo.png" width="160" alt="burroQueue Logo" />
+</p>
+
+<h1 align="center">🫏 burroQueue</h1>
+
+<p align="center">
+  <b>Kollaborative Windows 11 Office-Jukebox &bull; SwyxIt! VoIP Auto-Ducking &bull; P2P LAN Sync &bull; AGPL-3.0</b>
+</p>
+
+---
 
 **burroQueue** ist eine winzige, hochperformante und native Windows 11 Taskleisten-App (Systray), die als kollaborative Office-Jukebox fungiert. Eine humorvolle Anlehnung an den Büroalltag und den unermüdlichen "Arbeitselel" (_Burro_): Mitarbeiter können YouTube-Links per Drag-and-Drop oder Zwischenablage einfach in die Queue "hineinwerfen". Diese werden automatisch in eine zentrale Playlist des Hosts eingespeist und über dessen Audioausgabe (z. B. Bluetooth-Box) abgespielt.
 
