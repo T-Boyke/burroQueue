@@ -58,7 +58,7 @@ jobs:
         run: dotnet test burroQueue.sln --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./TestResults
 
       - name: Upload Code Coverage Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: test-coverage-report
