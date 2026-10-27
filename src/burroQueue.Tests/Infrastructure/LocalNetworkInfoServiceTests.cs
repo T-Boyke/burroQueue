@@ -30,4 +30,89 @@ public sealed class LocalNetworkInfoServiceTests
         Uri.TryCreate(url, UriKind.Absolute, out Uri? parsedUri).Should().BeTrue();
         parsedUri!.Port.Should().Be(8080);
     }
+
+    [Fact]
+    public void ResolvePrimaryIPv4Address_WithValidAdapter_ShouldReturnAdapterIp()
+    {
+        var adapters = new[]
+        {
+            (
+                Status: System.Net.NetworkInformation.OperationalStatus.Up,
+                Type: System.Net.NetworkInformation.NetworkInterfaceType.Ethernet,
+                HasGateway: true,
+                Addresses: (IEnumerable<IPAddress>)[IPAddress.Parse("192.168.1.105")]
+            )
+        };
+
+        string ip = LocalNetworkInfoService.ResolvePrimaryIPv4Address(() => adapters);
+
+        ip.Should().Be("192.168.1.105");
+    }
+
+    [Fact]
+    public void ResolvePrimaryIPv4Address_WhenAdapterDownOrTunnelOrNoGateway_ShouldSkipAndFallback()
+    {
+        var adapters = new[]
+        {
+            (
+                Status: System.Net.NetworkInformation.OperationalStatus.Down,
+                Type: System.Net.NetworkInformation.NetworkInterfaceType.Ethernet,
+                HasGateway: true,
+                Addresses: (IEnumerable<IPAddress>)[IPAddress.Parse("192.168.1.50")]
+            ),
+            (
+                Status: System.Net.NetworkInformation.OperationalStatus.Up,
+                Type: System.Net.NetworkInformation.NetworkInterfaceType.Tunnel,
+                HasGateway: true,
+                Addresses: (IEnumerable<IPAddress>)[IPAddress.Parse("192.168.1.51")]
+            ),
+            (
+                Status: System.Net.NetworkInformation.OperationalStatus.Up,
+                Type: System.Net.NetworkInformation.NetworkInterfaceType.Ethernet,
+                HasGateway: false,
+                Addresses: (IEnumerable<IPAddress>)[IPAddress.Parse("192.168.1.52")]
+            )
+        };
+
+        string ip = LocalNetworkInfoService.ResolvePrimaryIPv4Address(
+            () => adapters,
+            fallbackSocketResolver: () => "10.0.0.1");
+
+        ip.Should().Be("10.0.0.1");
+    }
+
+    [Fact]
+    public void ResolvePrimaryIPv4Address_WhenLoopbackOrApipaOrIpv6_ShouldSkipAndFallback()
+    {
+        var adapters = new[]
+        {
+            (
+                Status: System.Net.NetworkInformation.OperationalStatus.Up,
+                Type: System.Net.NetworkInformation.NetworkInterfaceType.Ethernet,
+                HasGateway: true,
+                Addresses: (IEnumerable<IPAddress>)[
+                    IPAddress.Parse("127.0.0.1"),
+                    IPAddress.Parse("169.254.5.5"),
+                    IPAddress.Parse("::1"),
+                    IPAddress.Parse("fe80::1")
+                ]
+            )
+        };
+
+        string ip = LocalNetworkInfoService.ResolvePrimaryIPv4Address(
+            () => adapters,
+            fallbackSocketResolver: () => "172.16.0.99");
+
+        ip.Should().Be("172.16.0.99");
+    }
+
+    [Fact]
+    public void ResolvePrimaryIPv4Address_WhenAllFailOrThrow_ShouldReturnDefaultLoopback()
+    {
+        string ip = LocalNetworkInfoService.ResolvePrimaryIPv4Address(
+            () => throw new InvalidOperationException("Simulated adapter failure"),
+            fallbackSocketResolver: () => throw new InvalidOperationException("Simulated socket failure"));
+
+        ip.Should().Be("127.0.0.1");
+    }
 }
