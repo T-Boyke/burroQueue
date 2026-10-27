@@ -62,7 +62,7 @@ public partial class App : System.Windows.Application
         mainWindow.Show();
     }
 
-    private static void ConfigureServices(IServiceCollection services)
+    internal static void ConfigureServices(IServiceCollection services)
     {
         // Domain
         services.AddSingleton(new BurroGroup(GroupId.New(), "Büro Jukebox"));

@@ -28,5 +28,9 @@
     <ProjectReference Include="..\burroQueue.Domain\burroQueue.Domain.csproj" />
     <ProjectReference Include="..\burroQueue.Infrastructure\burroQueue.Infrastructure.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="burroQueue.Tests" />
+  </ItemGroup>
 </Project>
 
