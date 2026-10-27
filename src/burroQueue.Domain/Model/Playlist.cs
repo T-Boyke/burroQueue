@@ -2,37 +2,70 @@ namespace burroQueue.Domain.Model;
 
 public sealed class Playlist
 {
-    private readonly Queue<Track> _queue = new();
+    private readonly List<Track> _items = [];
 
     public Track? CurrentTrack { get; private set; }
 
-    public IReadOnlyCollection<Track> QueuedTracks => _queue;
+    public IReadOnlyList<Track> QueuedTracks => _items.AsReadOnly();
 
-    public int Count => _queue.Count;
+    public int Count => _items.Count;
 
     public void Enqueue(Track track)
     {
         ArgumentNullException.ThrowIfNull(track);
 
-        if (CurrentTrack is null && _queue.Count == 0)
+        if (CurrentTrack is null && _items.Count == 0)
         {
             CurrentTrack = track;
             return;
         }
 
-        _queue.Enqueue(track);
+        _items.Add(track);
     }
 
     public Track? AdvanceNext()
     {
-        CurrentTrack = _queue.Count > 0 ? _queue.Dequeue() : null;
+        if (_items.Count > 0)
+        {
+            CurrentTrack = _items[0];
+            _items.RemoveAt(0);
+        }
+        else
+        {
+            CurrentTrack = null;
+        }
+
         return CurrentTrack;
+    }
+
+    public bool Remove(TrackId trackId)
+    {
+        int index = _items.FindIndex(t => t.Id == trackId);
+        if (index >= 0)
+        {
+            _items.RemoveAt(index);
+            return true;
+        }
+
+        return false;
+    }
+
+    public bool Move(int fromIndex, int toIndex)
+    {
+        if (fromIndex < 0 || fromIndex >= _items.Count || toIndex < 0 || toIndex >= _items.Count || fromIndex == toIndex)
+        {
+            return false;
+        }
+
+        Track item = _items[fromIndex];
+        _items.RemoveAt(fromIndex);
+        _items.Insert(toIndex, item);
+        return true;
     }
 
     public void Clear()
     {
-        _queue.Clear();
+        _items.Clear();
         CurrentTrack = null;
     }
 }
-

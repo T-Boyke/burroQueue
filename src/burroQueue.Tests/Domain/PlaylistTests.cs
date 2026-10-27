@@ -39,7 +39,44 @@ public sealed class PlaylistTests
         playlist.Count.Should().Be(1);
     }
 
+    [Fact]
+    public void Remove_WhenTrackInQueue_ShouldRemoveTrackAndDecrementCount()
+    {
+        Playlist playlist = new();
+        Track first = CreateSampleTrack("11111111111", "First");
+        Track second = CreateSampleTrack("22222222222", "Second");
+        Track third = CreateSampleTrack("33333333333", "Third");
+
+        playlist.Enqueue(first);
+        playlist.Enqueue(second);
+        playlist.Enqueue(third);
+
+        bool removed = playlist.Remove(second.Id);
+
+        removed.Should().BeTrue();
+        playlist.Count.Should().Be(1);
+        playlist.QueuedTracks.Should().ContainSingle().Which.Should().BeSameAs(third);
+    }
+
+    [Fact]
+    public void Move_WhenValidIndices_ShouldReorderQueue()
+    {
+        Playlist playlist = new();
+        Track current = CreateSampleTrack("00000000000", "Current");
+        Track t1 = CreateSampleTrack("11111111111", "Song 1");
+        Track t2 = CreateSampleTrack("22222222222", "Song 2");
+
+        playlist.Enqueue(current);
+        playlist.Enqueue(t1);
+        playlist.Enqueue(t2);
+
+        bool moved = playlist.Move(0, 1);
+
+        moved.Should().BeTrue();
+        playlist.QueuedTracks[0].Should().BeSameAs(t2);
+        playlist.QueuedTracks[1].Should().BeSameAs(t1);
+    }
+
     private static Track CreateSampleTrack(string videoId, string title) =>
         new(videoId, new Uri($"https://www.youtube.com/watch?v={videoId}"), title, "Tester", DateTimeOffset.UtcNow);
 }
-
