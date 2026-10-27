@@ -55,7 +55,7 @@ jobs:
           Copy-Item LICENSE, README.md -Destination ./publish/burroQueue-win-x64/ -Force
 
       - name: Build Inno Setup Installer (.exe)
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
         with:
           path: scripts/installer/burroQueue.iss
 
