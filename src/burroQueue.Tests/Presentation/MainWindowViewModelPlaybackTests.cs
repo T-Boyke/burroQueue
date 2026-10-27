@@ -511,6 +511,118 @@ public sealed class MainWindowViewModelPlaybackTests
 
         act.Should().NotThrow();
     }
+
+    [Fact]
+    public void CopyWebDropUrl_WhenUrlPresent_ShouldInvokeClipboardAndSetStatus()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        string? copied = null;
+        Action<string> original = MainWindowViewModel.ClipboardAction;
+        try
+        {
+            MainWindowViewModel.ClipboardAction = text => copied = text;
+            vm.CopyWebDropUrl();
+
+            copied.Should().Be(vm.WebDropUrl);
+            vm.StatusMessage.Should().Be("WebDrop-Link kopiert!");
+        }
+        finally
+        {
+            MainWindowViewModel.ClipboardAction = original;
+        }
+    }
+
+    [Fact]
+    public void CopyWebDropUrl_WhenClipboardThrows_ShouldCatchAndSetErrorMessage()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        Action<string> original = MainWindowViewModel.ClipboardAction;
+        try
+        {
+            MainWindowViewModel.ClipboardAction = _ => throw new InvalidOperationException("STA failure");
+            vm.CopyWebDropUrl();
+
+            vm.StatusMessage.Should().Be("Kopieren fehlgeschlagen");
+        }
+        finally
+        {
+            MainWindowViewModel.ClipboardAction = original;
+        }
+    }
+
+    [Fact]
+    public void OpenCollaborativePlaylistInBrowser_WhenProcessStarterThrows_ShouldCatchAndSetErrorMessage()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.CollaborativePlaylistUrl = "https://youtube.com/playlist?list=PLvalid";
+        Action<System.Diagnostics.ProcessStartInfo> original = MainWindowViewModel.ProcessStarter;
+        try
+        {
+            MainWindowViewModel.ProcessStarter = _ => throw new System.ComponentModel.Win32Exception("No browser");
+            vm.OpenCollaborativePlaylist();
+
+            vm.StatusMessage.Should().Be("Could not open browser for playlist.");
+        }
+        finally
+        {
+            MainWindowViewModel.ProcessStarter = original;
+        }
+    }
+
+    [Fact]
+    public async Task VoteToSkipAsync_WhenLocalVoteReachesThresholdDirectly_ShouldSetStatusMessageAndSkip()
+    {
+        Track track1 = new("threshold-1", new Uri("https://www.youtube.com/watch?v=threshold-1"), "Song 1", "Artist 1", DateTimeOffset.UtcNow);
+        Track track2 = new("threshold-2", new Uri("https://www.youtube.com/watch?v=threshold-2"), "Song 2", "Artist 2", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(track1);
+        _group.Playlist.Enqueue(track2);
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        // Simulate 2 remote peer votes first
+        _lanGroupService.SkipVoteReceived += Raise.Event<EventHandler<burroQueue.Infrastructure.Network.Messages.SkipVoteMessage>>(
+            this,
+            new burroQueue.Infrastructure.Network.Messages.SkipVoteMessage(_group.Id.Value, "threshold-1", Guid.NewGuid(), DateTimeOffset.UtcNow));
+        _lanGroupService.SkipVoteReceived += Raise.Event<EventHandler<burroQueue.Infrastructure.Network.Messages.SkipVoteMessage>>(
+            this,
+            new burroQueue.Infrastructure.Network.Messages.SkipVoteMessage(_group.Id.Value, "threshold-1", Guid.NewGuid(), DateTimeOffset.UtcNow));
+
+        // Now local user votes (3rd vote) -> threshold reached directly in VoteToSkipAsync!
+        await vm.VoteToSkipAsync();
+
+        _group.Playlist.CurrentTrack.Should().NotBeNull();
+        _group.Playlist.CurrentTrack!.VideoId.Should().Be("threshold-2");
+        vm.CurrentTrackTitle.Should().Be("Song 2");
+    }
+
+    [Fact]
+    public async Task VoteToSkipAsync_WhenPoolTrackIdDiffersFromCurrentTrack_ShouldResetPoolForCurrentTrack()
+    {
+        Track track1 = new("track-a", new Uri("https://www.youtube.com/watch?v=track-a"), "Song A", "Artist A", DateTimeOffset.UtcNow);
+        Track track2 = new("track-b", new Uri("https://www.youtube.com/watch?v=track-b"), "Song B", "Artist B", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(track1);
+        _group.Playlist.Enqueue(track2);
+
+        MainWindowViewModel vm = CreateViewModel();
+        await vm.VoteToSkipAsync();
+        vm.SkipVoteStatus.Should().Be("1 / 3 Votes");
+
+        // Force skip to track 2 so track changes
+        await vm.SkipAsync();
+        _group.Playlist.CurrentTrack!.VideoId.Should().Be("track-b");
+
+        // Now voting again resets pool for track-b
+        await vm.VoteToSkipAsync();
+        vm.SkipVoteStatus.Should().Be("1 / 3 Votes");
+    }
+
+    [Fact]
+    public void UiDispatcherRunner_WhenNoDispatcher_ShouldExecuteDirectly()
+    {
+        bool executed = false;
+        MainWindowViewModel.UiDispatcherRunner(() => executed = true);
+        executed.Should().BeTrue();
+    }
 }
 
 

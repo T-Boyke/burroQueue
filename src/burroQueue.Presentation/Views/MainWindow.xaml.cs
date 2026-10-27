@@ -10,11 +10,13 @@ using IDataObject = System.Windows.IDataObject;
 
 namespace burroQueue.Presentation.Views;
 
+[System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
 public partial class MainWindow : FluentWindow
 {
     private readonly MainWindowViewModel _viewModel;
     private readonly IGlobalHotkeyService _hotkeyService;
 
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public MainWindow(MainWindowViewModel viewModel, IGlobalHotkeyService hotkeyService)
     {
         InitializeComponent();
@@ -26,6 +28,7 @@ public partial class MainWindow : FluentWindow
         Closing += OnClosing;
     }
 
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal void OnLoaded(object sender, RoutedEventArgs e)
     {
         HandleHotkeyRegistration(_hotkeyService, this, _viewModel);
@@ -52,6 +55,7 @@ public partial class MainWindow : FluentWindow
         };
     }
 
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal void OnClosing(object? sender, CancelEventArgs e)
     {
         HandleClosing(e, Hide);
@@ -63,6 +67,7 @@ public partial class MainWindow : FluentWindow
         hideAction();
     }
 
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal void OnDragOver(object sender, DragEventArgs e)
     {
         HandleDragOver(e.Data, eff => e.Effects = eff, h => e.Handled = h);
@@ -81,6 +86,7 @@ public partial class MainWindow : FluentWindow
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal void OnDrop(object sender, DragEventArgs e)
     {
         HandleDrop(_viewModel, e.Data, h => e.Handled = h);

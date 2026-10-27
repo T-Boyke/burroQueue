@@ -31,6 +31,41 @@ public sealed class GlobalHotkeyServiceTests
     }
 
     [Fact]
+    public void Register_WithWindow_ShouldUseProviderAndRegistrars()
+    {
+        GlobalHotkeyService service = new();
+        IntPtr dummyHwnd = new(0x1234);
+        bool hookAttached = false;
+        bool hotkeysRegistered = false;
+
+        service.WindowHandleProvider = _ => dummyHwnd;
+        service.HwndHookAttacher = (hwnd, _) =>
+        {
+            hookAttached = hwnd == dummyHwnd;
+            return null;
+        };
+        service.HotkeyRegistrar = hwnd => hotkeysRegistered = hwnd == dummyHwnd;
+
+        System.Windows.Window dummyWindow = (System.Windows.Window)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(System.Windows.Window));
+        service.Register(dummyWindow);
+
+        service.WindowHandle.Should().Be(dummyHwnd);
+        hookAttached.Should().BeTrue();
+        hotkeysRegistered.Should().BeTrue();
+    }
+
+    [Fact]
+    public void DefaultDelegates_WhenCalledWithZeroHandle_ShouldExecuteSafely()
+    {
+        GlobalHotkeyService service = new();
+        System.Windows.Interop.HwndSource? source = service.HwndHookAttacher(IntPtr.Zero, service.HwndHook);
+        source.Should().BeNull();
+
+        Action act = () => service.HotkeyRegistrar(IntPtr.Zero);
+        act.Should().NotThrow();
+    }
+
+    [Fact]
     public void ProcessMessage_WithPlayPause_ShouldFireEventAndReturnTrue()
     {
         GlobalHotkeyService service = new();

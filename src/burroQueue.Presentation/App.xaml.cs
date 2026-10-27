@@ -21,6 +21,7 @@ public partial class App : System.Windows.Application
     private ServiceProvider? _serviceProvider;
     private ISystrayNotificationService? _systrayService;
 
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -136,6 +137,7 @@ public partial class App : System.Windows.Application
         services.AddTransient<SettingsWindow>();
     }
 
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     protected override async void OnExit(ExitEventArgs e)
     {
         await ShutdownApplicationAsync(_serviceProvider, _systrayService).ConfigureAwait(false);

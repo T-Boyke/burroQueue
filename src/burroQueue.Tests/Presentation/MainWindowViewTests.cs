@@ -173,7 +173,7 @@ public sealed class MainWindowViewTests
     }
 
     [Fact]
-    public void HandleHotkeyRegistration_ShouldRegisterAndBindEvents()
+    public async Task HandleHotkeyRegistration_ShouldRegisterAndBindEvents()
     {
         MainWindowViewModel vm = CreateViewModel();
         IGlobalHotkeyService hotkeyService = Substitute.For<IGlobalHotkeyService>();
@@ -183,8 +183,14 @@ public sealed class MainWindowViewTests
 
         hotkeyService.Received(1).Register(dummyWindow);
 
-        // Fire hotkey events
+        // Fire hotkey events when Stopped -> triggers PlayAsync
         hotkeyService.PlayPausePressed += Raise.Event<EventHandler>(this, EventArgs.Empty);
         hotkeyService.NextTrackPressed += Raise.Event<EventHandler>(this, EventArgs.Empty);
+        await Task.Delay(20);
+
+        // Change state to Playing -> triggers PauseAsync
+        vm.PlaybackState = burroQueue.Domain.Model.PlaybackState.Playing;
+        hotkeyService.PlayPausePressed += Raise.Event<EventHandler>(this, EventArgs.Empty);
+        await Task.Delay(20);
     }
 }

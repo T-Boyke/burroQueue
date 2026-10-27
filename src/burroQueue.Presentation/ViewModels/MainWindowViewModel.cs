@@ -30,6 +30,23 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private readonly ClientId _localClientId = ClientId.New();
     private SkipVotePool _skipVotePool;
 
+    internal static Action<string> ClipboardAction { get; set; } = System.Windows.Clipboard.SetText;
+    internal static Action<ProcessStartInfo> ProcessStarter { get; set; } = psi => Process.Start(psi);
+    internal static Action<Action> UiDispatcherRunner { get; set; } = InvokeOnDispatcher;
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal static void InvokeOnDispatcher(Action action)
+    {
+        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
+        {
+            dispatcher.Invoke(action);
+        }
+        else
+        {
+            action();
+        }
+    }
+
     [ObservableProperty]
     private string _groupName;
 
@@ -154,7 +171,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             try
             {
-                System.Windows.Clipboard.SetText(WebDropUrl);
+                ClipboardAction(WebDropUrl);
                 StatusMessage = "WebDrop-Link kopiert!";
             }
             catch
@@ -348,7 +365,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
         try
         {
-            Process.Start(new ProcessStartInfo
+            ProcessStarter(new ProcessStartInfo
             {
                 FileName = CollaborativePlaylistUrl,
                 UseShellExecute = true
@@ -520,14 +537,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     private static void RunOnUi(Action action)
     {
-        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
-        {
-            dispatcher.Invoke(action);
-        }
-        else
-        {
-            action();
-        }
+        UiDispatcherRunner(action);
     }
 }
 

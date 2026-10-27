@@ -29,17 +29,35 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
 
     public event EventHandler? NextTrackPressed;
 
+    internal Func<Window, IntPtr> WindowHandleProvider { get; set; } = DefaultWindowHandleProvider;
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal static IntPtr DefaultWindowHandleProvider(Window window) => new WindowInteropHelper(window).EnsureHandle();
+
+    internal Func<IntPtr, HwndSourceHook, HwndSource?> HwndHookAttacher { get; set; } = (hwnd, hook) =>
+    {
+        if (hwnd == IntPtr.Zero)
+        {
+            return null;
+        }
+
+        HwndSource? source = HwndSource.FromHwnd(hwnd);
+        source?.AddHook(hook);
+        return source;
+    };
+    internal Action<IntPtr> HotkeyRegistrar { get; set; } = hwnd =>
+    {
+        RegisterHotKey(hwnd, _hotkeyPlayPauseId, 0, _vkMediaPlayPause);
+        RegisterHotKey(hwnd, _hotkeyNextId, 0, _vkMediaNextTrack);
+    };
+
     public void Register(Window window)
     {
         ArgumentNullException.ThrowIfNull(window);
 
-        _windowHandle = new WindowInteropHelper(window).EnsureHandle();
-        _source = HwndSource.FromHwnd(_windowHandle);
-        _source?.AddHook(HwndHook);
-
-        // Registriere Hardware-Mediatasten
-        RegisterHotKey(_windowHandle, _hotkeyPlayPauseId, 0, _vkMediaPlayPause);
-        RegisterHotKey(_windowHandle, _hotkeyNextId, 0, _vkMediaNextTrack);
+        _windowHandle = WindowHandleProvider(window);
+        _source = HwndHookAttacher(_windowHandle, HwndHook);
+        HotkeyRegistrar(_windowHandle);
     }
 
     internal bool ProcessMessage(int msg, IntPtr wParam)

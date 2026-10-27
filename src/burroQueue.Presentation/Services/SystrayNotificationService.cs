@@ -11,17 +11,22 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
     private Icon? _customIcon;
     private bool _isDisposed;
 
+    internal static Action<MainWindow> WindowRestorer { get; set; } = RestoreMainWindow;
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal static void RestoreMainWindow(MainWindow window)
+    {
+        window.Show();
+        window.WindowState = System.Windows.WindowState.Normal;
+        window.Activate();
+    }
+
     public void Initialize(MainWindow mainWindow, Action onOpenSettings, Action onExitApp)
     {
         ArgumentNullException.ThrowIfNull(mainWindow);
 
         InitializeCore(
-            onRestoreWindow: () =>
-            {
-                mainWindow.Show();
-                mainWindow.WindowState = System.Windows.WindowState.Normal;
-                mainWindow.Activate();
-            },
+            onRestoreWindow: () => WindowRestorer(mainWindow),
             onOpenSettings,
             onExitApp);
     }

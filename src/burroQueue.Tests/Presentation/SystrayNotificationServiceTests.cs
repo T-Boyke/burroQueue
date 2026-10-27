@@ -88,6 +88,52 @@ public sealed class SystrayNotificationServiceTests
     }
 
     [Fact]
+    public void InitializeCore_WhenIconCorrupt_ShouldFallbackToApplicationIcon()
+    {
+        SystrayNotificationService service = new();
+        string tempCorrupt = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(tempCorrupt, "not an icon file format");
+
+            service.InitializeCore(() => { }, () => { }, () => { }, tempCorrupt);
+            service.IsIconVisible.Should().BeTrue();
+        }
+        finally
+        {
+            service.Dispose();
+            if (File.Exists(tempCorrupt))
+            {
+                try { File.Delete(tempCorrupt); } catch { }
+            }
+        }
+    }
+
+    [Fact]
+    public void Initialize_WithValidWindow_ShouldInitializeSuccessfully()
+    {
+        SystrayNotificationService service = new();
+        burroQueue.Presentation.Views.MainWindow dummyWindow = (burroQueue.Presentation.Views.MainWindow)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(burroQueue.Presentation.Views.MainWindow));
+        bool restored = false;
+        Action<burroQueue.Presentation.Views.MainWindow> original = SystrayNotificationService.WindowRestorer;
+        try
+        {
+            SystrayNotificationService.WindowRestorer = w => restored = w == dummyWindow;
+
+            service.Initialize(dummyWindow, () => { }, () => { });
+
+            service.IsIconVisible.Should().BeTrue();
+            service.ContextMenu!.Items[0].PerformClick();
+            restored.Should().BeTrue();
+        }
+        finally
+        {
+            SystrayNotificationService.WindowRestorer = original;
+            service.Dispose();
+        }
+    }
+
+    [Fact]
     public void ShowNotification_WhenInitialized_ShouldNotThrow()
     {
         SystrayNotificationService service = new();
