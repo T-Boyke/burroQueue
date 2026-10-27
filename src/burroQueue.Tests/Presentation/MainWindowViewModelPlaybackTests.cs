@@ -308,8 +308,7 @@ public sealed class MainWindowViewModelPlaybackTests
 
         vm.EnqueueRawUrl("https://youtube.com/watch?v=save-123");
 
-        // Allow async Task.Run auto-save to execute
-        await Task.Delay(50);
+        await vm.AutoSaveTask;
         await _playlistStorage.Received().SavePlaylistAsync(_group.Playlist, Arg.Any<CancellationToken>());
     }
 
@@ -326,7 +325,7 @@ public sealed class MainWindowViewModelPlaybackTests
 
         vm.RemoveTrack(track2);
 
-        await Task.Delay(50);
+        await vm.AutoSaveTask;
         await _playlistStorage.Received().SavePlaylistAsync(_group.Playlist, Arg.Any<CancellationToken>());
     }
 
@@ -342,7 +341,7 @@ public sealed class MainWindowViewModelPlaybackTests
 
         await vm.SkipAsync();
 
-        await Task.Delay(50);
+        await vm.AutoSaveTask;
         await _playlistStorage.Received().SavePlaylistAsync(_group.Playlist, Arg.Any<CancellationToken>());
     }
 
@@ -448,8 +447,7 @@ public sealed class MainWindowViewModelPlaybackTests
 
         vm.EnqueueRawUrl("https://youtube.com/watch?v=meta-1");
 
-        // First track immediately becomes CurrentTrack, so LoadTrackMetadataAsync runs
-        await Task.Delay(50);
+        await vm.MetadataLoadTask;
         vm.CurrentTrackTitle.Should().Be("Fetched Title");
         vm.CurrentTrackArtist.Should().Be("Fetched Artist");
         vm.CurrentTrackThumbnailUrl.Should().Be("https://img.youtube.com/vi/meta-1/0.jpg");
@@ -473,7 +471,7 @@ public sealed class MainWindowViewModelPlaybackTests
 
         vm.EnqueueRawUrl("https://youtube.com/watch?v=meta-null");
 
-        await Task.Delay(50);
+        await vm.MetadataLoadTask;
         vm.CurrentTrackTitle.Should().Be("meta-null");
         vm.CurrentTrackArtist.Should().Be("Unknown Artist");
         vm.CurrentTrackThumbnailUrl.Should().BeNull();
@@ -498,7 +496,7 @@ public sealed class MainWindowViewModelPlaybackTests
         Action act = () => vm.EnqueueRawUrl("https://youtube.com/watch?v=err-save");
 
         act.Should().NotThrow();
-        await Task.Delay(50);
+        await vm.AutoSaveTask;
     }
 
     [Fact]

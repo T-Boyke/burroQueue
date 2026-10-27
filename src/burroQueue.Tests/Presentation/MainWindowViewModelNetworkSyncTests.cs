@@ -259,7 +259,7 @@ public sealed class MainWindowViewModelNetworkSyncTests
             this,
             new PlaybackCommandMessage(_group.Id.Value, Guid.NewGuid(), "Skip", null, DateTimeOffset.UtcNow));
 
-        await Task.Delay(50);
+        await vm.PlaybackCommandTask;
         _group.Playlist.CurrentTrack.Should().NotBeNull();
         _group.Playlist.CurrentTrack!.VideoId.Should().Be("track-2");
     }
@@ -397,7 +397,7 @@ public sealed class MainWindowViewModelNetworkSyncTests
 
         _lanGroupService.QueueSyncReceived += Raise.Event<EventHandler<QueueSyncMessage>>(this, firstMsg);
 
-        await Task.Delay(50);
+        await vm.MetadataLoadTask;
         vm.CurrentTrackTitle.Should().Be("Peer Title");
         vm.CurrentTrackArtist.Should().Be("Peer Artist");
     }

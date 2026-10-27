@@ -10,7 +10,7 @@ Letzte Aktualisierung: 2026-10-27 | Ziel: Stabile Version 1.0 (Produktionsreife)
 - **Zielsystem:** Windows 11 (Mica, Fluent Design, Systray-Jukebox)
 - **Runtime:** .NET 10 (`net10.0` für Domain/Infrastructure/Tests, `net10.0-windows10.0.22621.0` für Presentation)
 - **Architektur:** Reine Domain-Driven Design Schichten (Domain = 0 externe Dependencies, Single Component Per File)
-- **Aktuelle Testanzahl:** 324 Tests (100% grün)
+- **Aktuelle Testanzahl:** 325 Tests (100% grün)
 - **Aktuelle Code-Coverage:**
   - `burroQueue.Domain`: 100,00% Line Coverage (97,05% Branch)
   - `burroQueue.Infrastructure`: 96,42% Line Coverage (84,25% Branch)

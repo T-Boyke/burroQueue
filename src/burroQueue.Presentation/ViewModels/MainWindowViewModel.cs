@@ -88,6 +88,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     public ObservableCollection<Track> QueuedItems { get; } = [];
 
+    internal Task AutoSaveTask { get; private set; } = Task.CompletedTask;
+
+    internal Task MetadataLoadTask { get; private set; } = Task.CompletedTask;
+
+    internal Task PlaybackCommandTask { get; private set; } = Task.CompletedTask;
+
     public MainWindowViewModel(
         BurroGroup group,
         IYouTubeUrlParser urlParser,
@@ -145,7 +151,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     private void AutoSavePlaylist()
     {
-        _ = Task.Run(async () =>
+        AutoSaveTask = Task.Run(async () =>
         {
             try
             {
@@ -200,7 +206,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
         if (_group.Playlist.CurrentTrack == track)
         {
-            _ = LoadTrackMetadataAsync(track);
+            MetadataLoadTask = LoadTrackMetadataAsync(track);
         }
     }
 
@@ -425,7 +431,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 PlaybackState = _group.PlaybackState;
                 break;
             case "Skip":
-                _ = SkipAsync();
+                PlaybackCommandTask = SkipAsync();
                 break;
         }
     }
@@ -483,7 +489,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
                     if (_group.Playlist.CurrentTrack == peerTrack)
                     {
-                        _ = LoadTrackMetadataAsync(peerTrack);
+                        MetadataLoadTask = LoadTrackMetadataAsync(peerTrack);
                     }
                 }
             }
