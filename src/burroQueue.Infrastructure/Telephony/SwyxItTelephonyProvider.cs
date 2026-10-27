@@ -68,7 +68,13 @@ public sealed class SwyxItTelephonyProvider : ITelephonyProvider
         }
     }
 
-    private void CheckLinesCallback(object? state)
+    internal dynamic? ClientManager
+    {
+        get => _clMgr;
+        set => _clMgr = value;
+    }
+
+    internal void CheckLinesCallback(object? state)
     {
         if (_isDisposed)
         {
@@ -85,23 +91,11 @@ public sealed class SwyxItTelephonyProvider : ITelephonyProvider
             }
 
             int numberOfLines = (int)_clMgr.DispNumberOfLines;
-            TelephonyState highestState = TelephonyState.Idle;
-
-            for (int i = 0; i < numberOfLines; i++)
+            TelephonyState highestState = EvaluateLines(numberOfLines, i =>
             {
                 dynamic? line = _clMgr.DispGetLine(i);
-                if (line is null)
-                {
-                    continue;
-                }
-
-                int lineState = (int)line.DispState;
-                TelephonyState mapped = MapLineStateToTelephonyState(lineState);
-                if (mapped > highestState)
-                {
-                    highestState = mapped;
-                }
-            }
+                return line is not null ? (int)line.DispState : null;
+            });
 
             UpdateState(highestState);
         }
@@ -114,6 +108,28 @@ public sealed class SwyxItTelephonyProvider : ITelephonyProvider
         {
             UpdateState(TelephonyState.Idle);
         }
+    }
+
+    internal static TelephonyState EvaluateLines(int numberOfLines, Func<int, int?> getLineState)
+    {
+        TelephonyState highestState = TelephonyState.Idle;
+
+        for (int i = 0; i < numberOfLines; i++)
+        {
+            int? lineState = getLineState(i);
+            if (lineState is null)
+            {
+                continue;
+            }
+
+            TelephonyState mapped = MapLineStateToTelephonyState(lineState.Value);
+            if (mapped > highestState)
+            {
+                highestState = mapped;
+            }
+        }
+
+        return highestState;
     }
 
     public static TelephonyState MapLineStateToTelephonyState(int clMgrLineState)

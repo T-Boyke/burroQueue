@@ -69,4 +69,26 @@ public sealed class YouTubeMetadataFetcherTests
         meta.Title.Should().Be("vid999");
         meta.AuthorName.Should().Be("Unknown Artist");
     }
+
+    [Fact]
+    public void Constructor_WithoutArguments_ShouldNotThrow()
+    {
+        YouTubeMetadataFetcher fetcher = new();
+        fetcher.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task FetchMetadataAsync_WhenJsonPropertiesMissing_ShouldFallbackToDefaults()
+    {
+        string emptyJson = "{}";
+        using HttpClient client = new(MockHttpMessageHandler.WithJsonResponse(emptyJson));
+        YouTubeMetadataFetcher fetcher = new(client);
+
+        TrackMetadata meta = await fetcher.FetchMetadataAsync("customVid");
+
+        meta.Title.Should().Be("customVid");
+        meta.AuthorName.Should().Be("YouTube Artist");
+        meta.ThumbnailUri.Should().BeNull();
+    }
 }
+

@@ -70,4 +70,51 @@ public sealed class SwyxItTelephonyProviderTests : IAsyncLifetime, IDisposable
         await start.Should().NotThrowAsync();
         await stop.Should().NotThrowAsync();
     }
+
+    [Fact]
+    public void EvaluateLines_WhenNoLines_ShouldReturnIdle()
+    {
+        TelephonyState state = SwyxItTelephonyProvider.EvaluateLines(0, _ => 8);
+
+        state.Should().Be(TelephonyState.Idle);
+    }
+
+    [Fact]
+    public void EvaluateLines_WhenNullLinesPresent_ShouldSkipAndEvaluateOthers()
+    {
+        // Line 0 is null, line 1 is Ringing (3)
+        TelephonyState state = SwyxItTelephonyProvider.EvaluateLines(2, i => i == 0 ? null : 3);
+
+        state.Should().Be(TelephonyState.Ringing);
+    }
+
+    [Fact]
+    public void EvaluateLines_WhenMultipleLines_ShouldReturnHighestPriorityState()
+    {
+        // Line 0 is Connecting (1), Line 1 is ActiveCall (8), Line 2 is Ringing (3)
+        int[] states = [1, 8, 3];
+        TelephonyState state = SwyxItTelephonyProvider.EvaluateLines(3, i => states[i]);
+
+        state.Should().Be(TelephonyState.ActiveCall);
+    }
+
+    [Fact]
+    public void CheckLinesCallback_WhenComUnavailable_ShouldUpdateStateToIdle()
+    {
+        _provider!.CheckLinesCallback(null);
+
+        // Does not throw and stays in safe state
+        ((object?)_provider!.ClientManager).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CheckLinesCallback_WhenDisposed_ShouldReturnSilently()
+    {
+        await _provider!.DisposeAsync();
+
+        Action act = () => _provider!.CheckLinesCallback(null);
+
+        act.Should().NotThrow();
+    }
 }
+

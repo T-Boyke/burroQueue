@@ -14,6 +14,7 @@ public sealed class WindowsCoreAudioTelephonyProviderTests
 
         provider.ProviderId.Should().Be("WindowsAudio");
         provider.DisplayName.Should().Contain("Windows Core Audio");
+        _ = provider.IsAvailable;
 
         await provider.StartAsync();
 

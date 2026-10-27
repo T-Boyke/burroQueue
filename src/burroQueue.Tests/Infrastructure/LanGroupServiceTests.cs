@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using burroQueue.Domain.Model;
 using burroQueue.Infrastructure.Network;
 using FluentAssertions;
@@ -132,6 +134,25 @@ public sealed class LanGroupServiceTests : IAsyncLifetime, IDisposable
         Func<Task> act = async () => await svc.DisposeAsync();
         await act.Should().NotThrowAsync();
     }
+
+    [Fact]
+    public async Task MulticastListener_WhenMalformedPacketReceived_ShouldNotThrow()
+    {
+        await _service.StartAsync();
+
+        using UdpClient sender = new();
+        byte[] malformed = "not valid json"u8.ToArray();
+        await sender.SendAsync(malformed, malformed.Length, new IPEndPoint(IPAddress.Loopback, 41234));
+
+        byte[] missingFields = """{"Invalid": 123}"""u8.ToArray();
+        await sender.SendAsync(missingFields, missingFields.Length, new IPEndPoint(IPAddress.Loopback, 41234));
+
+        byte[] unknownType = """{"Type":"UNKNOWN_TYPE","Data":{}}"""u8.ToArray();
+        await sender.SendAsync(unknownType, unknownType.Length, new IPEndPoint(IPAddress.Loopback, 41234));
+
+        await Task.Delay(50);
+    }
 }
+
 
 
