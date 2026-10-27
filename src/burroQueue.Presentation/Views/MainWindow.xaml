@@ -10,7 +10,9 @@
   ExtendsContentIntoTitleBar="True"
   WindowBackdropType="Mica"
   WindowCornerPreference="Round"
-  WindowStartupLocation="CenterScreen">
+  WindowStartupLocation="CenterScreen"
+  DragOver="OnDragOver"
+  Drop="OnDrop">
   <Grid Margin="16">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
