@@ -9,10 +9,13 @@ public sealed class AudioPlayerBackend : IAudioPlayerBackend
     private readonly IStreamUriResolver _streamResolver;
     private PlaybackState _currentState = PlaybackState.Stopped;
     private Track? _activeTrack;
+    private double _currentVolume;
 
     public PlaybackState CurrentState => _currentState;
 
     public Track? ActiveTrack => _activeTrack;
+
+    public double CurrentVolume => _currentVolume;
 
     public event EventHandler<PlaybackState>? StateChanged;
 
@@ -22,6 +25,14 @@ public sealed class AudioPlayerBackend : IAudioPlayerBackend
     {
         _audioOutput = audioOutput ?? throw new ArgumentNullException(nameof(audioOutput));
         _streamResolver = streamResolver ?? throw new ArgumentNullException(nameof(streamResolver));
+        _currentVolume = _audioOutput.CurrentVolume;
+
+        _audioOutput.VolumeChanged += OnVolumeChanged;
+    }
+
+    private void OnVolumeChanged(object? sender, double newVolume)
+    {
+        _currentVolume = newVolume;
     }
 
     public async Task PlayTrackAsync(Track track, CancellationToken cancellationToken = default)
@@ -79,6 +90,7 @@ public sealed class AudioPlayerBackend : IAudioPlayerBackend
 
     public ValueTask DisposeAsync()
     {
+        _audioOutput.VolumeChanged -= OnVolumeChanged;
         return ValueTask.CompletedTask;
     }
 }

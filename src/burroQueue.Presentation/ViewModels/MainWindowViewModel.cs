@@ -5,6 +5,7 @@ using burroQueue.Infrastructure.Audio;
 using burroQueue.Infrastructure.Configuration;
 using burroQueue.Infrastructure.Network;
 using burroQueue.Infrastructure.Network.Messages;
+using burroQueue.Infrastructure.Playback;
 using burroQueue.Infrastructure.Telephony;
 using burroQueue.Infrastructure.Web;
 using burroQueue.Infrastructure.YouTube;
@@ -23,6 +24,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private readonly IAudioOutputController _audioController;
     private readonly IAppSettingsService _settingsService;
     private readonly IEmbeddedWebDropServer _webDropServer;
+    private readonly IAudioPlayerBackend _audioPlayerBackend;
     private readonly ClientId _localClientId = ClientId.New();
     private SkipVotePool _skipVotePool;
 
@@ -76,7 +78,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         IAudioOutputController audioController,
         IAppSettingsService settingsService,
         IEmbeddedWebDropServer webDropServer,
-        ILocalNetworkInfoService networkInfoService)
+        ILocalNetworkInfoService networkInfoService,
+        IAudioPlayerBackend audioPlayerBackend)
     {
         _group = group ?? throw new ArgumentNullException(nameof(group));
         _urlParser = urlParser ?? throw new ArgumentNullException(nameof(urlParser));
@@ -86,6 +89,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _audioController = audioController ?? throw new ArgumentNullException(nameof(audioController));
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         _webDropServer = webDropServer ?? throw new ArgumentNullException(nameof(webDropServer));
+        _audioPlayerBackend = audioPlayerBackend ?? throw new ArgumentNullException(nameof(audioPlayerBackend));
         ArgumentNullException.ThrowIfNull(networkInfoService);
 
         _groupName = _group.Name;
@@ -101,6 +105,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _lanGroupService.CollaborativePlaylistReceived += OnCollaborativePlaylistReceived;
         _lanGroupService.QueueSyncReceived += OnQueueSyncReceived;
         _lanGroupService.SkipVoteReceived += OnSkipVoteReceived;
+        _audioPlayerBackend.TrackPlaybackFinished += OnTrackPlaybackFinished;
         _webDropServer.LinkDropped += (_, droppedUrl) => EnqueueRawUrl(droppedUrl);
     }
 
@@ -167,21 +172,34 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     private void SyncQueuedItems()
     {
-        QueuedItems.Clear();
-        foreach (Track item in _group.Playlist.QueuedTracks)
+        RunOnUi(() =>
         {
-            QueuedItems.Add(item);
-        }
+            QueuedItems.Clear();
+            foreach (Track item in _group.Playlist.QueuedTracks)
+            {
+                QueuedItems.Add(item);
+            }
 
-        QueuedCount = _group.Playlist.Count;
+            QueuedCount = _group.Playlist.Count;
+        });
     }
 
     private async Task LoadTrackMetadataAsync(Track track)
     {
-        TrackMetadata meta = await _metadataFetcher.FetchMetadataAsync(track.VideoId).ConfigureAwait(true);
-        CurrentTrackTitle = meta.Title;
-        CurrentTrackArtist = meta.AuthorName;
-        CurrentTrackThumbnailUrl = meta.ThumbnailUri?.ToString();
+        TrackMetadata? meta = await _metadataFetcher.FetchMetadataAsync(track.VideoId).ConfigureAwait(true);
+        if (meta is not null)
+        {
+            CurrentTrackTitle = meta.Title;
+            CurrentTrackArtist = meta.AuthorName;
+            CurrentTrackThumbnailUrl = meta.ThumbnailUri?.ToString();
+        }
+        else
+        {
+            CurrentTrackTitle = track.Title;
+            CurrentTrackArtist = track.SubmittedBy;
+            CurrentTrackThumbnailUrl = null;
+        }
+
         _skipVotePool = new SkipVotePool(track.Id, requiredVotes: 3);
         UpdateSkipVoteStatus();
     }
@@ -235,6 +253,10 @@ public sealed partial class MainWindowViewModel : ObservableObject
     {
         _group.Play();
         PlaybackState = _group.PlaybackState;
+        if (_group.Playlist.CurrentTrack is not null)
+        {
+            await _audioPlayerBackend.PlayTrackAsync(_group.Playlist.CurrentTrack).ConfigureAwait(false);
+        }
         await _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "Play").ConfigureAwait(false);
     }
 
@@ -243,6 +265,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     {
         _group.Pause();
         PlaybackState = _group.PlaybackState;
+        await _audioPlayerBackend.PauseAsync().ConfigureAwait(false);
         await _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "Pause").ConfigureAwait(false);
     }
 
@@ -251,6 +274,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     {
         _group.Stop();
         PlaybackState = _group.PlaybackState;
+        await _audioPlayerBackend.StopAsync().ConfigureAwait(false);
         await _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "Stop").ConfigureAwait(false);
     }
 
@@ -265,6 +289,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             StatusMessage = $"Playing: {next.Title}";
             await LoadTrackMetadataAsync(next).ConfigureAwait(true);
+            await _audioPlayerBackend.PlayTrackAsync(next).ConfigureAwait(false);
         }
         else
         {
@@ -272,6 +297,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
             CurrentTrackTitle = "No song playing";
             CurrentTrackArtist = string.Empty;
             CurrentTrackThumbnailUrl = null;
+            await _audioPlayerBackend.StopAsync().ConfigureAwait(false);
         }
 
         await _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "Skip").ConfigureAwait(false);
@@ -365,6 +391,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
         {
             OpenCollaborativePlaylist();
         }
+    }
+
+    private async void OnTrackPlaybackFinished(object? sender, Track finishedTrack)
+    {
+        await SkipAsync().ConfigureAwait(false);
     }
 
     private void OnQueueSyncReceived(object? sender, QueueSyncMessage message)
