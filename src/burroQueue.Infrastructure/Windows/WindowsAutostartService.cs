@@ -18,8 +18,20 @@ public sealed class WindowsAutostartService : IWindowsAutostartService
                 return false;
             }
 
-            using RegistryKey? key = Registry.CurrentUser.OpenSubKey(_runKeyPath, false);
+            return EvaluateAutostart(() => Registry.CurrentUser.OpenSubKey(_runKeyPath, false));
+        }
+    }
+
+    internal static bool EvaluateAutostart(Func<RegistryKey?> openKey)
+    {
+        try
+        {
+            using RegistryKey? key = openKey();
             return key?.GetValue(_appName) is not null;
+        }
+        catch
+        {
+            return false;
         }
     }
 
@@ -30,9 +42,14 @@ public sealed class WindowsAutostartService : IWindowsAutostartService
             return false;
         }
 
+        return ApplyAutostart(enable, () => Registry.CurrentUser.OpenSubKey(_runKeyPath, true), Environment.ProcessPath);
+    }
+
+    internal static bool ApplyAutostart(bool enable, Func<RegistryKey?> openWritableKey, string? exePath)
+    {
         try
         {
-            using RegistryKey? key = Registry.CurrentUser.OpenSubKey(_runKeyPath, true);
+            using RegistryKey? key = openWritableKey();
             if (key is null)
             {
                 return false;
@@ -40,25 +57,22 @@ public sealed class WindowsAutostartService : IWindowsAutostartService
 
             if (enable)
             {
-                string? exePath = Environment.ProcessPath;
                 if (!string.IsNullOrEmpty(exePath))
                 {
                     key.SetValue(_appName, $"\"{exePath}\"");
                     return true;
                 }
+
+                return false;
             }
-            else
-            {
-                key.DeleteValue(_appName, false);
-                return true;
-            }
+
+            key.DeleteValue(_appName, false);
+            return true;
         }
         catch
         {
             return false;
         }
-
-        return false;
     }
 }
 

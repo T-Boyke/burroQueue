@@ -43,5 +43,50 @@ public sealed class WindowsAutostartServiceTests
             service.IsAutostartEnabled.Should().BeFalse();
         }
     }
+
+    [Fact]
+    public void EvaluateAutostart_WhenExceptionOccurs_ShouldReturnFalse()
+    {
+        bool result = WindowsAutostartService.EvaluateAutostart(
+            () => throw new UnauthorizedAccessException("Registry access denied"));
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ApplyAutostart_WhenKeyIsNull_ShouldReturnFalse()
+    {
+        bool result = WindowsAutostartService.ApplyAutostart(true, () => null, "C:\\app.exe");
+
+        result.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void ApplyAutostart_WhenEnableAndExePathEmpty_ShouldReturnFalse(string? exePath)
+    {
+        using Microsoft.Win32.RegistryKey testKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey("Software\\burroQueueTestRun");
+        try
+        {
+            bool result = WindowsAutostartService.ApplyAutostart(true, () => testKey, exePath);
+            result.Should().BeFalse();
+        }
+        finally
+        {
+            Microsoft.Win32.Registry.CurrentUser.DeleteSubKeyTree("Software\\burroQueueTestRun", false);
+        }
+    }
+
+    [Fact]
+    public void ApplyAutostart_WhenExceptionOccurs_ShouldReturnFalse()
+    {
+        bool result = WindowsAutostartService.ApplyAutostart(
+            true,
+            () => throw new UnauthorizedAccessException("Permission denied"),
+            "C:\\app.exe");
+
+        result.Should().BeFalse();
+    }
 }
 
