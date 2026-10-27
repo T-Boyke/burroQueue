@@ -9,11 +9,20 @@ public sealed class WindowsAutostartService : IWindowsAutostartService
     private const string _runKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string _appName = "burroQueue";
 
+    internal Func<bool, RegistryKey?> KeyOpener { get; set; } = writable =>
+    {
+        return writable
+            ? Registry.CurrentUser.CreateSubKey(_runKeyPath)
+            : Registry.CurrentUser.OpenSubKey(_runKeyPath, false);
+    };
+
+    internal Func<string?> ProcessPathProvider { get; set; } = () => Environment.ProcessPath;
+
     public bool IsAutostartEnabled
     {
         get
         {
-            return EvaluateAutostart(() => Registry.CurrentUser.OpenSubKey(_runKeyPath, false));
+            return EvaluateAutostart(() => KeyOpener(false));
         }
     }
 
@@ -32,7 +41,7 @@ public sealed class WindowsAutostartService : IWindowsAutostartService
 
     public bool SetAutostart(bool enable)
     {
-        return ApplyAutostart(enable, () => Registry.CurrentUser.OpenSubKey(_runKeyPath, true), Environment.ProcessPath);
+        return ApplyAutostart(enable, () => KeyOpener(true), ProcessPathProvider());
     }
 
     internal static bool ApplyAutostart(bool enable, Func<RegistryKey?> openWritableKey, string? exePath)
