@@ -80,16 +80,27 @@ Dieses Dokument hält alle zentralen architektonischen Entscheidungen für `burr
 
 ---
 
-## ADR-007: Isolierte statische View-Logik-Handler für UI- und Drag&Drop-Tests
+## ADR-009: Isolierte statische View-Logik-Handler für UI- und Drag&Drop-Tests
 
 - **Status:** Angenommen
 - **Kontext:** WPF `FluentWindow`-Komponenten nutzen Windows 11 Fluent Mica-Backdrops und Win32 DWM APIs, die in CI- und Headless-Testläufern ohne aktiven Desktop Window Manager zu Native-Crashes oder unhandled Win32-Exceptions führen können. Zudem haben WPF `DragEventArgs` geschützte interne Konstruktoren.
 - **Entscheidung:** Sämtliche nicht-triviale Ereignis-Logik von Fenstern (wie Drag-and-Drop Parsing, Close-to-Tray Abfang-Routinen und globale Hotkey-Verdrahtung) wird als statische interne Methoden (`HandleDragOver`, `HandleDrop`, `HandleClosing`, `HandleHotkeyRegistration`) extrahiert, die standardmäßige Schnittstellen wie `IDataObject`, `CancelEventArgs` und `IGlobalHotkeyService` entgegennehmen.
 - **Konsequenzen:** 100% deterministische, robuste und blitzschnelle Unit-Tests ohne XAML-Window-Initialisierung oder Flakiness in headless Testläufen.
 
-## ADR-009: Robuste HttpListener-Instanziierung mit dynamischem Fallback
+---
+
+## ADR-010: Robuste HttpListener-Instanziierung mit dynamischem Fallback
 
 - **Status:** Angenommen
 - **Kontext:** `HttpListener` verlangt unter Windows Administrator-Rechte für Wildcard-Präfixe (`http://*:8080/`). Scheitert der Start, wird die Instanz von der .NET-Runtime als verworfen markiert und wirft bei Wiederverwendung eine `ObjectDisposedException`.
 - **Entscheidung:** Bei Fehlschlagen des Wildcard-Präfixes wird eine frische `HttpListener`-Instanz mit Präfix `http://localhost:{Port}/` erzeugt und gestartet.
 - **Konsequenzen:** Zuverlässiger Serverstart sowohl mit als auch ohne Administrator-Rechte in allen Benutzer- und Testumgebungen.
+
+---
+
+## ADR-011: Entkopplung von Plattform- und Win32-APIs via interne Test-Delegates
+
+- **Status:** Angenommen
+- **Kontext:** Dienste mit Systemabhängigkeiten (z. B. `Clipboard`, `Process.Start`, `Dispatcher`, `RegisterHotKey`, `Activator.CreateInstance` für COM) können in headless CI-Umgebungen nicht direkt ausgeführt werden oder werfen ohne Desktop-Sitzung Exceptions.
+- **Entscheidung:** Relevante Plattformaufrufe werden in internen Delegaten mit Produktions-Standardwerten gekapselt (z. B. `ClipboardAction`, `ProcessStarter`, `UiDispatcherRunner`, `ComActivator`, `WindowHandleProvider`). In Unit-Tests können diese punktuell überschrieben werden, um sowohl Erfolgs- als auch Ausnahme-Pfade deterministisch zu verifizieren.
+- **Konsequenzen:** Nahezu 100% Testabdeckung in Infrastructure und Presentation ohne schwerfällige Wrapper-Klassen oder Verletzungen der 1CPF/DDD-Regeln.

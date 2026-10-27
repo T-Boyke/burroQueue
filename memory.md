@@ -10,13 +10,13 @@ Letzte Aktualisierung: 2026-10-27 | Ziel: Stabile Version 1.0 (Produktionsreife)
 - **Zielsystem:** Windows 11 (Mica, Fluent Design, Systray-Jukebox)
 - **Runtime:** .NET 10 (`net10.0` für Domain/Infrastructure/Tests, `net10.0-windows10.0.22621.0` für Presentation)
 - **Architektur:** Reine Domain-Driven Design Schichten (Domain = 0 externe Dependencies, Single Component Per File)
-- **Aktuelle Testanzahl:** 257 Tests (100% grün in ~270ms)
+- **Aktuelle Testanzahl:** 323 Tests (100% grün in ~460ms)
 - **Aktuelle Code-Coverage:**
   - `burroQueue.Domain`: 100,00% Line Coverage (97,05% Branch)
-  - `burroQueue.Infrastructure`: 84,65% Line Coverage (70,18% Branch)
-  - `burroQueue.Presentation`: 62,81% Line Coverage (61,00% Branch)
+  - `burroQueue.Infrastructure`: 93,91% Line Coverage (80,41% Branch)
+  - `burroQueue.Presentation`: 98,51% Line Coverage (85,78% Branch)
 - **Installer:** Inno Setup 6.x mit unkomprimiertem 32bpp DIB Multi-Res `.ico` (16–256 px)
-- **Architektur-Check:** `./scripts/verify-architecture.ps1` (119/119 Dateien validiert, 0 Violations)
+- **Architektur-Check:** `./scripts/verify-architecture.ps1` (122/122 Dateien validiert, 0 Violations)
 - **CI Formatting:** `dotnet format burroQueue.sln --no-restore --verify-no-changes` (0 Warnungen / 0 Fehler)
 
 ---
