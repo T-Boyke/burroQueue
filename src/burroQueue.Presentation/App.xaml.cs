@@ -29,37 +29,77 @@ public partial class App : System.Windows.Application
         ConfigureServices(services);
 
         _serviceProvider = services.BuildServiceProvider();
+        _systrayService = _serviceProvider.GetRequiredService<ISystrayNotificationService>();
 
-        IAppSettingsService settings = _serviceProvider.GetRequiredService<IAppSettingsService>();
+        await InitializeApplicationAsync(
+            _serviceProvider,
+            showWindow: w => w.Show(),
+            showSettings: (sw, mw) =>
+            {
+                sw.Owner = mw;
+                sw.ShowDialog();
+            },
+            shutdownAction: () => Shutdown()).ConfigureAwait(true);
+    }
+
+    internal static async Task InitializeApplicationAsync(
+        IServiceProvider serviceProvider,
+        Action<MainWindow> showWindow,
+        Action<SettingsWindow, MainWindow> showSettings,
+        Action shutdownAction)
+    {
+        IAppSettingsService settings = serviceProvider.GetRequiredService<IAppSettingsService>();
         await settings.LoadAsync().ConfigureAwait(true);
 
-        IPlaylistStorageService storage = _serviceProvider.GetRequiredService<IPlaylistStorageService>();
-        BurroGroup group = _serviceProvider.GetRequiredService<BurroGroup>();
+        IPlaylistStorageService storage = serviceProvider.GetRequiredService<IPlaylistStorageService>();
+        BurroGroup group = serviceProvider.GetRequiredService<BurroGroup>();
         await storage.LoadPlaylistAsync(group.Playlist).ConfigureAwait(true);
 
-        ITelephonyManager telephony = _serviceProvider.GetRequiredService<ITelephonyManager>();
+        ITelephonyManager telephony = serviceProvider.GetRequiredService<ITelephonyManager>();
         await telephony.StartAsync().ConfigureAwait(true);
 
-        ILanGroupService lan = _serviceProvider.GetRequiredService<ILanGroupService>();
+        ILanGroupService lan = serviceProvider.GetRequiredService<ILanGroupService>();
         await lan.StartAsync().ConfigureAwait(true);
 
-        IEmbeddedWebDropServer webDrop = _serviceProvider.GetRequiredService<IEmbeddedWebDropServer>();
+        IEmbeddedWebDropServer webDrop = serviceProvider.GetRequiredService<IEmbeddedWebDropServer>();
         await webDrop.StartAsync().ConfigureAwait(true);
 
-        MainWindow mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+        MainWindow mainWindow = serviceProvider.GetRequiredService<MainWindow>();
 
-        _systrayService = _serviceProvider.GetRequiredService<ISystrayNotificationService>();
-        _systrayService.Initialize(
+        ISystrayNotificationService systrayService = serviceProvider.GetRequiredService<ISystrayNotificationService>();
+        systrayService.Initialize(
             mainWindow,
             onOpenSettings: () =>
             {
-                SettingsWindow settingsWindow = _serviceProvider.GetRequiredService<SettingsWindow>();
-                settingsWindow.Owner = mainWindow;
-                settingsWindow.ShowDialog();
+                SettingsWindow settingsWindow = serviceProvider.GetRequiredService<SettingsWindow>();
+                showSettings(settingsWindow, mainWindow);
             },
-            onExitApp: () => Shutdown());
+            onExitApp: shutdownAction);
 
-        mainWindow.Show();
+        showWindow(mainWindow);
+    }
+
+    internal static async Task ShutdownApplicationAsync(IServiceProvider? serviceProvider, ISystrayNotificationService? systrayService)
+    {
+        if (serviceProvider is not null)
+        {
+            try
+            {
+                IPlaylistStorageService storage = serviceProvider.GetRequiredService<IPlaylistStorageService>();
+                BurroGroup group = serviceProvider.GetRequiredService<BurroGroup>();
+                await storage.SavePlaylistAsync(group.Playlist).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Unhandled persistence errors ignored on exit
+            }
+
+            systrayService?.Dispose();
+            if (serviceProvider is IAsyncDisposable asyncDisposable)
+            {
+                await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+            }
+        }
     }
 
     internal static void ConfigureServices(IServiceCollection services)
@@ -98,23 +138,7 @@ public partial class App : System.Windows.Application
 
     protected override async void OnExit(ExitEventArgs e)
     {
-        if (_serviceProvider is not null)
-        {
-            try
-            {
-                IPlaylistStorageService storage = _serviceProvider.GetRequiredService<IPlaylistStorageService>();
-                BurroGroup group = _serviceProvider.GetRequiredService<BurroGroup>();
-                await storage.SavePlaylistAsync(group.Playlist).ConfigureAwait(false);
-            }
-            catch
-            {
-                // Unhandled persistence errors ignored on exit
-            }
-
-            _systrayService?.Dispose();
-            await _serviceProvider.DisposeAsync().ConfigureAwait(false);
-        }
-
+        await ShutdownApplicationAsync(_serviceProvider, _systrayService).ConfigureAwait(false);
         base.OnExit(e);
     }
 }
