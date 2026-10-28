@@ -29,10 +29,13 @@ public sealed class AppLifecycleTests
         ILanGroupService lan = Substitute.For<ILanGroupService>();
         IEmbeddedWebDropServer webDrop = Substitute.For<IEmbeddedWebDropServer>();
         ISystrayNotificationService systray = Substitute.For<ISystrayNotificationService>();
+        ISingleInstanceManager singleInstance = Substitute.For<ISingleInstanceManager>();
+        singleInstance.TryAcquireSingleInstance().Returns(true);
 
         MainWindow dummyMain = (MainWindow)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(MainWindow));
         SettingsWindow dummySettings = (SettingsWindow)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(SettingsWindow));
 
+        services.AddSingleton(singleInstance);
         services.AddSingleton(group);
         services.AddSingleton(settings);
         services.AddSingleton(storage);
@@ -55,6 +58,7 @@ public sealed class AppLifecycleTests
                 dummyMain,
                 Arg.Any<Action>(),
                 Arg.Any<Action>(),
+                Arg.Any<Action?>(),
                 Arg.Any<Action?>(),
                 Arg.Any<Action?>(),
                 Arg.Any<Action?>()))
