@@ -9,3 +9,4 @@ internal struct ProcessPowerThrottlingState
     public uint ControlMask;
     public uint StateMask;
 }
+

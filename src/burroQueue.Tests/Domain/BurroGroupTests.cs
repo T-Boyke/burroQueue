@@ -163,7 +163,9 @@ public sealed class BurroGroupTests
     public void SwitchGroup_WhenNewIdAndName_ShouldFireRenamedEventAndClearPlaylist()
     {
         BurroGroup group = new(GroupId.New(), "Original");
-        group.Playlist.Enqueue(new Track("vid1", new Uri("https://youtube.com/watch?v=vid1"), "Title", "Sub", DateTimeOffset.UtcNow));
+        group.Playlist.Enqueue(new Track("vid1", new Uri("https://youtube.com/watch?v=vid1"), "Title 1", "Sub", DateTimeOffset.UtcNow));
+        group.Playlist.Enqueue(new Track("vid2", new Uri("https://youtube.com/watch?v=vid2"), "Title 2", "Sub", DateTimeOffset.UtcNow));
+        group.Playlist.CurrentTrack.Should().NotBeNull();
         group.Playlist.Count.Should().Be(1);
 
         bool eventFired = false;
@@ -175,6 +177,7 @@ public sealed class BurroGroupTests
         group.Id.Should().Be(newId);
         group.Name.Should().Be("New Room");
         group.Playlist.Count.Should().Be(0);
+        group.Playlist.CurrentTrack.Should().BeNull();
         eventFired.Should().BeTrue();
     }
 

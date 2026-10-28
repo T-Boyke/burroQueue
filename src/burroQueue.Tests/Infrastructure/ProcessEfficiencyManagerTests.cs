@@ -26,3 +26,4 @@ public sealed class ProcessEfficiencyManagerTests
         act.Should().NotThrow();
     }
 }
+
