@@ -14,8 +14,8 @@ public sealed class AppSettingsData
 
     public double MasterVolume { get; set; } = 0.8;
 
-    public bool EnableWebDropServer { get; set; } = false;
+    public bool EnableWebDropServer { get; set; }
 
-    public bool HasJoinedCollaborativePlaylist { get; set; } = false;
+    public bool HasJoinedCollaborativePlaylist { get; set; }
 }
 
