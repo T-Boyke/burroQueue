@@ -23,7 +23,7 @@ if (-not $cert) {
         -CertStoreLocation "Cert:\CurrentUser\My" `
         -NotAfter (Get-Date).AddYears(5)
 
-    Write-Host "[*] Installiere Zertifikat in vertrauenswrdigen Stammzertifizierungsstellen..." -ForegroundColor Cyan
+    Write-Host "[*] Installiere Zertifikat in vertrauenswürdigen Stammzertifizierungsstellen..." -ForegroundColor Cyan
     $rootStore = New-Object System.Security.Cryptography.X509Certificates.X509Store("Root", "CurrentUser")
     $rootStore.Open("ReadWrite")
     $rootStore.Add($cert)
@@ -39,5 +39,5 @@ if (Test-Path $FilePath) {
     Unblock-File -Path $FilePath
     Write-Host "[OK] '$FilePath' erfolgreich signiert und entblockt!" -ForegroundColor Green
 } else {
-    Write-Host "[!] Datei '$FilePath' nicht gefunden. Bitte Pfad prfen." -ForegroundColor Yellow
+    Write-Host "[!] Datei '$FilePath' nicht gefunden. Bitte Pfad prüfen." -ForegroundColor Yellow
 }
