@@ -183,8 +183,8 @@ public sealed class SettingsViewModelTests
 
         vm.CollaborativePlaylistUrl = "https://www.youtube.com/playlist?list=PL1234567890&jct=abcdef123";
 
-        vm.IsCollaborativePlaylistValid.Should().BeTrue();
-        vm.CollaborativePlaylistValidationText.Should().Contain("Gültiger Einladungslink");
+        vm.IsCollaborativeUrlValid.Should().BeTrue();
+        vm.CollaborativeUrlValidationText.Should().Contain("Gültiger Einladungslink");
     }
 
     [Fact]
@@ -198,8 +198,8 @@ public sealed class SettingsViewModelTests
 
         vm.CollaborativePlaylistUrl = "https://google.com";
 
-        vm.IsCollaborativePlaylistValid.Should().BeFalse();
-        vm.CollaborativePlaylistValidationText.Should().Contain("Ungültig");
+        vm.IsCollaborativeUrlValid.Should().BeFalse();
+        vm.CollaborativeUrlValidationText.Should().Contain("Ungültig");
     }
 
     [Fact]
@@ -229,16 +229,16 @@ public sealed class SettingsViewModelTests
             _telephonyManager,
             _autostartService,
             _audioDeviceEnumerator,
-            burroGroup: group,
+            group: group,
             lanGroupService: lan);
 
-        vm.NewGroupNameInput = "Marketing Lounge";
+        vm.NewGroupName = "Marketing Lounge";
 
         await vm.CreateNewGroupAsync();
 
         group.Name.Should().Be("Marketing Lounge");
-        vm.ActiveGroupName.Should().Be("Marketing Lounge");
-        vm.NewGroupNameInput.Should().BeEmpty();
+        vm.CurrentGroupName.Should().Be("Marketing Lounge");
+        vm.NewGroupName.Should().BeEmpty();
         await lan.Received(1).SendGroupActionAsync(group.Id, Arg.Any<burroQueue.Domain.Model.ClientId>(), "Rename", "Marketing Lounge");
     }
 }

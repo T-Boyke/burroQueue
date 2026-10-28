@@ -212,7 +212,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _skipVotePool = new SkipVotePool(TrackId.New(), requiredVotes: 3);
         _isWebDropActive = _settingsService.CurrentSettings.EnableWebDropServer;
         _networkStatusText = _isWebDropActive ? "LAN-Sync & WebDrop aktiv" : "LAN-Sync aktiv (WebDrop aus)";
-        _isFirstJoinPromptVisible = !string.IsNullOrWhiteSpace(_collaborativePlaylistUrl) && !_settingsService.CurrentSettings.HasJoinedCollaborativePlaylist;
+        _isFirstJoinPromptVisible = !string.IsNullOrWhiteSpace(_settingsService.CurrentSettings.CollaborativePlaylistUrl) && !_settingsService.CurrentSettings.HasJoinedCollaborativePlaylist;
 
         if (_settingsService.CurrentSettings.MasterVolume > 0 && Math.Abs(_settingsService.CurrentSettings.MasterVolume - 0.8) > 0.001)
         {
@@ -283,9 +283,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
             // Fail-safe: Fallback auf leere Playlist
         }
 
-        if (_group.Playlist.Count == 0 && !string.IsNullOrWhiteSpace(_collaborativePlaylistUrl))
+        if (_group.Playlist.Count == 0 && !string.IsNullOrWhiteSpace(CollaborativePlaylistUrl))
         {
-            await ImportPlaylistFromYouTubeAsync(_collaborativePlaylistUrl).ConfigureAwait(false);
+            await ImportPlaylistFromYouTubeAsync(CollaborativePlaylistUrl).ConfigureAwait(false);
         }
     }
 

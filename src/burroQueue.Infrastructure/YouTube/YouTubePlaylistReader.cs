@@ -6,7 +6,7 @@ namespace burroQueue.Infrastructure.YouTube;
 
 public sealed class YouTubePlaylistReader : IYouTubePlaylistReader
 {
-    private static readonly string[] InvidiousInstances =
+    private static readonly string[] _invidiousInstances =
     [
         "https://invidious.jing.rocks",
         "https://inv.tux.pizza",
@@ -33,7 +33,7 @@ public sealed class YouTubePlaylistReader : IYouTubePlaylistReader
             return [];
         }
 
-        foreach (string instance in InvidiousInstances)
+        foreach (string instance in _invidiousInstances)
         {
             try
             {

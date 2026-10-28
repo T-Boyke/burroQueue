@@ -3,6 +3,7 @@ using burroQueue.Domain.Model;
 using burroQueue.Infrastructure.Audio;
 using burroQueue.Infrastructure.Configuration;
 using burroQueue.Infrastructure.Network;
+using burroQueue.Infrastructure.Network.Messages;
 using burroQueue.Infrastructure.Playback;
 using burroQueue.Infrastructure.Telephony;
 using burroQueue.Infrastructure.Web;
@@ -78,11 +79,11 @@ public sealed partial class SettingsViewModel : ObservableObject
         ITelephonyManager telephonyManager,
         IWindowsAutostartService autostartService,
         IAudioDeviceEnumerator audioDeviceEnumerator,
-        BurroGroup? group = null,
-        ILanGroupService? lanGroupService = null,
         IStreamUriResolver? streamResolver = null,
         IEmbeddedWebDropServer? webDropServer = null,
-        ILocalNetworkInfoService? networkInfo = null)
+        ILocalNetworkInfoService? networkInfo = null,
+        BurroGroup? group = null,
+        ILanGroupService? lanGroupService = null)
     {
         _settingsService = settingsService;
         _telephonyManager = telephonyManager;
