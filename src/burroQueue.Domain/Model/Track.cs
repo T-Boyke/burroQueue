@@ -10,11 +10,13 @@ public sealed class Track
 
     public Uri Url { get; }
 
-    public string Title { get; }
+    public string Title { get; private set; }
 
     public string SubmittedBy { get; }
 
     public DateTimeOffset EnqueuedAtUtc { get; }
+
+    public string ThumbnailUrl => $"https://img.youtube.com/vi/{VideoId}/mqdefault.jpg";
 
     public Track(string videoId, Uri url, string title, string submittedBy, DateTimeOffset enqueuedAtUtc)
     {
@@ -31,6 +33,14 @@ public sealed class Track
         Title = string.IsNullOrWhiteSpace(title) ? VideoId : title.Trim();
         SubmittedBy = string.IsNullOrWhiteSpace(submittedBy) ? "Anonymous Burro" : submittedBy.Trim();
         EnqueuedAtUtc = enqueuedAtUtc;
+    }
+
+    public void SetTitle(string title)
+    {
+        if (!string.IsNullOrWhiteSpace(title))
+        {
+            Title = title.Trim();
+        }
     }
 }
 

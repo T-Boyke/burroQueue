@@ -7,7 +7,7 @@ public sealed class BurroGroup
     private readonly List<GroupMember> _members = [];
     private readonly List<object> _domainEvents = [];
 
-    public GroupId Id { get; }
+    public GroupId Id { get; private set; }
 
     public string Name { get; private set; }
 
@@ -51,6 +51,13 @@ public sealed class BurroGroup
         string oldName = Name;
         Name = trimmed;
         _domainEvents.Add(new GroupRenamedDomainEvent(Id, oldName, Name, DateTimeOffset.UtcNow));
+    }
+
+    public void SwitchGroup(GroupId newId, string newName)
+    {
+        Id = newId;
+        Rename(newName);
+        Playlist.Clear();
     }
 
     public void UpdateCollaborativePlaylistLink(CollaborativePlaylistLink? link)
