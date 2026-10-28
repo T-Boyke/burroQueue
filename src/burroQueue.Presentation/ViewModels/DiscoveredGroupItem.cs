@@ -6,3 +6,4 @@ public sealed record DiscoveredGroupItem(
     int MemberCount,
     string HostEndpoint,
     DateTimeOffset LastSeen);
+

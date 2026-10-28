@@ -172,3 +172,4 @@ public sealed class MainWindowViewModelAddFeedbackAndGroupTests
         vm.LastAddedFeedbackText.Should().Contain("2 Songs aus Playlist importiert");
     }
 }
+
