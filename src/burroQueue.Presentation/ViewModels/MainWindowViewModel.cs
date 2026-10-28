@@ -272,6 +272,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         };
 
         SyncQueuedItems();
+        if (_group.Playlist.CurrentTrack is { } initialTrack)
+        {
+            _currentTrackTitle = initialTrack.Title;
+            _currentTrackArtist = initialTrack.SubmittedBy;
+            _currentTrackThumbnailUrl = initialTrack.ThumbnailUrl;
+        }
 
         _telephonyManager.StateChanged += OnTelephonyStateChanged;
         _lanGroupService.GroupActionReceived += OnGroupActionReceived;
@@ -646,7 +652,21 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             }
 
             QueuedCount = _group.Playlist.Count;
+            SyncCurrentTrackDisplayIfEmpty();
         });
+    }
+
+    private void SyncCurrentTrackDisplayIfEmpty()
+    {
+        if (_group.Playlist.CurrentTrack is { } current &&
+            (string.IsNullOrWhiteSpace(CurrentTrackTitle) ||
+             CurrentTrackTitle == "Kein Song aktiv" ||
+             CurrentTrackTitle == "No song playing"))
+        {
+            CurrentTrackTitle = current.Title;
+            CurrentTrackArtist = current.SubmittedBy;
+            CurrentTrackThumbnailUrl = current.ThumbnailUrl;
+        }
     }
 
     private async Task LoadTrackMetadataAsync(Track track)
@@ -720,14 +740,64 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task PlayAsync()
     {
+        if (_group.Playlist.CurrentTrack is null && _group.Playlist.Count > 0)
+        {
+            _group.Playlist.AdvanceNext();
+            SyncQueuedItems();
+        }
+
         _group.Play();
         PlaybackState = _group.PlaybackState;
-        RunOnUi(() => _playbackTimer?.Start());
-        if (_group.Playlist.CurrentTrack is not null)
+        RunOnUi(() =>
         {
-            await _audioPlayerBackend.PlayTrackAsync(_group.Playlist.CurrentTrack).ConfigureAwait(false);
+            SyncCurrentTrackDisplayIfEmpty();
+            _playbackTimer?.Start();
+        });
+
+        if (_group.Playlist.CurrentTrack is { } current)
+        {
+            if (_audioPlayerBackend.CurrentState == PlaybackState.Paused &&
+                _audioPlayerBackend.ActiveTrack?.VideoId == current.VideoId)
+            {
+                await _audioPlayerBackend.ResumeAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                StatusMessage = $"Playing: {current.Title}";
+                await _audioPlayerBackend.PlayTrackAsync(current).ConfigureAwait(false);
+            }
         }
+
         await _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "Play").ConfigureAwait(false);
+    }
+
+    [RelayCommand]
+    public async Task PlayTrackNowAsync(Track? track)
+    {
+        if (track is null)
+        {
+            return;
+        }
+
+        int index = -1;
+        for (int i = 0; i < _group.Playlist.QueuedTracks.Count; i++)
+        {
+            if (_group.Playlist.QueuedTracks[i].Id == track.Id)
+            {
+                index = i;
+                break;
+            }
+        }
+
+        if (index > 0)
+        {
+            _group.Playlist.Move(index, 0);
+        }
+
+        if (index >= 0)
+        {
+            await SkipAsync().ConfigureAwait(false);
+        }
     }
 
     [RelayCommand]

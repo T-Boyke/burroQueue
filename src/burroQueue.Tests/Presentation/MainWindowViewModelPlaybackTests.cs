@@ -1106,6 +1106,54 @@ public sealed class MainWindowViewModelPlaybackTests
         vm.PlaybackProgress.Should().Be(0.0);
         vm.PlaybackTimeFormatted.Should().Be("00:00 / 00:00");
     }
+
+    [Fact]
+    public async Task PlayAsync_WhenCurrentTrackWasPaused_ShouldInvokeResumeAsync()
+    {
+        Track track = new("track-1", new Uri("https://www.youtube.com/watch?v=track-1"), "Song 1", "Alice", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(track);
+        _audioPlayerBackend.CurrentState.Returns(PlaybackState.Paused);
+        _audioPlayerBackend.ActiveTrack.Returns(track);
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        await vm.PlayAsync();
+
+        await _audioPlayerBackend.Received(1).ResumeAsync(Arg.Any<CancellationToken>());
+        await _audioPlayerBackend.DidNotReceive().PlayTrackAsync(Arg.Any<Track>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PlayTrackNowAsync_WhenTrackInQueue_ShouldMoveToFrontAndPlayImmediately()
+    {
+        Track track1 = new("track-1", new Uri("https://www.youtube.com/watch?v=track-1"), "Song 1", "Alice", DateTimeOffset.UtcNow);
+        Track track2 = new("track-2", new Uri("https://www.youtube.com/watch?v=track-2"), "Song 2", "Bob", DateTimeOffset.UtcNow);
+        Track track3 = new("track-3", new Uri("https://www.youtube.com/watch?v=track-3"), "Song 3", "Charlie", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(track1);
+        _group.Playlist.Enqueue(track2);
+        _group.Playlist.Enqueue(track3);
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        await vm.PlayTrackNowAsync(track3);
+
+        _group.Playlist.CurrentTrack.Should().Be(track3);
+        await _audioPlayerBackend.Received(1).PlayTrackAsync(track3, Arg.Any<CancellationToken>());
+        vm.QueuedItems.Should().ContainSingle().Which.Should().Be(track2);
+    }
+
+    [Fact]
+    public void Constructor_WhenGroupHasInitialCurrentTrack_ShouldInitializeCurrentTrackProperties()
+    {
+        Track track = new("init-1", new Uri("https://www.youtube.com/watch?v=init-1"), "Initial Song", "Artist X", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(track);
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        vm.CurrentTrackTitle.Should().Be("Initial Song");
+        vm.CurrentTrackArtist.Should().Be("Artist X");
+        vm.CurrentTrackThumbnailUrl.Should().Be(track.ThumbnailUrl);
+    }
 }
 
 

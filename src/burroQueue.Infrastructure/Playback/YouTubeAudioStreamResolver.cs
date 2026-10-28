@@ -7,6 +7,7 @@ namespace burroQueue.Infrastructure.Playback;
 public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
 {
     private readonly HttpClient _httpClient;
+    private readonly bool _explicitlyDisabledYtDlp;
     private string? _ytDlpPath;
 
     public bool IsYtDlpAvailable => !string.IsNullOrEmpty(_ytDlpPath);
@@ -16,6 +17,7 @@ public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
     public YouTubeAudioStreamResolver(HttpClient? httpClient = null, string? ytDlpPath = null)
     {
         _httpClient = httpClient ?? new HttpClient();
+        _explicitlyDisabledYtDlp = ytDlpPath is not null && ytDlpPath.Length == 0;
         _ytDlpPath = ytDlpPath ?? FindYtDlp();
     }
 
@@ -97,19 +99,38 @@ public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
             return null;
         }
 
-        if (string.IsNullOrEmpty(_ytDlpPath))
+        string cleanId = videoId.Trim();
+
+        if (!_explicitlyDisabledYtDlp && string.IsNullOrEmpty(_ytDlpPath))
         {
-            _ytDlpPath = FindYtDlp();
+            _ytDlpPath = FindYtDlp() ?? await EnsureYtDlpAsync(cancellationToken).ConfigureAwait(false);
         }
 
         if (!string.IsNullOrEmpty(_ytDlpPath))
         {
             try
             {
-                string? url = await ProcessRunner(_ytDlpPath, $"-g -f ba \"https://www.youtube.com/watch?v={videoId.Trim()}\"", cancellationToken).ConfigureAwait(false);
-                if (!string.IsNullOrWhiteSpace(url))
+                string cacheDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "burroQueue", "cache");
+                Directory.CreateDirectory(cacheDir);
+                string cachedFilePath = Path.Combine(cacheDir, $"{cleanId}.mp4");
+
+                if (ProcessRunner == DefaultRunProcessAsync && File.Exists(cachedFilePath) && new FileInfo(cachedFilePath).Length > 0)
                 {
-                    string firstUrl = url.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)[0].Trim();
+                    return new Uri(cachedFilePath);
+                }
+
+                string args = $"--extractor-args \"youtube:player_client=android\" -f \"18/b\" --no-playlist -o \"{cachedFilePath}\" \"https://www.youtube.com/watch?v={cleanId}\"";
+                string? output = await ProcessRunner(_ytDlpPath, args, cancellationToken).ConfigureAwait(false);
+
+                if (File.Exists(cachedFilePath) && new FileInfo(cachedFilePath).Length > 0)
+                {
+                    PruneCacheDirectory(cacheDir, maxFiles: 15);
+                    return new Uri(cachedFilePath);
+                }
+
+                if (!string.IsNullOrWhiteSpace(output))
+                {
+                    string firstUrl = output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)[0].Trim();
                     if (Uri.TryCreate(firstUrl, UriKind.Absolute, out Uri? audioUri))
                     {
                         return audioUri;
@@ -124,7 +145,7 @@ public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
 
         try
         {
-            using HttpResponseMessage res = await _httpClient.GetAsync($"https://inv.tux.pizza/api/v1/videos/{videoId.Trim()}", cancellationToken).ConfigureAwait(false);
+            using HttpResponseMessage res = await _httpClient.GetAsync($"https://inv.tux.pizza/api/v1/videos/{cleanId}", cancellationToken).ConfigureAwait(false);
             if (res.IsSuccessStatusCode)
             {
                 string json = await res.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -149,7 +170,34 @@ public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
             // Fallback auf Standard YouTube-URL
         }
 
-        return new Uri($"https://www.youtube.com/watch?v={videoId.Trim()}");
+        return new Uri($"https://www.youtube.com/watch?v={cleanId}");
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    private static void PruneCacheDirectory(string cacheDir, int maxFiles)
+    {
+        try
+        {
+            FileInfo[] files = new DirectoryInfo(cacheDir).GetFiles("*.mp4");
+            if (files.Length <= maxFiles)
+            {
+                return;
+            }
+
+            foreach (FileInfo oldFile in files.OrderByDescending(f => f.LastWriteTimeUtc).Skip(maxFiles))
+            {
+                try
+                {
+                    oldFile.Delete();
+                }
+                catch
+                {
+                }
+            }
+        }
+        catch
+        {
+        }
     }
 
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]

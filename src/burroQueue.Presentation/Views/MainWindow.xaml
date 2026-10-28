@@ -523,6 +523,15 @@
                       Appearance="Transparent"
                       Padding="3"
                       Margin="0,0,2,0"
+                      ToolTip="Sofort abspielen"
+                      Command="{Binding DataContext.PlayTrackNowCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                      CommandParameter="{Binding}">
+                      <ui:SymbolIcon Symbol="Play24" FontSize="11" />
+                    </ui:Button>
+                    <ui:Button
+                      Appearance="Transparent"
+                      Padding="3"
+                      Margin="0,0,2,0"
                       ToolTip="Nach oben verschieben"
                       Command="{Binding DataContext.MoveTrackUpCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
                       CommandParameter="{Binding}">

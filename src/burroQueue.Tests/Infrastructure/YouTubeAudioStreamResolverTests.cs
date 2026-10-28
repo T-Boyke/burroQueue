@@ -1,3 +1,4 @@
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using burroQueue.Infrastructure.Playback;
@@ -108,6 +109,42 @@ public sealed class YouTubeAudioStreamResolverTests
     {
         YouTubeAudioStreamResolver resolver = new(ytDlpPath: string.Empty);
         resolver.IsYtDlpAvailable.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ResolveAudioStreamUriAsync_WhenYtDlpDownloadsLocalMp4File_ShouldReturnLocalFileUri()
+    {
+        Func<string, string, CancellationToken, Task<string?>> original = YouTubeAudioStreamResolver.ProcessRunner;
+        string testVideoId = $"test_local_{Guid.NewGuid():N}";
+        string cacheDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "burroQueue", "cache");
+        string expectedFile = Path.Combine(cacheDir, $"{testVideoId}.mp4");
+
+        try
+        {
+            YouTubeAudioStreamResolver.ProcessRunner = (_, args, _) =>
+            {
+                args.Should().Contain("player_client=android");
+                args.Should().Contain("18/b");
+                Directory.CreateDirectory(cacheDir);
+                File.WriteAllBytes(expectedFile, [1, 2, 3, 4]);
+                return Task.FromResult<string?>("[download] 100%");
+            };
+
+            YouTubeAudioStreamResolver resolver = new(ytDlpPath: "C:\\dummy\\yt-dlp.exe");
+            Uri? uri = await resolver.ResolveAudioStreamUriAsync(testVideoId);
+
+            uri.Should().NotBeNull();
+            uri!.IsFile.Should().BeTrue();
+            uri.LocalPath.Should().Be(expectedFile);
+        }
+        finally
+        {
+            YouTubeAudioStreamResolver.ProcessRunner = original;
+            if (File.Exists(expectedFile))
+            {
+                File.Delete(expectedFile);
+            }
+        }
     }
 }
 

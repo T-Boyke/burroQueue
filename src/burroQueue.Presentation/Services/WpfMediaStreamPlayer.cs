@@ -38,6 +38,7 @@ public sealed class WpfMediaStreamPlayer : IMediaStreamPlayer
 
     public WpfMediaStreamPlayer()
     {
+        AppContext.SetSwitch("Switch.System.Windows.Net.DoNotApplyZoneCheckForDefaultCredentials", true);
         _mediaPlayer = new MediaPlayer();
         _mediaPlayer.MediaEnded += (_, e) => MediaEnded?.Invoke(this, e);
         _mediaPlayer.MediaFailed += (_, e) => App.LogStartup($"WpfMediaStreamPlayer MediaFailed: {e.ErrorException}");
