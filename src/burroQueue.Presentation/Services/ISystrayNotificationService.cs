@@ -10,7 +10,8 @@ public interface ISystrayNotificationService : IDisposable
         Action onExitApp,
         Action? onTogglePlayPause = null,
         Action? onSkipNext = null,
-        Action? onToggleMute = null);
+        Action? onToggleMute = null,
+        Action? onOpenAbout = null);
 
     void ShowNotification(string title, string message);
 

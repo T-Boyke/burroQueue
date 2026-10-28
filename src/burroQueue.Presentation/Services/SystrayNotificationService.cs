@@ -27,7 +27,8 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
         Action onExitApp,
         Action? onTogglePlayPause = null,
         Action? onSkipNext = null,
-        Action? onToggleMute = null)
+        Action? onToggleMute = null,
+        Action? onOpenAbout = null)
     {
         ArgumentNullException.ThrowIfNull(mainWindow);
 
@@ -37,7 +38,8 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
             onExitApp,
             onTogglePlayPause,
             onSkipNext,
-            onToggleMute);
+            onToggleMute,
+            onOpenAbout: onOpenAbout);
     }
 
     internal void InitializeCore(
@@ -47,6 +49,7 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
         Action? onTogglePlayPause = null,
         Action? onSkipNext = null,
         Action? onToggleMute = null,
+        Action? onOpenAbout = null,
         string? customIconPath = null)
     {
         ContextMenuStrip menu = new();
@@ -57,6 +60,8 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
         menu.Items.Add("Stummschalten", null, (_, _) => onToggleMute?.Invoke());
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Einstellungen...", null, (_, _) => onOpenSettings?.Invoke());
+        menu.Items.Add("Über burroQueue", null, (_, _) => onOpenAbout?.Invoke());
+        menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Beenden", null, (_, _) => onExitApp?.Invoke());
 
         Icon iconToUse = SystemIcons.Application;
