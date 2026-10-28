@@ -49,14 +49,20 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal static void InvokeOnDispatcher(Action action)
     {
-        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
+        if (System.Windows.Application.Current?.Dispatcher is { HasShutdownStarted: false } dispatcher && !dispatcher.CheckAccess())
         {
-            dispatcher.Invoke(action);
+            try
+            {
+                dispatcher.Invoke(action);
+                return;
+            }
+            catch
+            {
+                // Fallback bei Dispatcher-Shutdown
+            }
         }
-        else
-        {
-            action();
-        }
+
+        action();
     }
 
     [ObservableProperty]
@@ -275,14 +281,21 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _lanGroupService.SkipVoteReceived += OnSkipVoteReceived;
         _audioPlayerBackend.TrackPlaybackFinished += OnTrackPlaybackFinished;
 
-        if (System.Windows.Application.Current?.Dispatcher is not null)
+        if (System.Windows.Application.Current?.Dispatcher is { HasShutdownStarted: false } dispatcher)
         {
-            _playbackTimer = new System.Windows.Threading.DispatcherTimer(
-                TimeSpan.FromSeconds(1),
-                System.Windows.Threading.DispatcherPriority.Background,
-                OnPlaybackTimerTick,
-                System.Windows.Application.Current.Dispatcher);
-            _playbackTimer.Stop();
+            try
+            {
+                _playbackTimer = new System.Windows.Threading.DispatcherTimer(
+                    TimeSpan.FromSeconds(1),
+                    System.Windows.Threading.DispatcherPriority.Background,
+                    OnPlaybackTimerTick,
+                    dispatcher);
+                _playbackTimer.Stop();
+            }
+            catch
+            {
+                // Fail-safe bei Test-Runnern ohne aktiven UI-Dispatcher
+            }
         }
         _webDropServer.LinkDropped += (_, req) => EnqueueRawUrl(req.Url, req.Submitter);
         _webDropServer.SkipVoteRequested += async (_, _) => await VoteToSkipAsync().ConfigureAwait(false);

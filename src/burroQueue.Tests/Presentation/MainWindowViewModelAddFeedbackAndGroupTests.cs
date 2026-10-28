@@ -195,7 +195,7 @@ public sealed class MainWindowViewModelAddFeedbackAndGroupTests : IDisposable
     public void Group_WhenSwitchedOrRenamedExternally_ShouldUpdateViewModelGroupNameAndSyncQueue()
     {
         MainWindowViewModel vm = CreateViewModel();
-        vm.GroupName.Should().Be("Test Group");
+        vm.GroupName.Should().Be("Feedback Group");
 
         _group.SwitchGroup(GroupId.New(), "Marketing Lounge");
 
