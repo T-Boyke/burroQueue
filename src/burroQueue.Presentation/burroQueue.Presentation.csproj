@@ -5,6 +5,7 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>burroQueue</AssemblyName>
     <RootNamespace>burroQueue.Presentation</RootNamespace>
     <ServerGarbageCollection>false</ServerGarbageCollection>
