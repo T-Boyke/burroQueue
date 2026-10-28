@@ -179,6 +179,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
     }
 
+    internal Task WebDropToggleTask { get; private set; } = Task.CompletedTask;
+
     partial void OnEnableWebDropServerChanged(bool value)
     {
         if (_webDropServer is null)
@@ -186,7 +188,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             return;
         }
 
-        _ = ToggleWebDropServerImmediatelyAsync(value);
+        WebDropToggleTask = ToggleWebDropServerImmediatelyAsync(value);
     }
 
     private async Task ToggleWebDropServerImmediatelyAsync(bool enable)

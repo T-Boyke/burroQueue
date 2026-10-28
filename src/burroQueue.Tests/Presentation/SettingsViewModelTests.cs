@@ -305,14 +305,14 @@ public sealed class SettingsViewModelTests
 
         webDrop.IsRunning.Returns(false);
         vm.EnableWebDropServer = true;
-        await Task.Delay(50);
+        await vm.WebDropToggleTask;
 
         await webDrop.Received(1).StartAsync(Arg.Any<CancellationToken>());
         vm.WebDropEndpointInfo.Should().Be("http://192.168.1.42:8080");
 
         webDrop.IsRunning.Returns(true);
         vm.EnableWebDropServer = false;
-        await Task.Delay(50);
+        await vm.WebDropToggleTask;
 
         await webDrop.Received(1).StopAsync(Arg.Any<CancellationToken>());
     }

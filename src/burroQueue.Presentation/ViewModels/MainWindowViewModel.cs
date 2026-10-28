@@ -192,6 +192,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     internal Task PlaybackCommandTask { get; private set; } = Task.CompletedTask;
 
+    internal Task DuckingReleaseTask { get; private set; } = Task.CompletedTask;
+
     public MainWindowViewModel(
         BurroGroup group,
         IYouTubeUrlParser urlParser,
@@ -983,7 +985,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             TelephonyStateSummary = $"Nachlauf ({releaseDelaySeconds}s)";
         });
 
-        _ = Task.Run(async () =>
+        DuckingReleaseTask = Task.Run(async () =>
         {
             try
             {

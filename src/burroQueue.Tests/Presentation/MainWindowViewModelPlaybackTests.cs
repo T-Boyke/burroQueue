@@ -323,7 +323,7 @@ public sealed class MainWindowViewModelPlaybackTests
                 this,
                 new TelephonyCallEventArgs("Starface", TelephonyState.Idle));
 
-            await Task.Delay(30);
+            await vm.DuckingReleaseTask;
 
             capturedDelay.Should().Be(TimeSpan.FromSeconds(5));
             vm.IsCallActive.Should().BeFalse();
