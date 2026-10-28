@@ -47,13 +47,6 @@ jobs:
           -p:DebugType=none
           --output ./publish/burroQueue-win-x64
 
-      - name: Ensure Assets in Publish Directory
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path ./publish/burroQueue-win-x64/Assets | Out-Null
-          Copy-Item assets/app.ico, assets/logo.png -Destination ./publish/burroQueue-win-x64/Assets/ -Force
-          Copy-Item LICENSE, README.md -Destination ./publish/burroQueue-win-x64/ -Force
-
       - name: Build Inno Setup Installer (.exe)
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
         with:
