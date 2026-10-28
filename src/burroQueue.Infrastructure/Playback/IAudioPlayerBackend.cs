@@ -10,6 +10,10 @@ public interface IAudioPlayerBackend : IAsyncDisposable
 
     double CurrentVolume { get; }
 
+    TimeSpan Position { get; }
+
+    TimeSpan Duration { get; }
+
     event EventHandler<PlaybackState>? StateChanged;
 
     event EventHandler<Track>? TrackPlaybackFinished;
@@ -22,4 +26,3 @@ public interface IAudioPlayerBackend : IAsyncDisposable
 
     Task StopAsync(CancellationToken cancellationToken = default);
 }
-

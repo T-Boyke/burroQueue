@@ -4,6 +4,10 @@ public interface IMediaStreamPlayer : IAsyncDisposable
 {
     double Volume { get; set; }
 
+    TimeSpan Position { get; }
+
+    TimeSpan Duration { get; }
+
     event EventHandler? MediaEnded;
 
     void Open(Uri uri);

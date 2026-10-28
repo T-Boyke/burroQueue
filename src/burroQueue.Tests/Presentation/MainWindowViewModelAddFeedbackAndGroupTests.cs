@@ -190,5 +190,16 @@ public sealed class MainWindowViewModelAddFeedbackAndGroupTests : IDisposable
         vm.IsAddFeedbackVisible.Should().BeTrue();
         vm.LastAddedFeedbackText.Should().Contain("2 Songs aus Playlist importiert");
     }
+
+    [Fact]
+    public void Group_WhenSwitchedOrRenamedExternally_ShouldUpdateViewModelGroupNameAndSyncQueue()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.GroupName.Should().Be("Test Group");
+
+        _group.SwitchGroup(GroupId.New(), "Marketing Lounge");
+
+        vm.GroupName.Should().Be("Marketing Lounge");
+    }
 }
 

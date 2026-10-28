@@ -18,6 +18,10 @@ public sealed class AudioPlayerBackend : IAudioPlayerBackend
 
     public double CurrentVolume => _currentVolume;
 
+    public TimeSpan Position => _mediaPlayer?.Position ?? TimeSpan.Zero;
+
+    public TimeSpan Duration => _mediaPlayer?.Duration ?? TimeSpan.Zero;
+
     public event EventHandler<PlaybackState>? StateChanged;
 
     public event EventHandler<Track>? TrackPlaybackFinished;

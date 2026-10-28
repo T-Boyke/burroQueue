@@ -7,6 +7,10 @@
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <AssemblyName>burroQueue</AssemblyName>
     <RootNamespace>burroQueue.Presentation</RootNamespace>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <GarbageCollectionAdaptationMode>1</GarbageCollectionAdaptationMode>
+    <TieredPGO>true</TieredPGO>
   </PropertyGroup>
 
   <ItemGroup>

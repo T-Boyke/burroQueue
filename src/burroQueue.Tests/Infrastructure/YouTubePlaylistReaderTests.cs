@@ -31,7 +31,7 @@ public sealed class YouTubePlaylistReaderTests
         """;
 
         using HttpClient client = new(MockHttpMessageHandler.WithJsonResponse(json));
-        YouTubePlaylistReader reader = new(client);
+        YouTubePlaylistReader reader = new(client, ytDlpPath: string.Empty);
 
         IReadOnlyList<Track> tracks = await reader.ReadPlaylistTracksAsync("https://www.youtube.com/playlist?list=PL12345&jct=tok1");
 
@@ -60,7 +60,7 @@ public sealed class YouTubePlaylistReaderTests
     public async Task ReadPlaylistTracksAsync_WhenInvidiousReturnsError_ShouldReturnEmptyList()
     {
         using HttpClient client = new(MockHttpMessageHandler.WithStatusCode(HttpStatusCode.NotFound));
-        YouTubePlaylistReader reader = new(client);
+        YouTubePlaylistReader reader = new(client, ytDlpPath: string.Empty);
 
         IReadOnlyList<Track> tracks = await reader.ReadPlaylistTracksAsync("PL_non_existent");
 
@@ -71,11 +71,59 @@ public sealed class YouTubePlaylistReaderTests
     public async Task ReadPlaylistTracksAsync_WhenNetworkThrowsException_ShouldHandleGracefully()
     {
         using HttpClient client = new(MockHttpMessageHandler.WithException(new HttpRequestException("Network failure")));
-        YouTubePlaylistReader reader = new(client);
+        YouTubePlaylistReader reader = new(client, ytDlpPath: string.Empty);
 
         IReadOnlyList<Track> tracks = await reader.ReadPlaylistTracksAsync("PL12345");
 
         tracks.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ReadPlaylistTracksAsync_WhenYtDlpAvailable_ShouldParseFlatPlaylistJson()
+    {
+        string ytDlpJson = """
+        {
+            "id": "PLTest",
+            "title": "Test Playlist",
+            "_type": "playlist",
+            "entries": [
+                {
+                    "id": "abc12345",
+                    "title": "Bohemian Rhapsody",
+                    "channel": "Queen",
+                    "duration": 354
+                },
+                {
+                    "id": "def67890",
+                    "title": "Don't Stop Me Now",
+                    "uploader": "Queen Official",
+                    "duration": 210
+                }
+            ]
+        }
+        """;
+
+        var original = YouTubePlaylistReader.ProcessRunner;
+        try
+        {
+            YouTubePlaylistReader.ProcessRunner = (bin, args, ct) => Task.FromResult<string?>(ytDlpJson);
+            YouTubePlaylistReader reader = new(ytDlpPath: "C:\\mock\\yt-dlp.exe");
+
+            IReadOnlyList<Track> tracks = await reader.ReadPlaylistTracksAsync("https://www.youtube.com/playlist?list=PLTest");
+
+            tracks.Should().HaveCount(2);
+            tracks[0].VideoId.Should().Be("abc12345");
+            tracks[0].Title.Should().Be("Bohemian Rhapsody");
+            tracks[0].SubmittedBy.Should().Be("Queen");
+
+            tracks[1].VideoId.Should().Be("def67890");
+            tracks[1].Title.Should().Be("Don't Stop Me Now");
+            tracks[1].SubmittedBy.Should().Be("Queen Official");
+        }
+        finally
+        {
+            YouTubePlaylistReader.ProcessRunner = original;
+        }
     }
 }
 

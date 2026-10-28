@@ -147,6 +147,37 @@ public sealed class BurroGroupTests
         group.DomainEvents.Should().BeEmpty();
     }
 
+    [Fact]
+    public void Rename_WhenNameChanged_ShouldFireRenamedEvent()
+    {
+        BurroGroup group = new(GroupId.New(), "Original");
+        bool eventFired = false;
+        group.Renamed += () => eventFired = true;
+
+        group.Rename("Renamed Group");
+
+        eventFired.Should().BeTrue();
+    }
+
+    [Fact]
+    public void SwitchGroup_WhenNewIdAndName_ShouldFireRenamedEventAndClearPlaylist()
+    {
+        BurroGroup group = new(GroupId.New(), "Original");
+        group.Playlist.Enqueue(new Track("vid1", new Uri("https://youtube.com/watch?v=vid1"), "Title", "Sub", DateTimeOffset.UtcNow));
+        group.Playlist.Count.Should().Be(1);
+
+        bool eventFired = false;
+        group.Renamed += () => eventFired = true;
+
+        GroupId newId = GroupId.New();
+        group.SwitchGroup(newId, "New Room");
+
+        group.Id.Should().Be(newId);
+        group.Name.Should().Be("New Room");
+        group.Playlist.Count.Should().Be(0);
+        eventFired.Should().BeTrue();
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]

@@ -45,6 +45,7 @@ public sealed class AppServiceRegistrationTests
         provider.GetRequiredService<ILocalNetworkInfoService>().Should().NotBeNull();
         provider.GetRequiredService<IEmbeddedWebDropServer>().Should().NotBeNull();
         provider.GetRequiredService<IWindowsAutostartService>().Should().NotBeNull();
+        provider.GetRequiredService<burroQueue.Infrastructure.Performance.IProcessEfficiencyManager>().Should().NotBeNull();
         provider.GetRequiredService<ITelephonyManager>().Should().NotBeNull();
 
         // Presentation Services & ViewModels

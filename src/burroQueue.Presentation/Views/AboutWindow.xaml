@@ -6,21 +6,30 @@
   Title="Über burroQueue"
   Icon="pack://application:,,,/burroQueue;component/Assets/logo.png"
   Width="420"
-  Height="460"
+  Height="520"
   WindowStartupLocation="CenterOwner"
+  ExtendsContentIntoTitleBar="True"
   WindowBackdropType="Mica"
   WindowCornerPreference="Round"
   ResizeMode="NoResize"
   FontFamily="Segoe UI Variable Text, Segoe UI, sans-serif">
-  <Grid Margin="20">
+  <Grid Margin="18">
     <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
+    <!-- Native Title Bar with Burro Icon -->
+    <ui:TitleBar Title="Über burroQueue" Grid.Row="0">
+      <ui:TitleBar.Icon>
+        <ui:ImageIcon Source="pack://application:,,,/burroQueue;component/Assets/logo.png" />
+      </ui:TitleBar.Icon>
+    </ui:TitleBar>
+
     <!-- Header mit App-Icon und Name -->
-    <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,6,0,14">
+    <StackPanel Grid.Row="1" HorizontalAlignment="Center" Margin="0,4,0,12">
       <Image Source="pack://application:,,,/burroQueue;component/Assets/logo.png" Width="64" Height="64" Margin="0,0,0,8" />
       <TextBlock Text="burroQueue" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" />
       <TextBlock Text="Kollaborative Windows 11 Office-Jukebox" FontSize="12" Opacity="0.7" HorizontalAlignment="Center" />
@@ -29,7 +38,7 @@
 
     <!-- Details Card -->
     <Border
-      Grid.Row="1"
+      Grid.Row="2"
       Padding="14,12"
       CornerRadius="8"
       Background="{DynamicResource SubtleFillColorSecondaryBrush}"
@@ -57,7 +66,7 @@
 
     <!-- Schließen Button -->
     <ui:Button
-      Grid.Row="2"
+      Grid.Row="3"
       Margin="0,12,0,0"
       HorizontalAlignment="Right"
       Appearance="Primary"
@@ -65,4 +74,3 @@
       Click="OnCloseClicked" />
   </Grid>
 </ui:FluentWindow>
-

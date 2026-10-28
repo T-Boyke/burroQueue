@@ -37,6 +37,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private bool _isUpdatingVolumeInternally;
     private double _lastUnmutedVolume = 0.8;
     private CancellationTokenSource? _feedbackCts;
+    private readonly System.Windows.Threading.DispatcherTimer? _playbackTimer;
 
 
     public event EventHandler? OpenSettingsRequested;
@@ -135,6 +136,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private string _skipVoteStatus = "0 / 3 Votes";
 
     [ObservableProperty]
+    private double _playbackProgress;
+
+    [ObservableProperty]
+    private string _playbackTimeFormatted = "00:00 / 00:00";
+
+    [ObservableProperty]
     private string _webDropUrl = "http://localhost:8080";
 
     [ObservableProperty]
@@ -207,6 +214,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         ArgumentNullException.ThrowIfNull(networkInfoService);
 
         _groupName = _group.Name;
+        _group.Renamed += OnGroupRenamed;
         _collaborativePlaylistUrl = _settingsService.CurrentSettings.CollaborativePlaylistUrl;
         _webDropUrl = networkInfoService.GetWebDropUrl(8080);
         _skipVotePool = new SkipVotePool(TrackId.New(), requiredVotes: 3);
@@ -266,6 +274,16 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _lanGroupService.QueueSyncReceived += OnQueueSyncReceived;
         _lanGroupService.SkipVoteReceived += OnSkipVoteReceived;
         _audioPlayerBackend.TrackPlaybackFinished += OnTrackPlaybackFinished;
+
+        if (System.Windows.Application.Current?.Dispatcher is not null)
+        {
+            _playbackTimer = new System.Windows.Threading.DispatcherTimer(
+                TimeSpan.FromSeconds(1),
+                System.Windows.Threading.DispatcherPriority.Background,
+                OnPlaybackTimerTick,
+                System.Windows.Application.Current.Dispatcher);
+            _playbackTimer.Stop();
+        }
         _webDropServer.LinkDropped += (_, req) => EnqueueRawUrl(req.Url, req.Submitter);
         _webDropServer.SkipVoteRequested += async (_, _) => await VoteToSkipAsync().ConfigureAwait(false);
         _webDropServer.SkipVoteStatusProvider = () => SkipVoteStatus;
@@ -691,6 +709,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         _group.Play();
         PlaybackState = _group.PlaybackState;
+        RunOnUi(() => _playbackTimer?.Start());
         if (_group.Playlist.CurrentTrack is not null)
         {
             await _audioPlayerBackend.PlayTrackAsync(_group.Playlist.CurrentTrack).ConfigureAwait(false);
@@ -703,6 +722,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         _group.Pause();
         PlaybackState = _group.PlaybackState;
+        RunOnUi(() => _playbackTimer?.Stop());
         await _audioPlayerBackend.PauseAsync().ConfigureAwait(false);
         await _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "Pause").ConfigureAwait(false);
     }
@@ -712,6 +732,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         _group.Stop();
         PlaybackState = _group.PlaybackState;
+        RunOnUi(() =>
+        {
+            _playbackTimer?.Stop();
+            PlaybackProgress = 0.0;
+            PlaybackTimeFormatted = "00:00 / 00:00";
+        });
         await _audioPlayerBackend.StopAsync().ConfigureAwait(false);
         await _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "Stop").ConfigureAwait(false);
     }
@@ -727,6 +753,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         if (next is not null)
         {
             StatusMessage = $"Playing: {next.Title}";
+            RunOnUi(() =>
+            {
+                PlaybackProgress = 0.0;
+                _playbackTimer?.Start();
+            });
             await LoadTrackMetadataAsync(next).ConfigureAwait(true);
             await _audioPlayerBackend.PlayTrackAsync(next).ConfigureAwait(false);
         }
@@ -736,6 +767,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             CurrentTrackTitle = "No song playing";
             CurrentTrackArtist = string.Empty;
             CurrentTrackThumbnailUrl = null;
+            RunOnUi(() =>
+            {
+                _playbackTimer?.Stop();
+                PlaybackProgress = 0.0;
+                PlaybackTimeFormatted = "00:00 / 00:00";
+            });
             _systrayService?.UpdateTooltip("burroQueue – Keine Wiedergabe");
             await _audioPlayerBackend.StopAsync().ConfigureAwait(false);
         }
@@ -1006,14 +1043,36 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                     int index = QueuedItems.IndexOf(track);
                     if (index >= 0)
                     {
-                        QueuedItems[index] = track;
+                        QueuedItems.RemoveAt(index);
+                        QueuedItems.Insert(index, track);
+                    }
+                    else
+                    {
+                        SyncQueuedItems();
                     }
                 });
+                AutoSavePlaylist();
             }
         }
         catch
         {
             // Fail-safe
+        }
+    }
+
+    private void OnPlaybackTimerTick(object? sender, EventArgs e)
+    {
+        TimeSpan pos = _audioPlayerBackend.Position;
+        TimeSpan dur = _audioPlayerBackend.Duration;
+        if (dur > TimeSpan.Zero)
+        {
+            PlaybackProgress = Math.Clamp((pos.TotalSeconds / dur.TotalSeconds) * 100.0, 0.0, 100.0);
+            PlaybackTimeFormatted = $"{pos:mm\\:ss} / {dur:mm\\:ss}";
+        }
+        else
+        {
+            PlaybackProgress = 0.0;
+            PlaybackTimeFormatted = $"{pos:mm\\:ss} / --:--";
         }
     }
 
@@ -1057,6 +1116,15 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
     }
 
+    private void OnGroupRenamed()
+    {
+        RunOnUi(() =>
+        {
+            GroupName = _group.Name;
+            SyncQueuedItems();
+        });
+    }
+
     private static void RunOnUi(Action action)
     {
         UiDispatcherRunner(action);
@@ -1064,6 +1132,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        _playbackTimer?.Stop();
+        _group.Renamed -= OnGroupRenamed;
         _feedbackCts?.Cancel();
         _feedbackCts?.Dispose();
         _feedbackCts = null;

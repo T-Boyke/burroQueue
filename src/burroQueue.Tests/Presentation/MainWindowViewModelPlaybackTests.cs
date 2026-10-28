@@ -1093,6 +1093,19 @@ public sealed class MainWindowViewModelPlaybackTests
 
         vm.IsQrCodeVisible.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task StopAsync_ShouldResetPlaybackProgressAndTime()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.PlaybackProgress = 55.0;
+        vm.PlaybackTimeFormatted = "01:23 / 02:46";
+
+        await vm.StopAsync();
+
+        vm.PlaybackProgress.Should().Be(0.0);
+        vm.PlaybackTimeFormatted.Should().Be("00:00 / 00:00");
+    }
 }
 
 

@@ -4,6 +4,7 @@ using burroQueue.Domain.Model;
 using burroQueue.Infrastructure.Audio;
 using burroQueue.Infrastructure.Configuration;
 using burroQueue.Infrastructure.Network;
+using burroQueue.Infrastructure.Performance;
 using burroQueue.Infrastructure.Persistence;
 using burroQueue.Infrastructure.Playback;
 using burroQueue.Infrastructure.Telephony;
@@ -192,6 +193,11 @@ public partial class App : System.Windows.Application
 
         LogStartup("Invoking showWindow callback...");
         showWindow(mainWindow);
+
+        IProcessEfficiencyManager? efficiency = serviceProvider.GetService<IProcessEfficiencyManager>();
+        efficiency?.EnableEfficiencyMode();
+        efficiency?.TrimMemoryWorkingSet();
+
         singleInstance?.StartListeningForSecondaryInstance(() =>
         {
             LogStartup("Secondary instance launch detected via IPC signal. Restoring MainWindow.");
@@ -251,6 +257,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IQrCodeSvgGenerator, QrCodeSvgGenerator>();
         services.AddSingleton<IEmbeddedWebDropServer, EmbeddedWebDropServer>();
         services.AddSingleton<IWindowsAutostartService, WindowsAutostartService>();
+        services.AddSingleton<IProcessEfficiencyManager, ProcessEfficiencyManager>();
 
 
         // Modulare Telephony Providers

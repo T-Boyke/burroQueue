@@ -26,12 +26,21 @@ public sealed class WpfMediaStreamPlayer : IMediaStreamPlayer
         }
     }
 
+    public TimeSpan Position => _mediaPlayer.Dispatcher.CheckAccess()
+        ? _mediaPlayer.Position
+        : _mediaPlayer.Dispatcher.Invoke(() => _mediaPlayer.Position);
+
+    public TimeSpan Duration => _mediaPlayer.Dispatcher.CheckAccess()
+        ? (_mediaPlayer.NaturalDuration.HasTimeSpan ? _mediaPlayer.NaturalDuration.TimeSpan : TimeSpan.Zero)
+        : _mediaPlayer.Dispatcher.Invoke(() => _mediaPlayer.NaturalDuration.HasTimeSpan ? _mediaPlayer.NaturalDuration.TimeSpan : TimeSpan.Zero);
+
     public event EventHandler? MediaEnded;
 
     public WpfMediaStreamPlayer()
     {
         _mediaPlayer = new MediaPlayer();
         _mediaPlayer.MediaEnded += (_, e) => MediaEnded?.Invoke(this, e);
+        _mediaPlayer.MediaFailed += (_, e) => App.LogStartup($"WpfMediaStreamPlayer MediaFailed: {e.ErrorException}");
     }
 
     public void Open(Uri uri)

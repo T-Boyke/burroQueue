@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Net.Http;
 using System.Text.Json;
 using burroQueue.Domain.Model;
+using burroQueue.Infrastructure.Playback;
 
 namespace burroQueue.Infrastructure.YouTube;
 
@@ -14,10 +16,14 @@ public sealed class YouTubePlaylistReader : IYouTubePlaylistReader
     ];
 
     private readonly HttpClient _httpClient;
+    private readonly string? _ytDlpPath;
 
-    public YouTubePlaylistReader(HttpClient? httpClient = null)
+    internal static Func<string, string, CancellationToken, Task<string?>> ProcessRunner { get; set; } = DefaultRunProcessAsync;
+
+    public YouTubePlaylistReader(HttpClient? httpClient = null, string? ytDlpPath = null)
     {
         _httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+        _ytDlpPath = ytDlpPath ?? YouTubeAudioStreamResolver.FindYtDlp();
     }
 
     public async Task<IReadOnlyList<Track>> ReadPlaylistTracksAsync(string playlistUrlOrId, CancellationToken cancellationToken = default)
@@ -25,6 +31,31 @@ public sealed class YouTubePlaylistReader : IYouTubePlaylistReader
         if (string.IsNullOrWhiteSpace(playlistUrlOrId))
         {
             return [];
+        }
+
+        string effectiveYtDlp = _ytDlpPath ?? YouTubeAudioStreamResolver.FindYtDlp() ?? string.Empty;
+        if (!string.IsNullOrEmpty(effectiveYtDlp))
+        {
+            try
+            {
+                string targetArg = playlistUrlOrId.Trim().StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                    ? playlistUrlOrId.Trim()
+                    : $"https://www.youtube.com/playlist?list={playlistUrlOrId.Trim()}";
+
+                string? jsonOutput = await ProcessRunner(effectiveYtDlp, $"--flat-playlist --dump-single-json \"{targetArg}\"", cancellationToken).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(jsonOutput))
+                {
+                    List<Track> ytDlpTracks = ParseYtDlpPlaylistJson(jsonOutput);
+                    if (ytDlpTracks.Count > 0)
+                    {
+                        return ytDlpTracks;
+                    }
+                }
+            }
+            catch
+            {
+                // Fallback zu Web-API
+            }
         }
 
         string trimmedId = ExtractPlaylistId(playlistUrlOrId.Trim());
@@ -79,6 +110,42 @@ public sealed class YouTubePlaylistReader : IYouTubePlaylistReader
         return [];
     }
 
+    private static List<Track> ParseYtDlpPlaylistJson(string json)
+    {
+        List<Track> tracks = [];
+        try
+        {
+            using JsonDocument doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("entries", out JsonElement entries) && entries.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement entry in entries.EnumerateArray())
+                {
+                    string? videoId = entry.TryGetProperty("id", out JsonElement idEl) ? idEl.GetString() : null;
+                    string? title = entry.TryGetProperty("title", out JsonElement titleEl) ? titleEl.GetString() : null;
+                    string? author = entry.TryGetProperty("channel", out JsonElement chEl) ? chEl.GetString() : null;
+                    if (string.IsNullOrWhiteSpace(author) && entry.TryGetProperty("uploader", out JsonElement upEl))
+                    {
+                        author = upEl.GetString();
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(videoId))
+                    {
+                        string displayTitle = !string.IsNullOrWhiteSpace(title) ? title : videoId;
+                        string submitter = !string.IsNullOrWhiteSpace(author) ? author : "YouTube Playlist";
+                        Uri videoUri = new($"https://www.youtube.com/watch?v={videoId}");
+                        tracks.Add(new Track(videoId, videoUri, displayTitle, submitter, DateTimeOffset.UtcNow));
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Fail-safe
+        }
+
+        return tracks;
+    }
+
     private static string ExtractPlaylistId(string input)
     {
         if (input.Contains("list=", StringComparison.OrdinalIgnoreCase))
@@ -89,5 +156,27 @@ public sealed class YouTubePlaylistReader : IYouTubePlaylistReader
         }
 
         return input;
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    private static async Task<string?> DefaultRunProcessAsync(string fileName, string arguments, CancellationToken cancellationToken)
+    {
+        ProcessStartInfo psi = new()
+        {
+            FileName = fileName,
+            Arguments = arguments,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using Process process = new() { StartInfo = psi };
+        process.Start();
+
+        Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+
+        return await stdoutTask.ConfigureAwait(false);
     }
 }

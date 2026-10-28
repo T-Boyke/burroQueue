@@ -7,7 +7,7 @@ namespace burroQueue.Infrastructure.Playback;
 public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
 {
     private readonly HttpClient _httpClient;
-    private readonly string? _ytDlpPath;
+    private string? _ytDlpPath;
 
     public bool IsYtDlpAvailable => !string.IsNullOrEmpty(_ytDlpPath);
 
@@ -20,15 +20,21 @@ public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
     }
 
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
-    private static string? FindYtDlp()
+    internal static string? FindYtDlp()
     {
+        string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string burroBinYtDlp = Path.Combine(localAppData, "burroQueue", "bin", "yt-dlp.exe");
+        if (File.Exists(burroBinYtDlp))
+        {
+            return burroBinYtDlp;
+        }
+
         string appLocalYtDlp = Path.Combine(AppContext.BaseDirectory, "yt-dlp.exe");
         if (File.Exists(appLocalYtDlp))
         {
             return appLocalYtDlp;
         }
 
-        string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         string wingetPath = Path.Combine(localAppData, "Microsoft", "WinGet", "Links", "yt-dlp.exe");
         if (File.Exists(wingetPath))
         {
@@ -51,6 +57,39 @@ public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
         return null;
     }
 
+    public async Task<string?> EnsureYtDlpAsync(CancellationToken cancellationToken = default)
+    {
+        string? existing = FindYtDlp();
+        if (!string.IsNullOrEmpty(existing))
+        {
+            _ytDlpPath = existing;
+            return existing;
+        }
+
+        try
+        {
+            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string binDir = Path.Combine(localAppData, "burroQueue", "bin");
+            Directory.CreateDirectory(binDir);
+            string targetPath = Path.Combine(binDir, "yt-dlp.exe");
+
+            using HttpResponseMessage response = await _httpClient.GetAsync("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe", cancellationToken).ConfigureAwait(false);
+            if (response.IsSuccessStatusCode)
+            {
+                byte[] data = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+                await File.WriteAllBytesAsync(targetPath, data, cancellationToken).ConfigureAwait(false);
+                _ytDlpPath = targetPath;
+                return targetPath;
+            }
+        }
+        catch
+        {
+            // Fail-safe
+        }
+
+        return null;
+    }
+
     public async Task<Uri?> ResolveAudioStreamUriAsync(string videoId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(videoId))
@@ -58,14 +97,23 @@ public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
             return null;
         }
 
+        if (string.IsNullOrEmpty(_ytDlpPath))
+        {
+            _ytDlpPath = FindYtDlp();
+        }
+
         if (!string.IsNullOrEmpty(_ytDlpPath))
         {
             try
             {
                 string? url = await ProcessRunner(_ytDlpPath, $"-g -f ba \"https://www.youtube.com/watch?v={videoId.Trim()}\"", cancellationToken).ConfigureAwait(false);
-                if (!string.IsNullOrWhiteSpace(url) && Uri.TryCreate(url.Trim(), UriKind.Absolute, out Uri? audioUri))
+                if (!string.IsNullOrWhiteSpace(url))
                 {
-                    return audioUri;
+                    string firstUrl = url.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)[0].Trim();
+                    if (Uri.TryCreate(firstUrl, UriKind.Absolute, out Uri? audioUri))
+                    {
+                        return audioUri;
+                    }
                 }
             }
             catch
@@ -120,9 +168,9 @@ public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
         using Process process = new() { StartInfo = psi };
         process.Start();
 
-        string? line = await process.StandardOutput.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+        Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
         await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-        return line;
+
+        return await stdoutTask.ConfigureAwait(false);
     }
 }
-

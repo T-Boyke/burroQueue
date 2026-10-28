@@ -16,6 +16,7 @@ public partial class MainWindow : FluentWindow
 {
     private readonly MainWindowViewModel _viewModel;
     private readonly IGlobalHotkeyService _hotkeyService;
+    private readonly IServiceProvider? _serviceProvider;
 
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public MainWindow(MainWindowViewModel viewModel, IGlobalHotkeyService hotkeyService, IServiceProvider? serviceProvider = null)
@@ -25,6 +26,7 @@ public partial class MainWindow : FluentWindow
         App.LogStartup("MainWindow InitializeComponent finished");
         _viewModel = viewModel;
         _hotkeyService = hotkeyService;
+        _serviceProvider = serviceProvider;
         DataContext = _viewModel;
 
         if (serviceProvider is not null)
@@ -119,6 +121,7 @@ public partial class MainWindow : FluentWindow
     {
         App.LogStartup($"MainWindow OnClosing invoked! Cancel={e.Cancel}");
         HandleClosing(e, Hide);
+        _serviceProvider?.GetService<burroQueue.Infrastructure.Performance.IProcessEfficiencyManager>()?.TrimMemoryWorkingSet();
         App.LogStartup($"MainWindow OnClosing finished. Cancel={e.Cancel}, IsVisible={IsVisible}");
     }
 
