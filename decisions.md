@@ -168,3 +168,17 @@ Dieses Dokument hält alle zentralen architektonischen Entscheidungen für `burr
   4. Ergänzung von `AppContext.BaseDirectory` als priorisierte Suchstelle in `YouTubeAudioStreamResolver.FindYtDlp()`.
   5. Transparente System- & Audio-Diagnostik im Einstellungsfenster (`SettingsWindow.xaml`) für Audio-Engine (`yt-dlp` vs. API-Fallback), WebDrop-Endpunkt und P2P-Multicast.
 - **Konsequenzen:** Höchste Betriebsstabilität, kein Anwender-Frust durch Lautstärke-Resets oder Port-Kollisionen und erstklassige Benutzerfreundlichkeit.
+
+---
+
+## ADR-017: STARFACE VoIP 3-Stufen-Erkennung, Ducking Release Delay, Bidirektionaler Playlist-Sync, EcoQoS & Fluent System-Themes
+
+- **Status:** Angenommen
+- **Kontext:** Erweiterung der Büro-Jukebox um STARFACE VoIP-Erkennung, verzögerte Lautstärke-Wiederherstellung nach Telefonaten, dauerhaftes Zurückschreiben neuer Songs in kollaborative YouTube-Playlists, E-Core/RAM-Effizienz (`< 30 MB`) sowie Windows 11 System-Akzentfarben und konfigurierbare Window-Backdrops.
+- **Entscheidung:**
+  1. `StarfaceTelephonyProvider` kombiniert WCF Named-Pipe-Probing (`StarfaceUcClient/UccService`), inkrementelles Log-Tailing (`UCC*.log`) und CoreAudio-Prozess-Sessions mit einer im UI einstellbaren Nachlaufzeit (`DuckingReleaseDelaySeconds`).
+  2. `YouTubePlaylistWriter` persistiert neue Queue-Tracks via YouTube InnerTube `edit_playlist` (`ACTION_ADD_VIDEO`), ergänzt um ein periodisches Auto-Sync-Intervall (`AutoSyncPlaylistIntervalSeconds`).
+  3. `ProcessEfficiencyManager` nutzt Win32 `SetProcessInformation` / `SetThreadInformation` (`EcoQoS`) für Intel/AMD E-Cores sowie `K32EmptyWorkingSet` zur Einhaltung des `< 30 MB` RAM-Ziels.
+  4. `MainWindow` und `SettingsWindow` binden `ApplicationAccentColorManager` (`SystemAccentColor*Brush`) und `SystemThemeWatcher` mit wählbarem `WindowBackdropType` (`Auto`, `Mica`, `Tabbed`, `Acrylic`, `None`) ein; Queue-Aktionsicons werden rechtsbündig im `DockPanel` ausgerichtet und `TrackToastWindow` zeigt das `64x48` Song-Cover.
+  5. `SettingsViewModel.OnEnableWebDropServerChanged` startet/stoppt den `EmbeddedWebDropServer` unmittelbar beim Umschalten inklusive Port-Fallback und Filterung virtueller Docker/WSL-Subnetze.
+- **Konsequenzen:** Nahtlose Integration in moderne Windows 11 Büro-Umgebungen mit minimalem Ressourcenverbrauch und zuverlässiger Erreichbarkeit des WebDrop-Servers.

@@ -10,13 +10,17 @@ Letzte Aktualisierung: 2026-10-28 | Ziel: Stabile Version 1.0 (Produktionsreife)
 - **Zielsystem:** Windows 11 (Mica, Fluent Design, Systray-Jukebox)
 - **Runtime:** .NET 10 (`net10.0` für Domain/Infrastructure/Tests, `net10.0-windows10.0.22621.0` für Presentation)
 - **Architektur:** Reine Domain-Driven Design Schichten (Domain = 0 externe Dependencies, Single Component Per File)
-- **Aktuelle Testanzahl:** 399 Tests (100% grün)
+- **Aktuelle Testanzahl:** 436+ Tests (100% grün)
 - **Aktuelle Code-Coverage:**
   - `burroQueue.Domain`: 100,00% Line Coverage
   - `burroQueue.Presentation`: 100,00% Line Coverage
   - `burroQueue.Infrastructure`: 99,3% Line Coverage
   - **Gesamtlösung:** > 99,7% Line Coverage
-- **WebDrop & In-App QR-Code:** Anti-AI-Slop Fluent Dark Design, `LinkDropRequest` mit Submitter-Name (`localStorage`), `/vote-skip` Endpunkt, Offline-Vektor QR-Code (`/qr.svg` und In-App Fluent-Flyout), 303 Redirects, `/api/status` mit 5s Polling.
+- **STARFACE VoIP & Ducking Release Delay:** `StarfaceTelephonyProvider` mit 3-stufiger Anruferkennung (WCF Named Pipe `net.pipe://localhost/StarfaceUcClient/UccService`, inkrementeller Log-Tail auf `UCC*.log` und CoreAudio Session Monitoring). Konfigurierbare Nachlaufzeit nach Anrufende (`DuckingReleaseDelaySeconds`, Standard 3s), bevor `MasterVolume` wiederhergestellt wird.
+- **Bidirektionaler YouTube-Playlist-Sync:** `YouTubePlaylistWriter` schreibt neu eingereihte Tracks dauerhaft per InnerTube `ACTION_ADD_VIDEO` (`edit_playlist`) in die gemeinsame YouTube-Playlist; `PeriodicTimer`-basierter Hintergrund-Auto-Sync (`AutoSyncCollaborativePlaylist`, `AutoSyncPlaylistIntervalSeconds`) plus manueller Sync-Button (`SyncPlaylistNowCommand`).
+- **Windows 11 Fluent UI, SystemAccentColor & Backdrops:** Integration von `ApplicationAccentColorManager.ApplySystemAccent()`, `SystemThemeWatcher` mit wählbarem `WindowBackdropType` (`Auto`, `Mica`, `Tabbed`, `Acrylic`, `None`), rechts angedockten Queue-Aktionsbuttons (`DockPanel.Dock="Right"`) und `64x48` Song-Cover in `TrackToastWindow`.
+- **EcoQoS & `< 30 MB` RAM Optimierung:** `ProcessEfficiencyManager` aktiviert Windows 11 EcoQoS (`PROCESS_POWER_THROTTLING_EXECUTION_SPEED` / E-Core-Scheduling), `ProcessPriorityClass.Idle`, LOH-Kompaktierung und `K32EmptyWorkingSet`.
+- **WebDrop & In-App QR-Code:** Sofort-Start/Stop beim Umschalten in den Einstellungen (`OnEnableWebDropServerChanged`), automatische Port-Fallback-Kette (`8080`, `8081`, `8082`, `8088`, `18080`, `0`), Filterung virtueller Docker/WSL-Netzwerkadapter, `/vote-skip` Endpunkt, Offline-Vektor QR-Code (`/qr.svg` und In-App Fluent-Flyout).
 - **Wiedergabe & Queue:** Echte Audio-Wiedergabe via `WpfMediaStreamPlayer` (`System.Windows.Media.MediaPlayer`), Direct Stream Extraction mit `yt-dlp` (priorisierte Suche in AppContext.BaseDirectory, WinGet, PATH) mit Invidious-Fallback, automatische Weiterschaltung auf `MediaEnded`, `Ctrl+V` URL-Paste, Quick-Add Eingabeleiste mit Enter-Taste, Queue Reordering (MoveUp/MoveDown Pfeil-Buttons), automatische Lautstärke-Persistenz (`MasterVolume`).
 - **Systray & Single-Instance:** Schnellsteuerung im Tray-Kontextmenü (`Wiedergabe/Pause`, `Nächster Titel`, `Stummschalten`), dynamischer 63-Zeichen Tooltip (`burroQueue: [Titel]`), automatische Windows-Balloon-Benachrichtigungen bei Songwechsel. `SingleInstanceManager` (Win32 Mutex & IPC Event) verhindert Doppelstarts und aktiviert bei erneutem Klick das bestehende Fenster im Vordergrund.
 - **Installer & Portable:** Inno Setup 6.x (`scripts/installer/burroQueue.iss`), automatisiertes One-Click Build-Skript `scripts/build-release.ps1` (erzeugt Portable Single-File EXE und ZIP).
