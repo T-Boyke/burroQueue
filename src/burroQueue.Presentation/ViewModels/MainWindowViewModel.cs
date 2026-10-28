@@ -16,7 +16,7 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace burroQueue.Presentation.ViewModels;
 
-public sealed partial class MainWindowViewModel : ObservableObject
+public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 {
     private readonly BurroGroup _group;
     private readonly IYouTubeUrlParser _urlParser;
@@ -1060,6 +1060,13 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private static void RunOnUi(Action action)
     {
         UiDispatcherRunner(action);
+    }
+
+    public void Dispose()
+    {
+        _feedbackCts?.Cancel();
+        _feedbackCts?.Dispose();
+        _feedbackCts = null;
     }
 }
 

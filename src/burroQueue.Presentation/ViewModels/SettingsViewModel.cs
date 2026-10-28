@@ -138,11 +138,11 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (existing is not null)
         {
             int index = DiscoveredGroups.IndexOf(existing);
-            DiscoveredGroups[index] = new DiscoveredGroupItem(beacon.GroupId, beacon.GroupName, beacon.MemberCount, beacon.HostEndpoint, DateTimeOffset.UtcNow);
+            DiscoveredGroups[index] = new DiscoveredGroupItem(beacon.GroupId, beacon.GroupName, beacon.MemberCount, beacon.HostDisplayName, DateTimeOffset.UtcNow);
         }
         else
         {
-            DiscoveredGroups.Add(new DiscoveredGroupItem(beacon.GroupId, beacon.GroupName, beacon.MemberCount, beacon.HostEndpoint, DateTimeOffset.UtcNow));
+            DiscoveredGroups.Add(new DiscoveredGroupItem(beacon.GroupId, beacon.GroupName, beacon.MemberCount, beacon.HostDisplayName, DateTimeOffset.UtcNow));
         }
     }
 
@@ -178,7 +178,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         if (_lanGroupService is not null && _group is not null)
         {
-            await _lanGroupService.BroadcastBeaconAsync(_group).ConfigureAwait(false);
+            await _lanGroupService.BroadcastBeaconAsync(_group, ClientId.New(), ClientDisplayName).ConfigureAwait(false);
             StatusMessage = "Suche nach Jukebox-Gruppen im Netzwerk...";
         }
     }
@@ -195,7 +195,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         CurrentGroupName = target.GroupName;
         if (_lanGroupService is not null)
         {
-            await _lanGroupService.SendGroupActionAsync(new GroupId(target.GroupId), "Join", ClientDisplayName).ConfigureAwait(false);
+            await _lanGroupService.SendGroupActionAsync(new GroupId(target.GroupId), ClientId.New(), "Join", ClientDisplayName).ConfigureAwait(false);
         }
 
         StatusMessage = $"Gruppe '{target.GroupName}' beigetreten!";
