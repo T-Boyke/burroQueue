@@ -11,10 +11,24 @@ public sealed class WindowsAudioDeviceEnumerator : IAudioDeviceEnumerator
         return ParseAudioDevices(() =>
         {
             List<(string? Id, string? Name)> list = [];
-            using ManagementObjectSearcher searcher = new("SELECT DeviceID, Name, Status FROM Win32_SoundDevice WHERE Status = 'OK'");
-            foreach (ManagementBaseObject mo in searcher.Get())
+            try
             {
-                list.Add((mo["DeviceID"]?.ToString(), mo["Name"]?.ToString()));
+                // Windows MMDEVAPI: {0.0.0.00000000} steht für eRender (Wiedergabe-Endpoints)
+                using ManagementObjectSearcher searcher = new(
+                    "SELECT DeviceID, Name FROM Win32_PnPEntity WHERE PNPClass = 'AudioEndpoint' AND Status = 'OK' AND DeviceID LIKE '%{0.0.0.00000000}%'");
+                foreach (ManagementBaseObject mo in searcher.Get())
+                {
+                    list.Add((mo["DeviceID"]?.ToString(), mo["Name"]?.ToString()));
+                }
+            }
+            catch
+            {
+                // Fallback auf Win32_SoundDevice bei WMI-Einschränkungen
+                using ManagementObjectSearcher fallbackSearcher = new("SELECT DeviceID, Name FROM Win32_SoundDevice WHERE Status = 'OK'");
+                foreach (ManagementBaseObject mo in fallbackSearcher.Get())
+                {
+                    list.Add((mo["DeviceID"]?.ToString(), mo["Name"]?.ToString()));
+                }
             }
             return list;
         });
