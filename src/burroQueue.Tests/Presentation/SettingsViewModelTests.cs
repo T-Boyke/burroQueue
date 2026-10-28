@@ -219,7 +219,7 @@ public sealed class SettingsViewModelTests
     }
 
     [Fact]
-    public async Task CreateNewGroupAsync_WithValidName_ShouldUpdateGroupAndBroadcast()
+    public void CreateNewGroup_WithValidName_ShouldUpdateGroupAndClearInput()
     {
         burroQueue.Domain.Model.BurroGroup group = new(burroQueue.Domain.Model.GroupId.New(), "Initial Group");
         burroQueue.Infrastructure.Network.ILanGroupService lan = Substitute.For<burroQueue.Infrastructure.Network.ILanGroupService>();
@@ -234,11 +234,11 @@ public sealed class SettingsViewModelTests
 
         vm.NewGroupName = "Marketing Lounge";
 
-        await vm.CreateNewGroupAsync();
+        vm.CreateNewGroup();
 
         group.Name.Should().Be("Marketing Lounge");
         vm.CurrentGroupName.Should().Be("Marketing Lounge");
         vm.NewGroupName.Should().BeEmpty();
-        await lan.Received(1).SendGroupActionAsync(group.Id, Arg.Any<burroQueue.Domain.Model.ClientId>(), "Rename", "Marketing Lounge");
+        vm.StatusMessage.Should().Contain("Marketing Lounge");
     }
 }

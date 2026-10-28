@@ -39,7 +39,7 @@ public sealed class YouTubePlaylistReaderTests
         tracks[0].VideoId.Should().Be("vid-1");
         tracks[0].Title.Should().Be("Song One");
         tracks[0].SubmittedBy.Should().Be("Artist A");
-        tracks[0].Uri.Should().Be(new Uri("https://www.youtube.com/watch?v=vid-1"));
+        tracks[0].Url.Should().Be(new Uri("https://www.youtube.com/watch?v=vid-1"));
 
         tracks[1].VideoId.Should().Be("vid-2");
         tracks[1].Title.Should().Be("Song Two");

@@ -141,9 +141,10 @@ public sealed class MainWindowViewModelAddFeedbackAndGroupTests
 
         GroupActionMessage joinAction = new(
             _group.Id.Value,
-            "other-client-id",
+            Guid.NewGuid(),
             "Join",
-            "Klaus");
+            "Klaus",
+            DateTimeOffset.UtcNow);
 
         _lanGroupService.GroupActionReceived += Raise.Event<EventHandler<GroupActionMessage>>(_lanGroupService, joinAction);
 
