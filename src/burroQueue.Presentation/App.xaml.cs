@@ -132,7 +132,7 @@ public partial class App : System.Windows.Application
         LogStartup("LAN group service started");
 
         IEmbeddedWebDropServer webDrop = serviceProvider.GetRequiredService<IEmbeddedWebDropServer>();
-        if (settings.CurrentSettings.EnableWebDropServer)
+        if (settings.CurrentSettings?.EnableWebDropServer == true)
         {
             await webDrop.StartAsync().ConfigureAwait(true);
             LogStartup($"WebDrop server started on port {webDrop.Port}");

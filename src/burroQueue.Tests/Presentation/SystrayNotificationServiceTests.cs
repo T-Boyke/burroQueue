@@ -47,7 +47,7 @@ public sealed class SystrayNotificationServiceTests
 
         service.IsIconVisible.Should().BeTrue();
         service.ContextMenu.Should().NotBeNull();
-        service.ContextMenu!.Items.Count.Should().Be(8);
+        service.ContextMenu!.Items.Count.Should().Be(10);
 
         // Click "burroQueue anzeigen"
         service.ContextMenu.Items[0].PerformClick();
@@ -70,7 +70,7 @@ public sealed class SystrayNotificationServiceTests
         settingsOpened.Should().BeTrue();
 
         // Click "Beenden"
-        service.ContextMenu.Items[7].PerformClick();
+        service.ContextMenu.Items[9].PerformClick();
         exitCalled.Should().BeTrue();
 
         service.Dispose();

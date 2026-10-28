@@ -108,7 +108,8 @@ public sealed class MainWindowViewModelAddFeedbackAndGroupTests
 
         vm.IsAddFeedbackVisible.Should().BeTrue();
         vm.LastAddedFeedbackText.Should().Contain("dQw4w9WgXcQ");
-        vm.QueuedCount.Should().Be(1);
+        _group.Playlist.CurrentTrack.Should().NotBeNull();
+        _group.Playlist.CurrentTrack!.VideoId.Should().Be("dQw4w9WgXcQ");
     }
 
     [Fact]
@@ -168,7 +169,9 @@ public sealed class MainWindowViewModelAddFeedbackAndGroupTests
 
         await vm.ImportPlaylistFromYouTubeAsync("https://www.youtube.com/playlist?list=PL12345");
 
-        vm.QueuedCount.Should().Be(2);
+        _group.Playlist.CurrentTrack.Should().NotBeNull();
+        _group.Playlist.CurrentTrack!.VideoId.Should().Be("v1");
+        vm.QueuedCount.Should().Be(1);
         vm.IsAddFeedbackVisible.Should().BeTrue();
         vm.LastAddedFeedbackText.Should().Contain("2 Songs aus Playlist importiert");
     }

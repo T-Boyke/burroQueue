@@ -184,7 +184,7 @@ public sealed class SettingsViewModelTests
         vm.CollaborativePlaylistUrl = "https://www.youtube.com/playlist?list=PL1234567890&jct=abcdef123";
 
         vm.IsCollaborativeUrlValid.Should().BeTrue();
-        vm.CollaborativeUrlValidationText.Should().Contain("Gültiger Einladungslink");
+        vm.CollaborativeUrlValidationText.Should().Contain("Gültige Playlist");
     }
 
     [Fact]

@@ -23,6 +23,7 @@ public sealed class AppLifecycleTests
 
         BurroGroup group = new(GroupId.New(), "App Test Group");
         IAppSettingsService settings = Substitute.For<IAppSettingsService>();
+        settings.CurrentSettings.Returns(new AppSettingsData { EnableWebDropServer = true });
         IPlaylistStorageService storage = Substitute.For<IPlaylistStorageService>();
         ITelephonyManager telephony = Substitute.For<ITelephonyManager>();
         ILanGroupService lan = Substitute.For<ILanGroupService>();
