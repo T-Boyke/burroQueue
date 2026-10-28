@@ -51,6 +51,15 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool _enableWebDropServer;
 
     [ObservableProperty]
+    private int _duckingReleaseDelaySeconds = 3;
+
+    [ObservableProperty]
+    private bool _autoSyncCollaborativePlaylist = true;
+
+    [ObservableProperty]
+    private int _autoSyncPlaylistIntervalSeconds = 60;
+
+    [ObservableProperty]
     private string _currentGroupName = "Büro Jukebox";
 
     [ObservableProperty]
@@ -108,6 +117,9 @@ public sealed partial class SettingsViewModel : ObservableObject
         _clientDisplayName = current.ClientDisplayName;
         _isAutostartEnabled = _autostartService.IsAutostartEnabled;
         _enableWebDropServer = current.EnableWebDropServer;
+        _duckingReleaseDelaySeconds = Math.Clamp(current.DuckingReleaseDelaySeconds, 0, 120);
+        _autoSyncCollaborativePlaylist = current.AutoSyncCollaborativePlaylist;
+        _autoSyncPlaylistIntervalSeconds = Math.Clamp(current.AutoSyncPlaylistIntervalSeconds, 15, 3600);
 
         if (!string.IsNullOrWhiteSpace(_collaborativePlaylistUrl))
         {
@@ -246,7 +258,12 @@ public sealed partial class SettingsViewModel : ObservableObject
             CollaborativePlaylistUrl = string.IsNullOrWhiteSpace(CollaborativePlaylistUrl) ? null : CollaborativePlaylistUrl.Trim(),
             AutoOpenCollaborativePlaylistOnJoin = AutoOpenCollaborativePlaylistOnJoin,
             ClientDisplayName = string.IsNullOrWhiteSpace(ClientDisplayName) ? Environment.UserName : ClientDisplayName.Trim(),
-            EnableWebDropServer = EnableWebDropServer
+            EnableWebDropServer = EnableWebDropServer,
+            MasterVolume = _settingsService.CurrentSettings.MasterVolume,
+            HasJoinedCollaborativePlaylist = _settingsService.CurrentSettings.HasJoinedCollaborativePlaylist,
+            DuckingReleaseDelaySeconds = Math.Clamp(DuckingReleaseDelaySeconds, 0, 120),
+            AutoSyncCollaborativePlaylist = AutoSyncCollaborativePlaylist,
+            AutoSyncPlaylistIntervalSeconds = Math.Clamp(AutoSyncPlaylistIntervalSeconds, 15, 3600)
         };
 
         await _settingsService.SaveAsync(data).ConfigureAwait(false);

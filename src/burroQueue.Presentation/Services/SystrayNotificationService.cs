@@ -12,6 +12,7 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
     private bool _isDisposed;
 
     internal static Action<MainWindow> WindowRestorer { get; set; } = RestoreMainWindow;
+    internal static Action<string, string, string>? CoverToastPresenter { get; set; } = PresentCoverToast;
 
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal static void RestoreMainWindow(MainWindow window)
@@ -19,6 +20,30 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
         window.Show();
         window.WindowState = System.Windows.WindowState.Normal;
         window.Activate();
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal static void PresentCoverToast(string title, string message, string thumbnailUrl)
+    {
+        if (System.Windows.Application.Current?.Dispatcher is not { HasShutdownStarted: false } dispatcher)
+        {
+            return;
+        }
+
+        dispatcher.InvokeAsync(async () =>
+        {
+            try
+            {
+                TrackToastWindow toast = new(title, message, thumbnailUrl);
+                toast.Show();
+                await Task.Delay(4000).ConfigureAwait(true);
+                toast.Close();
+            }
+            catch
+            {
+                // Fail-safe
+            }
+        });
     }
 
     public void Initialize(
@@ -126,8 +151,14 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
         _notifyIcon.Text = text;
     }
 
-    public void ShowNotification(string title, string message)
+    public void ShowNotification(string title, string message, string? thumbnailUrl = null)
     {
+        if (!string.IsNullOrWhiteSpace(thumbnailUrl) && CoverToastPresenter is not null)
+        {
+            CoverToastPresenter(title, message, thumbnailUrl);
+            return;
+        }
+
         _notifyIcon?.ShowBalloonTip(3000, title, message, ToolTipIcon.Info);
     }
 

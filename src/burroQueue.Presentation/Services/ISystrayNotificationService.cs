@@ -13,9 +13,7 @@ public interface ISystrayNotificationService : IDisposable
         Action? onToggleMute = null,
         Action? onOpenAbout = null);
 
-    void ShowNotification(string title, string message);
+    void ShowNotification(string title, string message, string? thumbnailUrl = null);
 
     void UpdateTooltip(string tooltipText);
 }
-
-

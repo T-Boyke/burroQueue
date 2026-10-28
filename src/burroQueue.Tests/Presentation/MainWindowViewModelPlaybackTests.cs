@@ -283,6 +283,7 @@ public sealed class MainWindowViewModelPlaybackTests
     [Fact]
     public void TelephonyStateChanged_WhenCallEnds_ShouldRestoreVolumeAndClearStatus()
     {
+        _settingsService.CurrentSettings.DuckingReleaseDelaySeconds = 0;
         MainWindowViewModel vm = CreateViewModel();
 
         _telephonyManager.StateChanged += Raise.Event<EventHandler<TelephonyCallEventArgs>>(
@@ -292,6 +293,47 @@ public sealed class MainWindowViewModelPlaybackTests
         vm.IsCallActive.Should().BeFalse();
         vm.TelephonyStatusText.Should().BeEmpty();
         _audioController.Received(1).SetTargetVolume(0.8, false);
+    }
+
+    [Fact]
+    public async Task TelephonyStateChanged_WhenCallEndsWithReleaseDelay_ShouldWaitAndRestoreMasterVolume()
+    {
+        _settingsService.CurrentSettings.DuckingReleaseDelaySeconds = 5;
+        _settingsService.CurrentSettings.MasterVolume = 0.65;
+        MainWindowViewModel vm = CreateViewModel();
+
+        Func<TimeSpan, CancellationToken, Task> originalDelay = MainWindowViewModel.DelayProvider;
+        TimeSpan capturedDelay = TimeSpan.Zero;
+        try
+        {
+            MainWindowViewModel.DelayProvider = (ts, _) =>
+            {
+                capturedDelay = ts;
+                return Task.CompletedTask;
+            };
+
+            _telephonyManager.StateChanged += Raise.Event<EventHandler<TelephonyCallEventArgs>>(
+                this,
+                new TelephonyCallEventArgs("Starface", TelephonyState.Ringing));
+            vm.IsAudioDucked.Should().BeTrue();
+
+            _audioController.ClearReceivedCalls();
+
+            _telephonyManager.StateChanged += Raise.Event<EventHandler<TelephonyCallEventArgs>>(
+                this,
+                new TelephonyCallEventArgs("Starface", TelephonyState.Idle));
+
+            await Task.Delay(30);
+
+            capturedDelay.Should().Be(TimeSpan.FromSeconds(5));
+            vm.IsCallActive.Should().BeFalse();
+            vm.IsAudioDucked.Should().BeFalse();
+            _audioController.Received(1).SetTargetVolume(0.65, false);
+        }
+        finally
+        {
+            MainWindowViewModel.DelayProvider = originalDelay;
+        }
     }
 
     [Fact]
@@ -1000,7 +1042,10 @@ public sealed class MainWindowViewModelPlaybackTests
         await vm.MetadataLoadTask;
 
         systrayMock.Received(1).UpdateTooltip("burroQueue: Harder Better Faster");
-        systrayMock.Received(1).ShowNotification("burroQueue – Jetzt läuft", "Harder Better Faster (Daft Punk)");
+        systrayMock.Received(1).ShowNotification(
+            "burroQueue – Jetzt läuft",
+            "Harder Better Faster (Daft Punk)",
+            "https://img.youtube.com/vi/sys123/hqdefault.jpg");
     }
 
     [Fact]
@@ -1155,8 +1200,3 @@ public sealed class MainWindowViewModelPlaybackTests
         vm.CurrentTrackThumbnailUrl.Should().Be(track.ThumbnailUrl);
     }
 }
-
-
-
-
-

@@ -42,6 +42,9 @@ public sealed class AppSettingsServiceTests : IDisposable
         service.CurrentSettings.SelectedTelephonyProviderId.Should().Be("SwyxIt");
         service.CurrentSettings.ClientDisplayName.Should().NotBeNullOrWhiteSpace();
         service.CurrentSettings.MasterVolume.Should().Be(0.8);
+        service.CurrentSettings.DuckingReleaseDelaySeconds.Should().Be(3);
+        service.CurrentSettings.AutoSyncCollaborativePlaylist.Should().BeTrue();
+        service.CurrentSettings.AutoSyncPlaylistIntervalSeconds.Should().Be(60);
     }
 
     [Fact]

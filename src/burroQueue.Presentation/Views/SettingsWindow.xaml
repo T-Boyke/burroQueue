@@ -10,7 +10,8 @@
   ExtendsContentIntoTitleBar="True"
   WindowBackdropType="Mica"
   WindowStartupLocation="CenterOwner"
-  FontFamily="Segoe UI Variable Text, Segoe UI, sans-serif">
+  FontFamily="Segoe UI Variable Text, Segoe UI, sans-serif"
+  TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
   <Grid Margin="18">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -55,7 +56,7 @@
 
         <!-- STARFACE Setup Info -->
         <Border
-          Margin="0,0,0,16"
+          Margin="0,0,0,10"
           Padding="12,10"
           CornerRadius="8"
           Background="{DynamicResource SubtleFillColorSecondaryBrush}"
@@ -83,6 +84,32 @@
           </StackPanel>
         </Border>
 
+        <!-- Ducking Release Delay after Call Ends -->
+        <Grid Margin="0,2,0,16">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <StackPanel Grid.Column="0" VerticalAlignment="Center">
+            <TextBlock
+              Text="Nachlaufzeit nach Anrufende (Sekunden)"
+              FontSize="12"
+              FontWeight="Medium"
+              Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+            <TextBlock
+              FontSize="11"
+              Opacity="0.7"
+              Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+              Text="Wartezeit nach Gesprächs-/Anrufversuch-Ende vor Lautstärke-Wiederherstellung" />
+          </StackPanel>
+          <ui:TextBox
+            Grid.Column="1"
+            Width="72"
+            VerticalAlignment="Center"
+            TextAlignment="Center"
+            Text="{Binding DuckingReleaseDelaySeconds, UpdateSourceTrigger=PropertyChanged}" />
+        </Grid>
+
         <!-- Collaborative Playlist -->
         <TextBlock
           Text="Gemeinsame YouTube-Playlist (Einladungslink mit &amp;jct=...)"
@@ -102,9 +129,35 @@
           Visibility="{Binding IsCollaborativeUrlValid, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
         <CheckBox
-          Margin="0,4,0,8"
+          Margin="0,4,0,6"
           Content="Gemeinsame Playlist beim Gruppenbeitritt automatisch im Browser öffnen"
           IsChecked="{Binding AutoOpenCollaborativePlaylistOnJoin}" />
+
+        <Grid Margin="0,0,0,10">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <CheckBox
+            Grid.Column="0"
+            VerticalAlignment="Center"
+            Content="Warteschlange regelmäßig automatisch mit YouTube-Playlist abgleichen"
+            IsChecked="{Binding AutoSyncCollaborativePlaylist}" />
+          <TextBlock
+            Grid.Column="1"
+            Margin="8,0,6,0"
+            VerticalAlignment="Center"
+            FontSize="11"
+            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+            Text="Intervall (s):" />
+          <ui:TextBox
+            Grid.Column="2"
+            Width="64"
+            VerticalAlignment="Center"
+            TextAlignment="Center"
+            Text="{Binding AutoSyncPlaylistIntervalSeconds, UpdateSourceTrigger=PropertyChanged}" />
+        </Grid>
 
         <CheckBox
           Margin="0,0,0,8"
@@ -163,8 +216,8 @@
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                      <TextBlock Text="{Binding GroupName}" FontSize="12" FontWeight="SemiBold" />
-                      <TextBlock Text="{Binding HostEndpoint, StringFormat='Host: {0}'}" FontSize="10" Opacity="0.6" />
+                      <TextBlock Text="{Binding GroupName}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                      <TextBlock Text="{Binding HostEndpoint, StringFormat='Host: {0}'}" FontSize="10" Opacity="0.75" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
                     <ui:Button
                       Grid.Column="1"

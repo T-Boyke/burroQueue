@@ -186,6 +186,36 @@ public sealed class SystrayNotificationServiceTests
     }
 
     [Fact]
+    public void ShowNotification_WhenThumbnailUrlProvided_ShouldInvokeCoverToastPresenter()
+    {
+        SystrayNotificationService service = new();
+        string? capturedTitle = null;
+        string? capturedMessage = null;
+        string? capturedThumb = null;
+        Action<string, string, string>? original = SystrayNotificationService.CoverToastPresenter;
+        try
+        {
+            SystrayNotificationService.CoverToastPresenter = (t, m, u) =>
+            {
+                capturedTitle = t;
+                capturedMessage = m;
+                capturedThumb = u;
+            };
+
+            service.ShowNotification("burroQueue – Jetzt läuft", "Song (Artist)", "https://img.youtube.com/vi/abc/mqdefault.jpg");
+
+            capturedTitle.Should().Be("burroQueue – Jetzt läuft");
+            capturedMessage.Should().Be("Song (Artist)");
+            capturedThumb.Should().Be("https://img.youtube.com/vi/abc/mqdefault.jpg");
+        }
+        finally
+        {
+            SystrayNotificationService.CoverToastPresenter = original;
+            service.Dispose();
+        }
+    }
+
+    [Fact]
     public void Dispose_WhenNotInitialized_ShouldBeIdempotentAndNotThrow()
     {
         SystrayNotificationService service = new();

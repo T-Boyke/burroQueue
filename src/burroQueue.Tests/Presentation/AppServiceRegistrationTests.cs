@@ -38,6 +38,8 @@ public sealed class AppServiceRegistrationTests
         provider.GetRequiredService<IStreamUriResolver>().Should().NotBeNull();
         provider.GetRequiredService<IYouTubeUrlParser>().Should().NotBeNull();
         provider.GetRequiredService<IYouTubeMetadataFetcher>().Should().NotBeNull();
+        provider.GetRequiredService<IYouTubePlaylistReader>().Should().NotBeNull();
+        provider.GetRequiredService<IYouTubePlaylistWriter>().Should().NotBeNull();
         provider.GetRequiredService<IAudioOutputController>().Should().NotBeNull();
         provider.GetRequiredService<IMediaStreamPlayer>().Should().NotBeNull();
         provider.GetRequiredService<IAudioPlayerBackend>().Should().NotBeNull();

@@ -145,6 +145,10 @@ public partial class App : System.Windows.Application
 
         MainWindow mainWindow = serviceProvider.GetRequiredService<MainWindow>();
         MainWindowViewModel? viewModel = mainWindow.DataContext as MainWindowViewModel;
+        if (viewModel is not null)
+        {
+            await viewModel.InitializeAsync().ConfigureAwait(true);
+        }
         LogStartup("MainWindow resolved successfully");
 
         IProcessEfficiencyManager? efficiency = serviceProvider.GetService<IProcessEfficiencyManager>();
@@ -258,6 +262,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IYouTubeUrlParser, YouTubeUrlParser>();
         services.AddSingleton<IYouTubeMetadataFetcher, YouTubeMetadataFetcher>();
         services.AddSingleton<IYouTubePlaylistReader, YouTubePlaylistReader>();
+        services.AddSingleton<IYouTubePlaylistWriter, YouTubePlaylistWriter>();
         services.AddSingleton<IAudioOutputController, AudioOutputController>();
         services.AddSingleton<IMediaStreamPlayer, WpfMediaStreamPlayer>();
         services.AddSingleton<IAudioPlayerBackend, AudioPlayerBackend>();

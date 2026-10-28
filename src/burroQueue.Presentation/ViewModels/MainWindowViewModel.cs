@@ -32,12 +32,17 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private readonly ISystrayNotificationService? _systrayService;
     private readonly IQrCodeSvgGenerator? _qrCodeGenerator;
     private readonly IYouTubePlaylistReader? _playlistReader;
+    private readonly IYouTubePlaylistWriter? _playlistWriter;
     private readonly ClientId _localClientId = ClientId.New();
     private SkipVotePool _skipVotePool;
     private bool _isUpdatingVolumeInternally;
     private double _lastUnmutedVolume = 0.8;
     private CancellationTokenSource? _feedbackCts;
+    private CancellationTokenSource? _duckingReleaseCts;
+    private CancellationTokenSource? _playlistAutoSyncCts;
     private readonly System.Windows.Threading.DispatcherTimer? _playbackTimer;
+
+    internal static Func<TimeSpan, CancellationToken, Task> DelayProvider { get; set; } = Task.Delay;
 
 
     public event EventHandler? OpenSettingsRequested;
@@ -201,7 +206,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         IAudioDeviceEnumerator? audioDeviceEnumerator = null,
         ISystrayNotificationService? systrayService = null,
         IQrCodeSvgGenerator? qrCodeGenerator = null,
-        IYouTubePlaylistReader? playlistReader = null)
+        IYouTubePlaylistReader? playlistReader = null,
+        IYouTubePlaylistWriter? playlistWriter = null)
     {
         _group = group ?? throw new ArgumentNullException(nameof(group));
         _urlParser = urlParser ?? throw new ArgumentNullException(nameof(urlParser));
@@ -217,6 +223,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _systrayService = systrayService;
         _qrCodeGenerator = qrCodeGenerator;
         _playlistReader = playlistReader;
+        _playlistWriter = playlistWriter;
         ArgumentNullException.ThrowIfNull(networkInfoService);
 
         _groupName = _group.Name;
@@ -324,6 +331,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             await ImportPlaylistFromYouTubeAsync(CollaborativePlaylistUrl).ConfigureAwait(false);
         }
+
+        ConfigurePlaylistAutoSyncLoop();
     }
 
     private void AutoSavePlaylist()
@@ -470,6 +479,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 ActiveAudioDeviceName = device.DisplayName;
             }
         }
+
+        ConfigurePlaylistAutoSyncLoop();
     }
 
     [RelayCommand]
@@ -583,6 +594,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
         _ = _lanGroupService.SendQueueSyncAsync(_group.Id, "Enqueue", track);
 
+        if (_playlistWriter is not null && !string.IsNullOrWhiteSpace(CollaborativePlaylistUrl))
+        {
+            _ = _playlistWriter.AddTrackToPlaylistAsync(CollaborativePlaylistUrl, videoId);
+        }
+
         if (_group.Playlist.CurrentTrack == track)
         {
             MetadataLoadTask = LoadTrackMetadataAsync(track);
@@ -686,7 +702,10 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         _systrayService?.UpdateTooltip($"burroQueue: {CurrentTrackTitle}");
-        _systrayService?.ShowNotification("burroQueue – Jetzt läuft", $"{CurrentTrackTitle} ({CurrentTrackArtist})");
+        _systrayService?.ShowNotification(
+            "burroQueue – Jetzt läuft",
+            $"{CurrentTrackTitle} ({CurrentTrackArtist})",
+            CurrentTrackThumbnailUrl ?? track.ThumbnailUrl);
 
         _skipVotePool = new SkipVotePool(track.Id, requiredVotes: 3);
         UpdateSkipVoteStatus();
@@ -888,20 +907,78 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     private void OnTelephonyStateChanged(object? sender, TelephonyCallEventArgs e)
     {
+        if (e.IsCallActive)
+        {
+            _duckingReleaseCts?.Cancel();
+            _duckingReleaseCts?.Dispose();
+            _duckingReleaseCts = null;
+
+            RunOnUi(() =>
+            {
+                IsCallActive = true;
+                IsAudioDucked = true;
+                TelephonyStatusText = $"{e.ProviderId} Anruf aktiv – Lautstärke abgesenkt";
+                TelephonyStateSummary = "Anruf aktiv (Ducking aktiv)";
+
+                AudioVolume volume = new(MasterVolume > 0 ? MasterVolume : 0.8, 0.15);
+                double target = volume.CalculateEffectiveLevel(e.State);
+                _audioController.SetTargetVolume(target, true);
+            });
+            return;
+        }
+
+        int releaseDelaySeconds = Math.Clamp(_settingsService.CurrentSettings?.DuckingReleaseDelaySeconds ?? 0, 0, 120);
+        if (releaseDelaySeconds <= 0 || !IsAudioDucked)
+        {
+            ApplyDuckingRelease();
+            return;
+        }
+
+        _duckingReleaseCts?.Cancel();
+        _duckingReleaseCts?.Dispose();
+        _duckingReleaseCts = new CancellationTokenSource();
+        CancellationToken token = _duckingReleaseCts.Token;
+
         RunOnUi(() =>
         {
-            IsCallActive = e.IsCallActive;
-            IsAudioDucked = e.IsCallActive;
-            TelephonyStatusText = e.IsCallActive
-                ? $"{e.ProviderId} Anruf aktiv – Lautstärke abgesenkt"
-                : string.Empty;
-            TelephonyStateSummary = e.IsCallActive
-                ? "Anruf aktiv (Ducking aktiv)"
-                : "Bereit (Überwachung aktiv)";
+            TelephonyStatusText = $"Anruf beendet – Lautstärke in {releaseDelaySeconds}s wiederhergestellt";
+            TelephonyStateSummary = $"Nachlauf ({releaseDelaySeconds}s)";
+        });
 
-            AudioVolume volume = new(MasterVolume > 0 ? MasterVolume : 0.8, 0.15);
-            double target = volume.CalculateEffectiveLevel(e.State);
-            _audioController.SetTargetVolume(target, e.IsCallActive);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await DelayProvider(TimeSpan.FromSeconds(releaseDelaySeconds), token).ConfigureAwait(false);
+                if (!token.IsCancellationRequested)
+                {
+                    ApplyDuckingRelease();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }, token);
+    }
+
+    private void ApplyDuckingRelease()
+    {
+        RunOnUi(() =>
+        {
+            IsCallActive = false;
+            IsAudioDucked = false;
+            TelephonyStatusText = string.Empty;
+            TelephonyStateSummary = "Bereit (Überwachung aktiv)";
+
+            double restoreVolume = IsMuted
+                ? 0.0
+                : (_settingsService.CurrentSettings?.MasterVolume > 0
+                    ? _settingsService.CurrentSettings.MasterVolume
+                    : (MasterVolume > 0 ? MasterVolume : _lastUnmutedVolume));
+
+            AudioVolume volume = new(restoreVolume, 0.15);
+            double target = volume.CalculateEffectiveLevel(TelephonyState.Idle);
+            _audioController.SetTargetVolume(target, false);
         });
     }
 
@@ -1159,6 +1236,54 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
     }
 
+    [RelayCommand]
+    public async Task SyncPlaylistNowAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(CollaborativePlaylistUrl))
+        {
+            await ImportPlaylistFromYouTubeAsync(CollaborativePlaylistUrl).ConfigureAwait(false);
+        }
+    }
+
+    private void ConfigurePlaylistAutoSyncLoop()
+    {
+        _playlistAutoSyncCts?.Cancel();
+        _playlistAutoSyncCts?.Dispose();
+        _playlistAutoSyncCts = null;
+
+        AppSettingsData? settings = _settingsService.CurrentSettings;
+        if (_playlistReader is null ||
+            settings is null ||
+            !settings.AutoSyncCollaborativePlaylist ||
+            string.IsNullOrWhiteSpace(CollaborativePlaylistUrl))
+        {
+            return;
+        }
+
+        int intervalSeconds = Math.Clamp(settings.AutoSyncPlaylistIntervalSeconds, 15, 3600);
+        _playlistAutoSyncCts = new CancellationTokenSource();
+        CancellationToken token = _playlistAutoSyncCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            using PeriodicTimer timer = new(TimeSpan.FromSeconds(intervalSeconds));
+            try
+            {
+                while (await timer.WaitForNextTickAsync(token).ConfigureAwait(false))
+                {
+                    string? url = CollaborativePlaylistUrl;
+                    if (!string.IsNullOrWhiteSpace(url))
+                    {
+                        await ImportPlaylistFromYouTubeAsync(url).ConfigureAwait(false);
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }, token);
+    }
+
     public async Task ImportPlaylistFromYouTubeAsync(string? playlistUrl)
     {
         if (_playlistReader is null || string.IsNullOrWhiteSpace(playlistUrl))
@@ -1220,6 +1345,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _feedbackCts?.Cancel();
         _feedbackCts?.Dispose();
         _feedbackCts = null;
+        _duckingReleaseCts?.Cancel();
+        _duckingReleaseCts?.Dispose();
+        _duckingReleaseCts = null;
+        _playlistAutoSyncCts?.Cancel();
+        _playlistAutoSyncCts?.Dispose();
+        _playlistAutoSyncCts = null;
     }
 }
-

@@ -31,6 +31,7 @@ public sealed class MainWindowViewModelAddFeedbackAndGroupTests : IDisposable
     private readonly IPlaylistStorageService _playlistStorage;
     private readonly ISystrayNotificationService _systrayService;
     private readonly IYouTubePlaylistReader _playlistReader;
+    private readonly IYouTubePlaylistWriter _playlistWriter;
     private readonly Action<Action> _originalDispatcher;
 
     public MainWindowViewModelAddFeedbackAndGroupTests()
@@ -48,6 +49,7 @@ public sealed class MainWindowViewModelAddFeedbackAndGroupTests : IDisposable
         _playlistStorage = Substitute.For<IPlaylistStorageService>();
         _systrayService = Substitute.For<ISystrayNotificationService>();
         _playlistReader = Substitute.For<IYouTubePlaylistReader>();
+        _playlistWriter = Substitute.For<IYouTubePlaylistWriter>();
 
         _settingsService.CurrentSettings.Returns(new AppSettingsData
         {
@@ -84,7 +86,8 @@ public sealed class MainWindowViewModelAddFeedbackAndGroupTests : IDisposable
             _audioPlayerBackend,
             _playlistStorage,
             systrayService: _systrayService,
-            playlistReader: _playlistReader);
+            playlistReader: _playlistReader,
+            playlistWriter: _playlistWriter);
     }
 
     [Fact]
@@ -201,5 +204,38 @@ public sealed class MainWindowViewModelAddFeedbackAndGroupTests : IDisposable
 
         vm.GroupName.Should().Be("Marketing Lounge");
     }
-}
 
+    [Fact]
+    public void EnqueueRawUrl_WhenCollaborativePlaylistConfigured_ShouldCallPlaylistWriter()
+    {
+        Uri uri = new("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+        _urlParser.TryExtractVideoId("https://www.youtube.com/watch?v=dQw4w9WgXcQ", out Arg.Any<string>(), out Arg.Any<Uri>())
+            .Returns(x =>
+            {
+                x[1] = "dQw4w9WgXcQ";
+                x[2] = uri;
+                return true;
+            });
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        vm.EnqueueRawUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+
+        _playlistWriter.Received(1).AddTrackToPlaylistAsync(
+            "https://www.youtube.com/playlist?list=PLtest&jct=tok",
+            "dQw4w9WgXcQ",
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SyncPlaylistNowAsync_WhenCollaborativePlaylistSet_ShouldReadPlaylistTracks()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+
+        await vm.SyncPlaylistNowAsync();
+
+        await _playlistReader.Received(1).ReadPlaylistTracksAsync(
+            "https://www.youtube.com/playlist?list=PLtest&jct=tok",
+            Arg.Any<CancellationToken>());
+    }
+}

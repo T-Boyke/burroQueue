@@ -17,5 +17,10 @@ public sealed class AppSettingsData
     public bool EnableWebDropServer { get; set; }
 
     public bool HasJoinedCollaborativePlaylist { get; set; }
-}
 
+    public int DuckingReleaseDelaySeconds { get; set; } = 3;
+
+    public bool AutoSyncCollaborativePlaylist { get; set; } = true;
+
+    public int AutoSyncPlaylistIntervalSeconds { get; set; } = 60;
+}

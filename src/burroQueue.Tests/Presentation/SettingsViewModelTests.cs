@@ -259,4 +259,25 @@ public sealed class SettingsViewModelTests
         vm.SelectedProviderId = "SwyxIt";
         vm.IsStarfaceSelected.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task SaveSettingsAsync_WithDuckingDelayAndPlaylistAutoSync_ShouldClampAndPersistValues()
+    {
+        SettingsViewModel vm = new(
+            _settingsService,
+            _telephonyManager,
+            _autostartService,
+            _audioDeviceEnumerator);
+
+        vm.DuckingReleaseDelaySeconds = 8;
+        vm.AutoSyncCollaborativePlaylist = true;
+        vm.AutoSyncPlaylistIntervalSeconds = 45;
+
+        await vm.SaveSettingsAsync();
+
+        await _settingsService.Received(1).SaveAsync(Arg.Is<AppSettingsData>(d =>
+            d.DuckingReleaseDelaySeconds == 8 &&
+            d.AutoSyncCollaborativePlaylist &&
+            d.AutoSyncPlaylistIntervalSeconds == 45));
+    }
 }
