@@ -6,6 +6,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <AssemblyName>burroQueue</AssemblyName>
     <RootNamespace>burroQueue.Presentation</RootNamespace>
     <ServerGarbageCollection>false</ServerGarbageCollection>
