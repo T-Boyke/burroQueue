@@ -188,3 +188,4 @@ public sealed class YouTubePlaylistWriter : IYouTubePlaylistWriter
         return process.ExitCode == 0;
     }
 }
+

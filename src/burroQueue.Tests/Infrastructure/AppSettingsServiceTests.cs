@@ -45,6 +45,8 @@ public sealed class AppSettingsServiceTests : IDisposable
         service.CurrentSettings.DuckingReleaseDelaySeconds.Should().Be(3);
         service.CurrentSettings.AutoSyncCollaborativePlaylist.Should().BeTrue();
         service.CurrentSettings.AutoSyncPlaylistIntervalSeconds.Should().Be(60);
+        service.CurrentSettings.WindowBackdrop.Should().Be("Mica");
+        service.CurrentSettings.UseSystemAccentColor.Should().BeTrue();
     }
 
     [Fact]

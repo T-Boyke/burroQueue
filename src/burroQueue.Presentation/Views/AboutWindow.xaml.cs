@@ -10,7 +10,11 @@ public partial class AboutWindow : FluentWindow
     public AboutWindow()
     {
         InitializeComponent();
-        Loaded += (_, _) => Wpf.Ui.Appearance.SystemThemeWatcher.Watch(this);
+        Loaded += (_, _) =>
+        {
+            Wpf.Ui.Appearance.ApplicationAccentColorManager.ApplySystemAccent();
+            Wpf.Ui.Appearance.SystemThemeWatcher.Watch(this, WindowBackdropType.Mica, true);
+        };
     }
 
     private void OnCloseClicked(object sender, RoutedEventArgs e)
@@ -18,4 +22,3 @@ public partial class AboutWindow : FluentWindow
         Close();
     }
 }
-

@@ -19,7 +19,7 @@
     Padding="10"
     CornerRadius="8"
     Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+    BorderBrush="{DynamicResource SystemAccentColorSecondaryBrush}"
     BorderThickness="1">
     <Grid>
       <Grid.ColumnDefinitions>
@@ -36,6 +36,8 @@
         CornerRadius="4"
         ClipToBounds="True"
         VerticalAlignment="Center"
+        BorderBrush="{DynamicResource SystemAccentColorTertiaryBrush}"
+        BorderThickness="1"
         Background="{DynamicResource SubtleFillColorSecondaryBrush}">
         <Image
           x:Name="CoverImage"

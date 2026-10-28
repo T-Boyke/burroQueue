@@ -37,6 +37,7 @@ public partial class MainWindow : FluentWindow
                 settingsWindow.Owner = this;
                 settingsWindow.ShowDialog();
                 _viewModel.ReloadSettings();
+                ApplyThemeAndBackdrop();
                 serviceProvider.GetService<burroQueue.Infrastructure.Performance.IProcessEfficiencyManager>()?.TrimMemoryWorkingSet();
             };
         }
@@ -110,8 +111,46 @@ public partial class MainWindow : FluentWindow
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal void OnLoaded(object sender, RoutedEventArgs e)
     {
-        Wpf.Ui.Appearance.SystemThemeWatcher.Watch(this);
+        ApplyThemeAndBackdrop();
         HandleHotkeyRegistration(_hotkeyService, this, _viewModel);
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal void ApplyThemeAndBackdrop()
+    {
+        try
+        {
+            burroQueue.Infrastructure.Configuration.IAppSettingsService? settings =
+                _serviceProvider?.GetService<burroQueue.Infrastructure.Configuration.IAppSettingsService>();
+
+            WindowBackdropType backdrop = ParseBackdropType(settings?.CurrentSettings?.WindowBackdrop);
+            bool updateAccents = settings?.CurrentSettings?.UseSystemAccentColor ?? true;
+
+            WindowBackdropType = backdrop;
+            if (updateAccents)
+            {
+                Wpf.Ui.Appearance.ApplicationAccentColorManager.ApplySystemAccent();
+            }
+
+            Wpf.Ui.Appearance.SystemThemeWatcher.Watch(this, backdrop, updateAccents);
+        }
+        catch
+        {
+            // Fail-safe in headless test environments
+        }
+    }
+
+    internal static WindowBackdropType ParseBackdropType(string? backdropName)
+    {
+        return backdropName?.Trim() switch
+        {
+            "Auto" => WindowBackdropType.Auto,
+            "Mica" => WindowBackdropType.Mica,
+            "Tabbed" => WindowBackdropType.Tabbed,
+            "Acrylic" => WindowBackdropType.Acrylic,
+            "None" => WindowBackdropType.None,
+            _ => WindowBackdropType.Mica
+        };
     }
 
     internal static void HandleHotkeyRegistration(IGlobalHotkeyService hotkeyService, Window window, MainWindowViewModel viewModel)

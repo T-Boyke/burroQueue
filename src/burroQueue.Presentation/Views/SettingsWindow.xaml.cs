@@ -11,7 +11,17 @@ public partial class SettingsWindow : FluentWindow
     {
         InitializeComponent();
         DataContext = viewModel;
-        Loaded += (_, _) => Wpf.Ui.Appearance.SystemThemeWatcher.Watch(this);
+        Loaded += (_, _) =>
+        {
+            WindowBackdropType backdrop = MainWindow.ParseBackdropType(viewModel.SelectedWindowBackdrop);
+            WindowBackdropType = backdrop;
+            if (viewModel.UseSystemAccentColor)
+            {
+                Wpf.Ui.Appearance.ApplicationAccentColorManager.ApplySystemAccent();
+            }
+
+            Wpf.Ui.Appearance.SystemThemeWatcher.Watch(this, backdrop, viewModel.UseSystemAccentColor);
+        };
     }
 
     private void OnCloseClicked(object sender, System.Windows.RoutedEventArgs e)
@@ -19,4 +29,3 @@ public partial class SettingsWindow : FluentWindow
         Close();
     }
 }
-

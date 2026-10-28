@@ -272,12 +272,17 @@ public sealed class SettingsViewModelTests
         vm.DuckingReleaseDelaySeconds = 8;
         vm.AutoSyncCollaborativePlaylist = true;
         vm.AutoSyncPlaylistIntervalSeconds = 45;
+        vm.SelectedWindowBackdrop = "Tabbed";
+        vm.UseSystemAccentColor = true;
 
         await vm.SaveSettingsAsync();
 
         await _settingsService.Received(1).SaveAsync(Arg.Is<AppSettingsData>(d =>
             d.DuckingReleaseDelaySeconds == 8 &&
             d.AutoSyncCollaborativePlaylist &&
-            d.AutoSyncPlaylistIntervalSeconds == 45));
+            d.AutoSyncPlaylistIntervalSeconds == 45 &&
+            d.WindowBackdrop == "Tabbed" &&
+            d.UseSystemAccentColor));
+        vm.AvailableWindowBackdrops.Should().ContainInOrder("Auto", "Mica", "Tabbed", "Acrylic", "None");
     }
 }

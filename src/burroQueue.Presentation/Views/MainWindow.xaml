@@ -135,7 +135,7 @@
       Padding="12"
       CornerRadius="8"
       Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-      BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+      BorderBrush="{DynamicResource SystemAccentColorSecondaryBrush}"
       BorderThickness="1">
       <Grid>
         <Grid.RowDefinitions>
@@ -157,6 +157,8 @@
             Margin="0,0,12,0"
             CornerRadius="4"
             ClipToBounds="True"
+            BorderBrush="{DynamicResource SystemAccentColorTertiaryBrush}"
+            BorderThickness="1"
             Background="{DynamicResource SubtleFillColorSecondaryBrush}">
             <Image
               Source="{Binding CurrentTrackThumbnailUrl}"
@@ -173,9 +175,9 @@
             <TextBlock
               Margin="0,2,0,0"
               FontSize="12"
-              Opacity="0.65"
+              Opacity="0.85"
               TextTrimming="CharacterEllipsis"
-              Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+              Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
               Text="{Binding CurrentTrackArtist}" />
           </StackPanel>
 
@@ -190,6 +192,7 @@
             <TextBlock
               FontSize="12"
               FontWeight="Medium"
+              Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
               Text="{Binding SkipVoteStatus, StringFormat='Skip ({0})'}" />
           </ui:Button>
         </Grid>
@@ -202,19 +205,20 @@
           </Grid.RowDefinitions>
           <ProgressBar
             Grid.Row="0"
-            Height="3"
+            Height="4"
             Minimum="0"
             Maximum="100"
             Value="{Binding PlaybackProgress}"
             IsIndeterminate="False"
-            Foreground="{DynamicResource AccentFillColorDefaultBrush}"
+            Foreground="{DynamicResource SystemAccentColorSecondaryBrush}"
             Background="{DynamicResource ControlStrokeColorDefaultBrush}" />
           <TextBlock
             Grid.Row="1"
             Margin="0,4,0,0"
             FontSize="10"
-            Opacity="0.6"
+            Opacity="0.75"
             HorizontalAlignment="Right"
+            Foreground="{DynamicResource AccentTextFillColorSecondaryBrush}"
             Text="{Binding PlaybackTimeFormatted}" />
         </Grid>
       </Grid>
@@ -230,7 +234,7 @@
       <StackPanel Orientation="Horizontal">
         <ui:Button
           Margin="0,0,6,0"
-          Appearance="Secondary"
+          Appearance="Primary"
           Icon="{ui:SymbolIcon Play24}"
           Content="Play"
           Command="{Binding PlayCommand}" />
@@ -259,11 +263,13 @@
         VerticalAlignment="Center"
         Padding="8,3"
         CornerRadius="4"
+        BorderBrush="{DynamicResource SystemAccentColorSecondaryBrush}"
+        BorderThickness="1"
         Background="{DynamicResource SubtleFillColorSecondaryBrush}">
         <TextBlock
           FontSize="11"
-          FontWeight="Medium"
-          Opacity="0.8"
+          FontWeight="SemiBold"
+          Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
           Text="{Binding PlaybackState, StringFormat='Status: {0}'}" />
       </Border>
     </Grid>
@@ -293,7 +299,10 @@
           Margin="0,0,8,0"
           ToolTip="Stummschalten / Lautstärke wiederherstellen"
           Command="{Binding ToggleMuteCommand}">
-          <ui:SymbolIcon Symbol="Speaker224" FontSize="16" />
+          <ui:SymbolIcon
+            Symbol="Speaker224"
+            FontSize="16"
+            Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
         </ui:Button>
 
         <!-- Master Volume Slider -->
@@ -304,6 +313,7 @@
           Maximum="1.0"
           SmallChange="0.05"
           LargeChange="0.1"
+          Foreground="{DynamicResource SystemAccentColorSecondaryBrush}"
           Value="{Binding MasterVolume, Mode=TwoWay}" />
 
         <!-- Volume Percentage -->
@@ -315,6 +325,7 @@
           FontWeight="SemiBold"
           Width="40"
           TextAlignment="Right"
+          Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
           Text="{Binding MasterVolume, StringFormat='{}{0:P0}'}" />
 
         <!-- Audio Device & Ducking Status Pill -->
@@ -356,14 +367,14 @@
         Padding="12,10"
         CornerRadius="8"
         Background="{DynamicResource SubtleFillColorSecondaryBrush}"
-        BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+        BorderBrush="{DynamicResource SystemAccentColorSecondaryBrush}"
         BorderThickness="1">
         <StackPanel>
           <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
             <ui:SymbolIcon
               Symbol="ArrowDownload24"
               FontSize="22"
-              Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+              Foreground="{DynamicResource SystemAccentColorSecondaryBrush}" />
             <TextBlock
               Margin="0,3,0,0"
               HorizontalAlignment="Center"
@@ -452,7 +463,7 @@
                 Symbol="MusicNote224"
                 Margin="0,0,6,0"
                 FontSize="14"
-                Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
               <TextBlock
                 FontSize="12"
                 FontWeight="SemiBold"
@@ -468,7 +479,7 @@
               ToolTip="Mit YouTube-Playlist synchronisieren"
               Visibility="{Binding CollaborativePlaylistUrl, Converter={StaticResource NullToVisibilityConverter}}"
               Command="{Binding SyncPlaylistNowCommand}">
-              <ui:SymbolIcon Symbol="ArrowSync24" FontSize="13" />
+              <ui:SymbolIcon Symbol="ArrowSync24" FontSize="13" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
             </ui:Button>
 
             <ui:Button
@@ -495,25 +506,87 @@
             Grid.Row="1"
             Visibility="{Binding IsQueueExpanded, Converter={StaticResource BooleanToVisibilityConverter}}"
             ItemsSource="{Binding QueuedItems}"
+            HorizontalContentAlignment="Stretch"
             VirtualizingPanel.IsVirtualizing="True"
             VirtualizingPanel.VirtualizationMode="Recycling"
             VirtualizingPanel.ScrollUnit="Pixel"
             VirtualizingPanel.CacheLength="1,1"
             VirtualizingPanel.CacheLengthUnit="Page"
             ScrollViewer.IsDeferredScrollingEnabled="True"
+            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
             Background="Transparent"
             Foreground="{DynamicResource TextFillColorPrimaryBrush}"
             BorderThickness="0"
             ScrollViewer.VerticalScrollBarVisibility="Auto">
+            <ListView.ItemContainerStyle>
+              <Style TargetType="ListViewItem">
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="Padding" Value="4,2" />
+                <Setter Property="Margin" Value="0,1" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+              </Style>
+            </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
               <DataTemplate>
-                <Grid Margin="0,3,0,3">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                  </Grid.ColumnDefinitions>
+                <DockPanel LastChildFill="True" Margin="0,2">
+                  <!-- Rechts angedockte Aktions-Icons (exakt untereinander ausgerichtet) -->
+                  <StackPanel
+                    DockPanel.Dock="Right"
+                    Orientation="Horizontal"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Right"
+                    Margin="8,0,0,0">
+                    <ui:Button
+                      Width="26"
+                      Height="26"
+                      Appearance="Transparent"
+                      Padding="0"
+                      Margin="0,0,2,0"
+                      ToolTip="Sofort abspielen"
+                      Command="{Binding DataContext.PlayTrackNowCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                      CommandParameter="{Binding}">
+                      <ui:SymbolIcon
+                        Symbol="Play24"
+                        FontSize="12"
+                        Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                    </ui:Button>
+                    <ui:Button
+                      Width="26"
+                      Height="26"
+                      Appearance="Transparent"
+                      Padding="0"
+                      Margin="0,0,2,0"
+                      ToolTip="Nach oben verschieben"
+                      Command="{Binding DataContext.MoveTrackUpCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                      CommandParameter="{Binding}">
+                      <ui:SymbolIcon Symbol="ArrowUp24" FontSize="12" />
+                    </ui:Button>
+                    <ui:Button
+                      Width="26"
+                      Height="26"
+                      Appearance="Transparent"
+                      Padding="0"
+                      Margin="0,0,2,0"
+                      ToolTip="Nach unten verschieben"
+                      Command="{Binding DataContext.MoveTrackDownCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                      CommandParameter="{Binding}">
+                      <ui:SymbolIcon Symbol="ArrowDown24" FontSize="12" />
+                    </ui:Button>
+                    <ui:Button
+                      Width="26"
+                      Height="26"
+                      Appearance="Transparent"
+                      Padding="0"
+                      ToolTip="Aus Warteschlange entfernen"
+                      Command="{Binding DataContext.RemoveTrackCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                      CommandParameter="{Binding}">
+                      <ui:SymbolIcon Symbol="Delete24" FontSize="12" />
+                    </ui:Button>
+                  </StackPanel>
 
-                  <Grid Grid.Column="0" VerticalAlignment="Center">
+                  <!-- Links: Thumbnail + Titel/Submitter (füllt restliche Breite bis zu den rechts angedockten Icons) -->
+                  <Grid VerticalAlignment="Center">
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="Auto" />
                       <ColumnDefinition Width="*" />
@@ -526,6 +599,8 @@
                       CornerRadius="4"
                       Margin="0,0,10,0"
                       ClipToBounds="True"
+                      BorderBrush="{DynamicResource SystemAccentColorTertiaryBrush}"
+                      BorderThickness="1"
                       Background="{DynamicResource SubtleFillColorSecondaryBrush}">
                       <Image
                         Source="{Binding ThumbnailUrl}"
@@ -542,50 +617,13 @@
                         Text="{Binding Title}" />
                       <TextBlock
                         FontSize="10"
-                        Opacity="0.75"
-                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                        Opacity="0.8"
+                        TextTrimming="CharacterEllipsis"
+                        Foreground="{DynamicResource AccentTextFillColorSecondaryBrush}"
                         Text="{Binding SubmittedBy, StringFormat='von {0}'}" />
                     </StackPanel>
                   </Grid>
-
-                  <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <ui:Button
-                      Appearance="Transparent"
-                      Padding="3"
-                      Margin="0,0,2,0"
-                      ToolTip="Sofort abspielen"
-                      Command="{Binding DataContext.PlayTrackNowCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
-                      CommandParameter="{Binding}">
-                      <ui:SymbolIcon Symbol="Play24" FontSize="11" />
-                    </ui:Button>
-                    <ui:Button
-                      Appearance="Transparent"
-                      Padding="3"
-                      Margin="0,0,2,0"
-                      ToolTip="Nach oben verschieben"
-                      Command="{Binding DataContext.MoveTrackUpCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
-                      CommandParameter="{Binding}">
-                      <ui:SymbolIcon Symbol="ArrowUp24" FontSize="11" />
-                    </ui:Button>
-                    <ui:Button
-                      Appearance="Transparent"
-                      Padding="3"
-                      Margin="0,0,4,0"
-                      ToolTip="Nach unten verschieben"
-                      Command="{Binding DataContext.MoveTrackDownCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
-                      CommandParameter="{Binding}">
-                      <ui:SymbolIcon Symbol="ArrowDown24" FontSize="11" />
-                    </ui:Button>
-                    <ui:Button
-                      Appearance="Transparent"
-                      Padding="4"
-                      ToolTip="Aus Warteschlange entfernen"
-                      Command="{Binding DataContext.RemoveTrackCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
-                      CommandParameter="{Binding}">
-                      <ui:SymbolIcon Symbol="Delete24" FontSize="12" />
-                    </ui:Button>
-                  </StackPanel>
-                </Grid>
+                </DockPanel>
               </DataTemplate>
             </ListView.ItemTemplate>
 

@@ -34,7 +34,8 @@ public partial class TrackToastWindow : FluentWindow
 
         Loaded += (_, _) =>
         {
-            Wpf.Ui.Appearance.SystemThemeWatcher.Watch(this);
+            Wpf.Ui.Appearance.ApplicationAccentColorManager.ApplySystemAccent();
+            Wpf.Ui.Appearance.SystemThemeWatcher.Watch(this, WindowBackdropType.Mica, true);
             Rect workArea = SystemParameters.WorkArea;
             Left = workArea.Right - Width - 16;
             Top = workArea.Bottom - Height - 16;

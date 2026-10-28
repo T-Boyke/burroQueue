@@ -60,6 +60,21 @@ public sealed partial class SettingsViewModel : ObservableObject
     private int _autoSyncPlaylistIntervalSeconds = 60;
 
     [ObservableProperty]
+    private string _selectedWindowBackdrop = "Mica";
+
+    [ObservableProperty]
+    private bool _useSystemAccentColor = true;
+
+    public IReadOnlyList<string> AvailableWindowBackdrops { get; } =
+    [
+        "Auto",
+        "Mica",
+        "Tabbed",
+        "Acrylic",
+        "None"
+    ];
+
+    [ObservableProperty]
     private string _currentGroupName = "Büro Jukebox";
 
     [ObservableProperty]
@@ -120,6 +135,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         _duckingReleaseDelaySeconds = Math.Clamp(current.DuckingReleaseDelaySeconds, 0, 120);
         _autoSyncCollaborativePlaylist = current.AutoSyncCollaborativePlaylist;
         _autoSyncPlaylistIntervalSeconds = Math.Clamp(current.AutoSyncPlaylistIntervalSeconds, 15, 3600);
+        _selectedWindowBackdrop = string.IsNullOrWhiteSpace(current.WindowBackdrop) ? "Mica" : current.WindowBackdrop;
+        _useSystemAccentColor = current.UseSystemAccentColor;
 
         if (!string.IsNullOrWhiteSpace(_collaborativePlaylistUrl))
         {
@@ -263,7 +280,9 @@ public sealed partial class SettingsViewModel : ObservableObject
             HasJoinedCollaborativePlaylist = _settingsService.CurrentSettings.HasJoinedCollaborativePlaylist,
             DuckingReleaseDelaySeconds = Math.Clamp(DuckingReleaseDelaySeconds, 0, 120),
             AutoSyncCollaborativePlaylist = AutoSyncCollaborativePlaylist,
-            AutoSyncPlaylistIntervalSeconds = Math.Clamp(AutoSyncPlaylistIntervalSeconds, 15, 3600)
+            AutoSyncPlaylistIntervalSeconds = Math.Clamp(AutoSyncPlaylistIntervalSeconds, 15, 3600),
+            WindowBackdrop = string.IsNullOrWhiteSpace(SelectedWindowBackdrop) ? "Mica" : SelectedWindowBackdrop,
+            UseSystemAccentColor = UseSystemAccentColor
         };
 
         await _settingsService.SaveAsync(data).ConfigureAwait(false);

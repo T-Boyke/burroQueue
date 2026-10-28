@@ -23,4 +23,8 @@ public sealed class AppSettingsData
     public bool AutoSyncCollaborativePlaylist { get; set; } = true;
 
     public int AutoSyncPlaylistIntervalSeconds { get; set; } = 60;
+
+    public string WindowBackdrop { get; set; } = "Mica";
+
+    public bool UseSystemAccentColor { get; set; } = true;
 }

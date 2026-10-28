@@ -264,6 +264,52 @@
           Margin="0,6,0,16"
           Text="{Binding ClientDisplayName, UpdateSourceTrigger=PropertyChanged}" />
 
+        <!-- Appearance: Window Backdrop & System Accent Color -->
+        <TextBlock
+          Text="Darstellung &amp; Fenster-Hintergrund (Backdrop)"
+          FontSize="13"
+          FontWeight="SemiBold"
+          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+        <Border
+          Margin="0,6,0,16"
+          Padding="12,10"
+          CornerRadius="8"
+          Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+          BorderBrush="{DynamicResource SystemAccentColorSecondaryBrush}"
+          BorderThickness="1">
+          <StackPanel>
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                <TextBlock
+                  Text="Window Backdrop (Auto / Mica / Tabbed / Acrylic / None)"
+                  FontSize="12"
+                  FontWeight="Medium"
+                  Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                <TextBlock
+                  FontSize="11"
+                  Opacity="0.7"
+                  Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                  Text="Windows 11 Material-Effekt via SystemThemeWatcher" />
+              </StackPanel>
+              <ComboBox
+                Grid.Column="1"
+                Width="130"
+                VerticalAlignment="Center"
+                ItemsSource="{Binding AvailableWindowBackdrops}"
+                SelectedItem="{Binding SelectedWindowBackdrop, Mode=TwoWay}" />
+            </Grid>
+
+            <CheckBox
+              Margin="0,2,0,0"
+              Content="Windows System-Akzentfarbe automatisch übernehmen (SystemAccentColor)"
+              IsChecked="{Binding UseSystemAccentColor}" />
+          </StackPanel>
+        </Border>
+
         <!-- Diagnostics & System Status -->
         <Border
           Margin="0,0,0,16"

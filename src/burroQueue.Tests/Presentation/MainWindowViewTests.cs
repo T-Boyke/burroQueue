@@ -293,6 +293,18 @@ public sealed class MainWindowViewTests
         handled.Should().BeFalse();
         vm.QuickAddUrl.Should().Be("https://youtube.com");
     }
+
+    [Theory]
+    [InlineData("Auto", Wpf.Ui.Controls.WindowBackdropType.Auto)]
+    [InlineData("Mica", Wpf.Ui.Controls.WindowBackdropType.Mica)]
+    [InlineData("Tabbed", Wpf.Ui.Controls.WindowBackdropType.Tabbed)]
+    [InlineData("Acrylic", Wpf.Ui.Controls.WindowBackdropType.Acrylic)]
+    [InlineData("None", Wpf.Ui.Controls.WindowBackdropType.None)]
+    [InlineData("Unknown", Wpf.Ui.Controls.WindowBackdropType.Mica)]
+    [InlineData(null, Wpf.Ui.Controls.WindowBackdropType.Mica)]
+    public void ParseBackdropType_ShouldMapStringsToWindowBackdropType(string? input, Wpf.Ui.Controls.WindowBackdropType expected)
+    {
+        Wpf.Ui.Controls.WindowBackdropType actual = MainWindow.ParseBackdropType(input);
+        actual.Should().Be(expected);
+    }
 }
-
-
