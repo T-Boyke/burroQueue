@@ -10,6 +10,7 @@ using burroQueue.Infrastructure.Playback;
 using burroQueue.Infrastructure.Telephony;
 using burroQueue.Infrastructure.Web;
 using burroQueue.Infrastructure.YouTube;
+using burroQueue.Presentation.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -28,10 +29,13 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private readonly IAudioPlayerBackend _audioPlayerBackend;
     private readonly IPlaylistStorageService _playlistStorage;
     private readonly IAudioDeviceEnumerator? _audioDeviceEnumerator;
+    private readonly ISystrayNotificationService? _systrayService;
+    private readonly IQrCodeSvgGenerator? _qrCodeGenerator;
     private readonly ClientId _localClientId = ClientId.New();
     private SkipVotePool _skipVotePool;
     private bool _isUpdatingVolumeInternally;
     private double _lastUnmutedVolume = 0.8;
+
 
     public event EventHandler? OpenSettingsRequested;
 
@@ -88,6 +92,15 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private string _activeAudioDeviceName = "Standard-Ausgabegerät";
 
+    [ObservableProperty]
+    private bool _isQrCodeVisible;
+
+    [ObservableProperty]
+    private string _qrCodeSvg = string.Empty;
+
+    [ObservableProperty]
+    private System.Windows.Media.ImageSource? _qrCodeImage;
+
     partial void OnMasterVolumeChanged(double value)
     {
         if (!_isUpdatingVolumeInternally)
@@ -98,6 +111,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 _lastUnmutedVolume = value;
                 IsMuted = false;
             }
+
+            _settingsService.CurrentSettings.MasterVolume = value;
+            AutoSaveSettings();
         }
     }
 
@@ -118,6 +134,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     private string _webDropUrl = "http://localhost:8080";
+
+    [ObservableProperty]
+    private string _quickAddUrl = string.Empty;
 
     [ObservableProperty]
     private bool _isQueueExpanded;
@@ -142,7 +161,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
         ILocalNetworkInfoService networkInfoService,
         IAudioPlayerBackend audioPlayerBackend,
         IPlaylistStorageService playlistStorage,
-        IAudioDeviceEnumerator? audioDeviceEnumerator = null)
+        IAudioDeviceEnumerator? audioDeviceEnumerator = null,
+        ISystrayNotificationService? systrayService = null,
+        IQrCodeSvgGenerator? qrCodeGenerator = null)
     {
         _group = group ?? throw new ArgumentNullException(nameof(group));
         _urlParser = urlParser ?? throw new ArgumentNullException(nameof(urlParser));
@@ -154,14 +175,31 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _webDropServer = webDropServer ?? throw new ArgumentNullException(nameof(webDropServer));
         _audioPlayerBackend = audioPlayerBackend ?? throw new ArgumentNullException(nameof(audioPlayerBackend));
         _playlistStorage = playlistStorage ?? throw new ArgumentNullException(nameof(playlistStorage));
+        _audioDeviceEnumerator = audioDeviceEnumerator;
+        _systrayService = systrayService;
+        _qrCodeGenerator = qrCodeGenerator;
         ArgumentNullException.ThrowIfNull(networkInfoService);
+
 
         _groupName = _group.Name;
         _collaborativePlaylistUrl = _settingsService.CurrentSettings.CollaborativePlaylistUrl;
         _webDropUrl = networkInfoService.GetWebDropUrl(8080);
         _skipVotePool = new SkipVotePool(TrackId.New(), requiredVotes: 3);
 
-        _masterVolume = _audioController.CurrentVolume;
+        if (_settingsService.CurrentSettings.MasterVolume > 0 && Math.Abs(_settingsService.CurrentSettings.MasterVolume - 0.8) > 0.001)
+        {
+            _masterVolume = _settingsService.CurrentSettings.MasterVolume;
+        }
+        else
+        {
+            _masterVolume = _audioController.CurrentVolume;
+        }
+
+        if (Math.Abs(_masterVolume - _audioController.CurrentVolume) > 0.001)
+        {
+            _audioController.SetTargetVolume(_masterVolume, _audioController.IsDucked);
+        }
+
         _lastUnmutedVolume = _masterVolume > 0 ? _masterVolume : 0.8;
         _isAudioDucked = _audioController.IsDucked;
 
@@ -231,6 +269,94 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 // Auto-Save ist fail-safe und blockiert die App nicht
             }
         });
+    }
+
+    private void AutoSaveSettings()
+    {
+        Task.Run(async () =>
+        {
+            try
+            {
+                await _settingsService.SaveAsync(_settingsService.CurrentSettings).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Fail-safe
+            }
+        });
+    }
+
+    [RelayCommand]
+    public void ToggleQrCode()
+    {
+        IsQrCodeVisible = !IsQrCodeVisible;
+        if (IsQrCodeVisible && string.IsNullOrEmpty(QrCodeSvg))
+        {
+            QrCodeSvg = _qrCodeGenerator?.GenerateSvg(WebDropUrl, 250) ?? string.Empty;
+        }
+
+        if (IsQrCodeVisible && QrCodeImage is null && _qrCodeGenerator is not null)
+        {
+            QrCodeImage = GenerateQrCodeBitmap(WebDropUrl);
+        }
+    }
+
+    internal System.Windows.Media.ImageSource? GenerateQrCodeBitmap(string url)
+    {
+        if (_qrCodeGenerator is null || string.IsNullOrWhiteSpace(url))
+        {
+            return null;
+        }
+
+        bool[,] matrix = _qrCodeGenerator.GenerateMatrix(url);
+        int size = matrix.GetLength(0);
+        int quietZone = 2;
+        int total = size + (quietZone * 2);
+        int scale = 8;
+        int pixelDim = total * scale;
+        byte[] pixels = new byte[pixelDim * pixelDim * 4];
+        Array.Fill<byte>(pixels, 255);
+
+        for (int r = 0; r < size; r++)
+        {
+            for (int c = 0; c < size; c++)
+            {
+                if (matrix[r, c])
+                {
+                    int startY = (r + quietZone) * scale;
+                    int startX = (c + quietZone) * scale;
+                    for (int y = 0; y < scale; y++)
+                    {
+                        for (int x = 0; x < scale; x++)
+                        {
+                            int offset = (((startY + y) * pixelDim) + startX + x) * 4;
+                            pixels[offset] = 0;     // B
+                            pixels[offset + 1] = 0; // G
+                            pixels[offset + 2] = 0; // R
+                            pixels[offset + 3] = 255; // A
+                        }
+                    }
+                }
+            }
+        }
+
+        System.Windows.Media.Imaging.BitmapSource bitmap = System.Windows.Media.Imaging.BitmapSource.Create(
+            pixelDim,
+            pixelDim,
+            96,
+            96,
+            System.Windows.Media.PixelFormats.Bgra32,
+            null,
+            pixels,
+            pixelDim * 4);
+        bitmap.Freeze();
+        return bitmap;
+    }
+
+    [RelayCommand]
+    public void CloseQrCode()
+    {
+        IsQrCodeVisible = false;
     }
 
     [RelayCommand]
@@ -327,6 +453,19 @@ public sealed partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public void SubmitQuickAdd()
+    {
+        if (string.IsNullOrWhiteSpace(QuickAddUrl))
+        {
+            return;
+        }
+
+        string url = QuickAddUrl.Trim();
+        QuickAddUrl = string.Empty;
+        EnqueueRawUrl(url);
+    }
+
+    [RelayCommand]
     public void EnqueueRawUrl(string? rawUrl)
     {
         EnqueueRawUrl(rawUrl, null);
@@ -359,6 +498,40 @@ public sealed partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public void MoveTrackUp(Track? track)
+    {
+        if (track is null)
+        {
+            return;
+        }
+
+        if (_group.Playlist.MoveUp(track.Id))
+        {
+            SyncQueuedItems();
+            StatusMessage = $"'{track.Title}' nach oben verschoben";
+            AutoSavePlaylist();
+            _ = _lanGroupService.SendQueueSyncAsync(_group.Id, "Reorder", track);
+        }
+    }
+
+    [RelayCommand]
+    public void MoveTrackDown(Track? track)
+    {
+        if (track is null)
+        {
+            return;
+        }
+
+        if (_group.Playlist.MoveDown(track.Id))
+        {
+            SyncQueuedItems();
+            StatusMessage = $"'{track.Title}' nach unten verschoben";
+            AutoSavePlaylist();
+            _ = _lanGroupService.SendQueueSyncAsync(_group.Id, "Reorder", track);
+        }
+    }
+
+    [RelayCommand]
     public void RemoveTrack(Track? track)
     {
         if (track is null)
@@ -374,6 +547,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
             _ = _lanGroupService.SendQueueSyncAsync(_group.Id, "Remove", track);
         }
     }
+
 
     internal void SyncQueuedItems()
     {
@@ -405,9 +579,13 @@ public sealed partial class MainWindowViewModel : ObservableObject
             CurrentTrackThumbnailUrl = null;
         }
 
+        _systrayService?.UpdateTooltip($"burroQueue: {CurrentTrackTitle}");
+        _systrayService?.ShowNotification("burroQueue – Jetzt läuft", $"{CurrentTrackTitle} ({CurrentTrackArtist})");
+
         _skipVotePool = new SkipVotePool(track.Id, requiredVotes: 3);
         UpdateSkipVoteStatus();
     }
+
 
     [RelayCommand]
     public async Task VoteToSkipAsync()
@@ -503,8 +681,10 @@ public sealed partial class MainWindowViewModel : ObservableObject
             CurrentTrackTitle = "No song playing";
             CurrentTrackArtist = string.Empty;
             CurrentTrackThumbnailUrl = null;
+            _systrayService?.UpdateTooltip("burroQueue – Keine Wiedergabe");
             await _audioPlayerBackend.StopAsync().ConfigureAwait(false);
         }
+
 
         await _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "Skip").ConfigureAwait(false);
     }

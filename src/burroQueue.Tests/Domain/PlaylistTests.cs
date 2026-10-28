@@ -140,6 +140,117 @@ public sealed class PlaylistTests
         act.Should().Throw<ArgumentNullException>();
     }
 
+    [Fact]
+    public void MoveUp_WhenFirstItem_ShouldReturnFalse()
+    {
+        Playlist playlist = new();
+        Track current = CreateSampleTrack("00000000000", "Current");
+        Track t1 = CreateSampleTrack("11111111111", "Song 1");
+        Track t2 = CreateSampleTrack("22222222222", "Song 2");
+
+        playlist.Enqueue(current);
+        playlist.Enqueue(t1);
+        playlist.Enqueue(t2);
+
+        bool moved = playlist.MoveUp(t1.Id);
+
+        moved.Should().BeFalse();
+        playlist.QueuedTracks[0].Should().BeSameAs(t1);
+        playlist.QueuedTracks[1].Should().BeSameAs(t2);
+    }
+
+    [Fact]
+    public void MoveUp_WhenItemInMiddle_ShouldSwapWithPrevious()
+    {
+        Playlist playlist = new();
+        Track current = CreateSampleTrack("00000000000", "Current");
+        Track t1 = CreateSampleTrack("11111111111", "Song 1");
+        Track t2 = CreateSampleTrack("22222222222", "Song 2");
+        Track t3 = CreateSampleTrack("33333333333", "Song 3");
+
+        playlist.Enqueue(current);
+        playlist.Enqueue(t1);
+        playlist.Enqueue(t2);
+        playlist.Enqueue(t3);
+
+        bool moved = playlist.MoveUp(t2.Id);
+
+        moved.Should().BeTrue();
+        playlist.QueuedTracks[0].Should().BeSameAs(t2);
+        playlist.QueuedTracks[1].Should().BeSameAs(t1);
+        playlist.QueuedTracks[2].Should().BeSameAs(t3);
+    }
+
+    [Fact]
+    public void MoveUp_WhenTrackNotFound_ShouldReturnFalse()
+    {
+        Playlist playlist = new();
+        Track current = CreateSampleTrack("00000000000", "Current");
+        Track t1 = CreateSampleTrack("11111111111", "Song 1");
+        playlist.Enqueue(current);
+        playlist.Enqueue(t1);
+
+        bool moved = playlist.MoveUp(TrackId.New());
+
+        moved.Should().BeFalse();
+    }
+
+    [Fact]
+    public void MoveDown_WhenLastItem_ShouldReturnFalse()
+    {
+        Playlist playlist = new();
+        Track current = CreateSampleTrack("00000000000", "Current");
+        Track t1 = CreateSampleTrack("11111111111", "Song 1");
+        Track t2 = CreateSampleTrack("22222222222", "Song 2");
+
+        playlist.Enqueue(current);
+        playlist.Enqueue(t1);
+        playlist.Enqueue(t2);
+
+        bool moved = playlist.MoveDown(t2.Id);
+
+        moved.Should().BeFalse();
+        playlist.QueuedTracks[0].Should().BeSameAs(t1);
+        playlist.QueuedTracks[1].Should().BeSameAs(t2);
+    }
+
+    [Fact]
+    public void MoveDown_WhenItemInMiddle_ShouldSwapWithNext()
+    {
+        Playlist playlist = new();
+        Track current = CreateSampleTrack("00000000000", "Current");
+        Track t1 = CreateSampleTrack("11111111111", "Song 1");
+        Track t2 = CreateSampleTrack("22222222222", "Song 2");
+        Track t3 = CreateSampleTrack("33333333333", "Song 3");
+
+        playlist.Enqueue(current);
+        playlist.Enqueue(t1);
+        playlist.Enqueue(t2);
+        playlist.Enqueue(t3);
+
+        bool moved = playlist.MoveDown(t2.Id);
+
+        moved.Should().BeTrue();
+        playlist.QueuedTracks[0].Should().BeSameAs(t1);
+        playlist.QueuedTracks[1].Should().BeSameAs(t3);
+        playlist.QueuedTracks[2].Should().BeSameAs(t2);
+    }
+
+    [Fact]
+    public void MoveDown_WhenTrackNotFound_ShouldReturnFalse()
+    {
+        Playlist playlist = new();
+        Track current = CreateSampleTrack("00000000000", "Current");
+        Track t1 = CreateSampleTrack("11111111111", "Song 1");
+        playlist.Enqueue(current);
+        playlist.Enqueue(t1);
+
+        bool moved = playlist.MoveDown(TrackId.New());
+
+        moved.Should().BeFalse();
+    }
+
     private static Track CreateSampleTrack(string videoId, string title) =>
         new(videoId, new Uri($"https://www.youtube.com/watch?v={videoId}"), title, "Tester", DateTimeOffset.UtcNow);
 }
+

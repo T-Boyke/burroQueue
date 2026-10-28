@@ -21,22 +21,42 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
         window.Activate();
     }
 
-    public void Initialize(MainWindow mainWindow, Action onOpenSettings, Action onExitApp)
+    public void Initialize(
+        MainWindow mainWindow,
+        Action onOpenSettings,
+        Action onExitApp,
+        Action? onTogglePlayPause = null,
+        Action? onSkipNext = null,
+        Action? onToggleMute = null)
     {
         ArgumentNullException.ThrowIfNull(mainWindow);
 
         InitializeCore(
             onRestoreWindow: () => WindowRestorer(mainWindow),
             onOpenSettings,
-            onExitApp);
+            onExitApp,
+            onTogglePlayPause,
+            onSkipNext,
+            onToggleMute);
     }
 
-    internal void InitializeCore(Action onRestoreWindow, Action onOpenSettings, Action onExitApp, string? customIconPath = null)
+    internal void InitializeCore(
+        Action onRestoreWindow,
+        Action onOpenSettings,
+        Action onExitApp,
+        Action? onTogglePlayPause = null,
+        Action? onSkipNext = null,
+        Action? onToggleMute = null,
+        string? customIconPath = null)
     {
         ContextMenuStrip menu = new();
         menu.Items.Add("burroQueue anzeigen", null, (_, _) => onRestoreWindow?.Invoke());
-        menu.Items.Add("Einstellungen...", null, (_, _) => onOpenSettings?.Invoke());
         menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("Wiedergabe / Pause", null, (_, _) => onTogglePlayPause?.Invoke());
+        menu.Items.Add("Nächster Titel", null, (_, _) => onSkipNext?.Invoke());
+        menu.Items.Add("Stummschalten", null, (_, _) => onToggleMute?.Invoke());
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("Einstellungen...", null, (_, _) => onOpenSettings?.Invoke());
         menu.Items.Add("Beenden", null, (_, _) => onExitApp?.Invoke());
 
         Icon iconToUse = SystemIcons.Application;
@@ -77,10 +97,35 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
 
     internal bool IsIconVisible => _notifyIcon?.Visible ?? false;
 
+    internal string NotifyIconText => _notifyIcon?.Text ?? string.Empty;
+
+    public void UpdateTooltip(string tooltipText)
+    {
+        if (_notifyIcon is null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(tooltipText))
+        {
+            _notifyIcon.Text = "burroQueue – Office Jukebox";
+            return;
+        }
+
+        string text = tooltipText.Trim();
+        if (text.Length > 63)
+        {
+            text = text[..60] + "...";
+        }
+
+        _notifyIcon.Text = text;
+    }
+
     public void ShowNotification(string title, string message)
     {
         _notifyIcon?.ShowBalloonTip(3000, title, message, ToolTipIcon.Info);
     }
+
 
     public void Dispose()
     {

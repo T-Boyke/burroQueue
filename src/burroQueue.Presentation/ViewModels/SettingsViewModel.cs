@@ -1,7 +1,10 @@
 using burroQueue.Domain.Model;
 using burroQueue.Infrastructure.Audio;
 using burroQueue.Infrastructure.Configuration;
+using burroQueue.Infrastructure.Network;
+using burroQueue.Infrastructure.Playback;
 using burroQueue.Infrastructure.Telephony;
+using burroQueue.Infrastructure.Web;
 using burroQueue.Infrastructure.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -36,6 +39,15 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private string _statusMessage = string.Empty;
 
+    [ObservableProperty]
+    private string _audioEngineStatus = "Invidious API Fallback";
+
+    [ObservableProperty]
+    private string _webDropEndpointInfo = string.Empty;
+
+    [ObservableProperty]
+    private string _lanMulticastInfo = "UDP Multicast 239.255.42.99:41234";
+
     public IReadOnlyList<ITelephonyProvider> AvailableTelephonyProviders => _telephonyManager.AvailableProviders;
 
     public IReadOnlyList<AudioDeviceOption> AvailableAudioDevices { get; }
@@ -44,7 +56,10 @@ public sealed partial class SettingsViewModel : ObservableObject
         IAppSettingsService settingsService,
         ITelephonyManager telephonyManager,
         IWindowsAutostartService autostartService,
-        IAudioDeviceEnumerator audioDeviceEnumerator)
+        IAudioDeviceEnumerator audioDeviceEnumerator,
+        IStreamUriResolver? streamResolver = null,
+        IEmbeddedWebDropServer? webDropServer = null,
+        ILocalNetworkInfoService? networkInfo = null)
     {
         _settingsService = settingsService;
         _telephonyManager = telephonyManager;
@@ -60,6 +75,18 @@ public sealed partial class SettingsViewModel : ObservableObject
         _isAutostartEnabled = _autostartService.IsAutostartEnabled;
 
         AvailableAudioDevices = _audioDeviceEnumerator.GetAvailableRenderDevices();
+
+        if (streamResolver is not null)
+        {
+            _audioEngineStatus = streamResolver.IsYtDlpAvailable
+                ? "yt-dlp (Lokal/WinGet/PATH) – Volle Stream-Qualität"
+                : "Invidious API Fallback – Cloud-Audio";
+        }
+
+        if (networkInfo is not null && webDropServer is not null)
+        {
+            _webDropEndpointInfo = networkInfo.GetWebDropUrl(webDropServer.Port);
+        }
     }
 
     [RelayCommand]

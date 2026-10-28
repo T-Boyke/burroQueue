@@ -7,6 +7,7 @@ using burroQueue.Infrastructure.Playback;
 using burroQueue.Infrastructure.Telephony;
 using burroQueue.Infrastructure.Web;
 using burroQueue.Infrastructure.YouTube;
+using burroQueue.Presentation.Services;
 using burroQueue.Presentation.ViewModels;
 using FluentAssertions;
 using NSubstitute;
@@ -852,7 +853,246 @@ public sealed class MainWindowViewModelPlaybackTests
 
         vm.SkipVoteStatus.Should().Be("1 / 3 Votes");
     }
+
+    [Fact]
+
+    public void MoveTrackUp_WhenValidMiddleItem_ShouldMoveUpAndSyncQueuedItems()
+    {
+        Track current = new("curr", new Uri("https://youtube.com/watch?v=curr"), "Curr", "Dev", DateTimeOffset.UtcNow);
+        Track t1 = new("t1", new Uri("https://youtube.com/watch?v=t1"), "Song 1", "Dev", DateTimeOffset.UtcNow);
+        Track t2 = new("t2", new Uri("https://youtube.com/watch?v=t2"), "Song 2", "Dev", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(current);
+        _group.Playlist.Enqueue(t1);
+        _group.Playlist.Enqueue(t2);
+
+        MainWindowViewModel vm = CreateViewModel();
+        vm.SyncQueuedItems();
+        vm.QueuedItems[0].Id.Should().Be(t1.Id);
+        vm.QueuedItems[1].Id.Should().Be(t2.Id);
+
+        vm.MoveTrackUpCommand.Execute(t2);
+
+        vm.QueuedItems[0].Id.Should().Be(t2.Id);
+        vm.QueuedItems[1].Id.Should().Be(t1.Id);
+        vm.StatusMessage.Should().Contain("verschoben");
+    }
+
+    [Fact]
+    public void MoveTrackUp_WhenTrackNullOrFirst_ShouldNotChangeOrder()
+    {
+        Track current = new("curr", new Uri("https://youtube.com/watch?v=curr"), "Curr", "Dev", DateTimeOffset.UtcNow);
+        Track t1 = new("t1", new Uri("https://youtube.com/watch?v=t1"), "Song 1", "Dev", DateTimeOffset.UtcNow);
+        Track t2 = new("t2", new Uri("https://youtube.com/watch?v=t2"), "Song 2", "Dev", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(current);
+        _group.Playlist.Enqueue(t1);
+        _group.Playlist.Enqueue(t2);
+
+        MainWindowViewModel vm = CreateViewModel();
+        vm.MoveTrackUpCommand.Execute(null);
+        vm.MoveTrackUpCommand.Execute(t1);
+
+        vm.QueuedItems[0].Id.Should().Be(t1.Id);
+        vm.QueuedItems[1].Id.Should().Be(t2.Id);
+    }
+
+    [Fact]
+    public void MoveTrackDown_WhenValidMiddleItem_ShouldMoveDownAndSyncQueuedItems()
+    {
+        Track current = new("curr", new Uri("https://youtube.com/watch?v=curr"), "Curr", "Dev", DateTimeOffset.UtcNow);
+        Track t1 = new("t1", new Uri("https://youtube.com/watch?v=t1"), "Song 1", "Dev", DateTimeOffset.UtcNow);
+        Track t2 = new("t2", new Uri("https://youtube.com/watch?v=t2"), "Song 2", "Dev", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(current);
+        _group.Playlist.Enqueue(t1);
+        _group.Playlist.Enqueue(t2);
+
+        MainWindowViewModel vm = CreateViewModel();
+        vm.SyncQueuedItems();
+
+        vm.MoveTrackDownCommand.Execute(t1);
+
+        vm.QueuedItems[0].Id.Should().Be(t2.Id);
+        vm.QueuedItems[1].Id.Should().Be(t1.Id);
+        vm.StatusMessage.Should().Contain("verschoben");
+    }
+
+    [Fact]
+    public void MoveTrackDown_WhenTrackNullOrLast_ShouldNotChangeOrder()
+    {
+        Track current = new("curr", new Uri("https://youtube.com/watch?v=curr"), "Curr", "Dev", DateTimeOffset.UtcNow);
+        Track t1 = new("t1", new Uri("https://youtube.com/watch?v=t1"), "Song 1", "Dev", DateTimeOffset.UtcNow);
+        Track t2 = new("t2", new Uri("https://youtube.com/watch?v=t2"), "Song 2", "Dev", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(current);
+        _group.Playlist.Enqueue(t1);
+        _group.Playlist.Enqueue(t2);
+
+        MainWindowViewModel vm = CreateViewModel();
+        vm.MoveTrackDownCommand.Execute(null);
+        vm.MoveTrackDownCommand.Execute(t2);
+
+        vm.QueuedItems[0].Id.Should().Be(t1.Id);
+        vm.QueuedItems[1].Id.Should().Be(t2.Id);
+    }
+
+    [Fact]
+    public void SubmitQuickAdd_WhenValidUrl_ShouldEnqueueAndClearQuickAddUrl()
+    {
+        _urlParser.TryExtractVideoId("https://youtube.com/watch?v=quick123", out Arg.Any<string>()!, out Arg.Any<Uri>()!)
+            .Returns(x =>
+            {
+                x[1] = "quick123";
+                x[2] = new Uri("https://youtube.com/watch?v=quick123");
+                return true;
+            });
+
+        MainWindowViewModel vm = CreateViewModel();
+        vm.QuickAddUrl = "  https://youtube.com/watch?v=quick123  ";
+
+        vm.SubmitQuickAddCommand.Execute(null);
+
+        vm.QuickAddUrl.Should().BeEmpty();
+        _group.Playlist.CurrentTrack.Should().NotBeNull();
+        _group.Playlist.CurrentTrack!.VideoId.Should().Be("quick123");
+    }
+
+    [Fact]
+    public void SubmitQuickAdd_WhenWhitespace_ShouldDoNothing()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.QuickAddUrl = "   ";
+
+        vm.SubmitQuickAddCommand.Execute(null);
+
+        _group.Playlist.Count.Should().Be(0);
+        _group.Playlist.CurrentTrack.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task MetadataLoaded_WithSystrayService_ShouldUpdateTooltipAndShowNotification()
+    {
+        ISystrayNotificationService systrayMock = Substitute.For<ISystrayNotificationService>();
+        MainWindowViewModel vm = new(
+            _group,
+            _urlParser,
+            _metadataFetcher,
+            _telephonyManager,
+            _lanGroupService,
+            _audioController,
+            _settingsService,
+            _webDropServer,
+            _networkInfoService,
+            _audioPlayerBackend,
+            _playlistStorage,
+            systrayService: systrayMock);
+
+        _urlParser.TryExtractVideoId("https://youtube.com/watch?v=sys123", out Arg.Any<string>()!, out Arg.Any<Uri>()!)
+            .Returns(x =>
+            {
+                x[1] = "sys123";
+                x[2] = new Uri("https://youtube.com/watch?v=sys123");
+                return true;
+            });
+
+        _metadataFetcher.FetchMetadataAsync("sys123")
+            .Returns(new TrackMetadata("Harder Better Faster", "Daft Punk", new Uri("https://img.youtube.com/vi/sys123/hqdefault.jpg")));
+
+
+        vm.EnqueueRawUrl("https://youtube.com/watch?v=sys123");
+        await vm.MetadataLoadTask;
+
+        systrayMock.Received(1).UpdateTooltip("burroQueue: Harder Better Faster");
+        systrayMock.Received(1).ShowNotification("burroQueue – Jetzt läuft", "Harder Better Faster (Daft Punk)");
+    }
+
+    [Fact]
+    public async Task SkipAsync_WhenQueueBecomesEmpty_ShouldUpdateSystrayTooltip()
+    {
+        ISystrayNotificationService systrayMock = Substitute.For<ISystrayNotificationService>();
+        MainWindowViewModel vm = new(
+            _group,
+            _urlParser,
+            _metadataFetcher,
+            _telephonyManager,
+            _lanGroupService,
+            _audioController,
+            _settingsService,
+            _webDropServer,
+            _networkInfoService,
+            _audioPlayerBackend,
+            _playlistStorage,
+            systrayService: systrayMock);
+
+        await vm.SkipAsync();
+
+        systrayMock.Received(1).UpdateTooltip("burroQueue – Keine Wiedergabe");
+    }
+
+    [Fact]
+    public void Constructor_ShouldRestoreMasterVolumeFromSettings()
+    {
+        _settingsService.CurrentSettings.Returns(new burroQueue.Infrastructure.Configuration.AppSettingsData
+        {
+            MasterVolume = 0.35
+        });
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        vm.MasterVolume.Should().Be(0.35);
+        _audioController.Received().SetTargetVolume(0.35, Arg.Any<bool>());
+    }
+
+    [Fact]
+    public void MasterVolume_WhenChanged_ShouldUpdateSettingsAndAutoSave()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+
+        vm.MasterVolume = 0.55;
+
+        _settingsService.CurrentSettings.MasterVolume.Should().Be(0.55);
+        _settingsService.Received().SaveAsync(Arg.Is<burroQueue.Infrastructure.Configuration.AppSettingsData>(d => Math.Abs(d.MasterVolume - 0.55) < 0.001));
+    }
+
+    [Fact]
+    public void ToggleQrCode_ShouldToggleVisibilityAndGenerateSvg()
+    {
+        burroQueue.Infrastructure.Web.IQrCodeSvgGenerator qrMock = Substitute.For<burroQueue.Infrastructure.Web.IQrCodeSvgGenerator>();
+        qrMock.GenerateSvg(Arg.Any<string>(), Arg.Any<int>()).Returns("<svg id='qr-test'></svg>");
+
+        MainWindowViewModel vm = new(
+            _group,
+            _urlParser,
+            _metadataFetcher,
+            _telephonyManager,
+            _lanGroupService,
+            _audioController,
+            _settingsService,
+            _webDropServer,
+            _networkInfoService,
+            _audioPlayerBackend,
+            _playlistStorage,
+            qrCodeGenerator: qrMock);
+
+        vm.IsQrCodeVisible.Should().BeFalse();
+
+        vm.ToggleQrCodeCommand.Execute(null);
+        vm.IsQrCodeVisible.Should().BeTrue();
+        vm.QrCodeSvg.Should().Be("<svg id='qr-test'></svg>");
+
+        vm.ToggleQrCodeCommand.Execute(null);
+        vm.IsQrCodeVisible.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CloseQrCode_ShouldSetIsQrCodeVisibleToFalse()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.IsQrCodeVisible = true;
+
+        vm.CloseQrCodeCommand.Execute(null);
+
+        vm.IsQrCodeVisible.Should().BeFalse();
+    }
 }
+
 
 
 

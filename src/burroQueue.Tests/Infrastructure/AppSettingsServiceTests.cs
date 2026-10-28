@@ -41,6 +41,7 @@ public sealed class AppSettingsServiceTests : IDisposable
         service.CurrentSettings.Should().NotBeNull();
         service.CurrentSettings.SelectedTelephonyProviderId.Should().Be("SwyxIt");
         service.CurrentSettings.ClientDisplayName.Should().NotBeNullOrWhiteSpace();
+        service.CurrentSettings.MasterVolume.Should().Be(0.8);
     }
 
     [Fact]
@@ -53,7 +54,8 @@ public sealed class AppSettingsServiceTests : IDisposable
             SelectedAudioDeviceId = "speaker-42",
             CollaborativePlaylistUrl = "https://youtube.com/playlist?list=XYZ&jct=123",
             AutoOpenCollaborativePlaylistOnJoin = false,
-            ClientDisplayName = "AliceInChains"
+            ClientDisplayName = "AliceInChains",
+            MasterVolume = 0.45
         };
 
         await service.SaveAsync(newSettings);
@@ -66,6 +68,7 @@ public sealed class AppSettingsServiceTests : IDisposable
         loader.CurrentSettings.CollaborativePlaylistUrl.Should().Be("https://youtube.com/playlist?list=XYZ&jct=123");
         loader.CurrentSettings.AutoOpenCollaborativePlaylistOnJoin.Should().BeFalse();
         loader.CurrentSettings.ClientDisplayName.Should().Be("AliceInChains");
+        loader.CurrentSettings.MasterVolume.Should().Be(0.45);
     }
 
     [Fact]

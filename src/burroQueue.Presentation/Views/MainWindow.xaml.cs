@@ -71,6 +71,22 @@ public partial class MainWindow : FluentWindow
     }
 
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal void OnQuickAddKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        HandleQuickAddKeyDown(_viewModel, e.Key, h => e.Handled = h);
+    }
+
+    internal static void HandleQuickAddKeyDown(MainWindowViewModel viewModel, System.Windows.Input.Key key, Action<bool> setHandled)
+    {
+        if (key == System.Windows.Input.Key.Enter)
+        {
+            viewModel.SubmitQuickAddCommand.Execute(null);
+            setHandled(true);
+        }
+    }
+
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal void OnLoaded(object sender, RoutedEventArgs e)
     {
         HandleHotkeyRegistration(_hotkeyService, this, _viewModel);

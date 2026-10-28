@@ -28,12 +28,19 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
 
     public event EventHandler? SkipVoteRequested;
 
-    public EmbeddedWebDropServer(int port = 8080, Domain.Model.BurroGroup? group = null)
+    private readonly IQrCodeSvgGenerator _qrCodeGenerator;
+
+    public EmbeddedWebDropServer(
+        int port = 8080,
+        Domain.Model.BurroGroup? group = null,
+        IQrCodeSvgGenerator? qrCodeGenerator = null)
     {
         _configuredPort = port;
         _actualPort = port;
         _group = group;
+        _qrCodeGenerator = qrCodeGenerator ?? new QrCodeSvgGenerator();
     }
+
 
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
@@ -138,6 +145,7 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
 
                 int contentLength = 0;
                 string? contentType = null;
+                string? hostHeader = null;
 
                 string? headerLine;
                 while (!string.IsNullOrEmpty(headerLine = await reader.ReadLineAsync(token).ConfigureAwait(false)))
@@ -156,6 +164,10 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
                         else if (headerName.Equals("Content-Type", StringComparison.OrdinalIgnoreCase))
                         {
                             contentType = headerValue;
+                        }
+                        else if (headerName.Equals("Host", StringComparison.OrdinalIgnoreCase))
+                        {
+                            hostHeader = headerValue;
                         }
                     }
                 }
@@ -205,6 +217,20 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
                     await stream.WriteAsync(headerBytes, token).ConfigureAwait(false);
                     await stream.FlushAsync(token).ConfigureAwait(false);
                 }
+                else if (method == "GET" && (path == "/qr.svg" || path.StartsWith("/qr.svg?", StringComparison.Ordinal)))
+                {
+                    string host = !string.IsNullOrWhiteSpace(hostHeader) ? hostHeader : $"localhost:{_actualPort}";
+                    string targetUrl = host.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || host.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+                        ? host
+                        : $"http://{host}/";
+                    string svg = _qrCodeGenerator.GenerateSvg(targetUrl, moduleSize: 4);
+                    byte[] svgBytes = Encoding.UTF8.GetBytes(svg);
+                    byte[] headerBytes = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: image/svg+xml; charset=utf-8\r\nContent-Length: {svgBytes.Length}\r\nConnection: close\r\n\r\n");
+
+                    await stream.WriteAsync(headerBytes, token).ConfigureAwait(false);
+                    await stream.WriteAsync(svgBytes, token).ConfigureAwait(false);
+                    await stream.FlushAsync(token).ConfigureAwait(false);
+                }
                 else if (method == "GET" && (path == "/api/status" || path.StartsWith("/api/status?", StringComparison.Ordinal)))
                 {
                     string statusJson = GenerateStatusJson();
@@ -225,6 +251,7 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
                     await stream.WriteAsync(pageBytes, token).ConfigureAwait(false);
                     await stream.FlushAsync(token).ConfigureAwait(false);
                 }
+
             }
             catch (Exception ex) when (ex is IOException or SocketException or OperationCanceledException)
             {
@@ -582,7 +609,16 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
         sb.Append(CultureInfo.InvariantCulture, $"<div class='queue-empty' id='queue-empty' style='display:{queueEmptyDisplay};'>Warteschlange ist leer</div>");
         sb.Append("</div></div>");
 
+        sb.Append(@"<div style='display:flex;align-items:center;gap:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:14px;'>
+            <img src='/qr.svg' width='48' height='48' style='border-radius:4px;background:#ffffff;padding:2px;' alt='QR-Code' />
+            <div>
+                <div style='font-size:12px;font-weight:600;color:var(--text-main);'>Smartphone Direkt-Drop</div>
+                <div style='font-size:11px;color:var(--text-secondary);'>QR-Code mit dem Handy scannen, um Songs mobil einzuwerfen.</div>
+            </div>
+        </div>");
+
         sb.Append(@"<form method='POST' action='/drop'>
+
             <div class='form-group'>
                 <label for='submitter' class='form-label'>Dein Name (optional)</label>
                 <input type='text' id='submitter' name='submitter' placeholder='z. B. Alex' class='input-text' maxlength='40' />

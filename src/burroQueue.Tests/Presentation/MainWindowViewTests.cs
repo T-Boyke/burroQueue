@@ -257,5 +257,42 @@ public sealed class MainWindowViewTests
             setHandled: h => handled = h);
         handled.Should().BeFalse();
     }
+
+    [Fact]
+    public void HandleQuickAddKeyDown_WhenKeyIsEnter_ShouldInvokeSubmitAndSetHandled()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        _urlParser.TryExtractVideoId("https://youtube.com/watch?v=enter123", out Arg.Any<string>()!, out Arg.Any<Uri>()!)
+            .Returns(x =>
+            {
+                x[1] = "enter123";
+                x[2] = new Uri("https://youtube.com/watch?v=enter123");
+                return true;
+            });
+
+        vm.QuickAddUrl = "https://youtube.com/watch?v=enter123";
+        bool handled = false;
+
+        MainWindow.HandleQuickAddKeyDown(vm, System.Windows.Input.Key.Enter, h => handled = h);
+
+        handled.Should().BeTrue();
+        vm.QuickAddUrl.Should().BeEmpty();
+        _group.Playlist.CurrentTrack.Should().NotBeNull();
+        _group.Playlist.CurrentTrack!.VideoId.Should().Be("enter123");
+    }
+
+    [Fact]
+    public void HandleQuickAddKeyDown_WhenKeyIsNotEnter_ShouldNotSetHandled()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.QuickAddUrl = "https://youtube.com";
+        bool handled = false;
+
+        MainWindow.HandleQuickAddKeyDown(vm, System.Windows.Input.Key.Space, h => handled = h);
+
+        handled.Should().BeFalse();
+        vm.QuickAddUrl.Should().Be("https://youtube.com");
+    }
 }
+
 

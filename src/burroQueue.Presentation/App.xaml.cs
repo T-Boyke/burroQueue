@@ -104,6 +104,15 @@ public partial class App : System.Windows.Application
         Action shutdownAction)
     {
         LogStartup("InitializeApplicationAsync started");
+        ISingleInstanceManager? singleInstance = serviceProvider.GetService<ISingleInstanceManager>();
+        if (singleInstance is not null && !singleInstance.TryAcquireSingleInstance())
+        {
+            LogStartup("Another instance is already running. Signaling existing instance and exiting.");
+            singleInstance.SignalExistingInstance();
+            shutdownAction();
+            return;
+        }
+
         IAppSettingsService settings = serviceProvider.GetRequiredService<IAppSettingsService>();
         await settings.LoadAsync().ConfigureAwait(true);
         LogStartup("Settings loaded");
@@ -125,8 +134,8 @@ public partial class App : System.Windows.Application
         await webDrop.StartAsync().ConfigureAwait(true);
         LogStartup($"WebDrop server started on port {webDrop.Port}");
 
-        LogStartup("Resolving MainWindow...");
         MainWindow mainWindow = serviceProvider.GetRequiredService<MainWindow>();
+        MainWindowViewModel? viewModel = mainWindow.DataContext as MainWindowViewModel;
         LogStartup("MainWindow resolved successfully");
 
         ISystrayNotificationService systrayService = serviceProvider.GetRequiredService<ISystrayNotificationService>();
@@ -137,11 +146,50 @@ public partial class App : System.Windows.Application
                 SettingsWindow settingsWindow = serviceProvider.GetRequiredService<SettingsWindow>();
                 showSettings(settingsWindow, mainWindow);
             },
-            onExitApp: shutdownAction);
+            onExitApp: shutdownAction,
+            onTogglePlayPause: () =>
+            {
+                if (viewModel is null)
+                {
+                    return;
+                }
+
+                if (viewModel.PlaybackState == Domain.Model.PlaybackState.Playing)
+
+                {
+                    _ = viewModel.PauseAsync();
+                }
+                else
+                {
+                    _ = viewModel.PlayAsync();
+                }
+            },
+            onSkipNext: () =>
+            {
+                if (viewModel is not null)
+                {
+                    _ = viewModel.SkipAsync();
+                }
+            },
+            onToggleMute: () => viewModel?.ToggleMute());
         LogStartup("Systray initialized");
+
+
 
         LogStartup("Invoking showWindow callback...");
         showWindow(mainWindow);
+        singleInstance?.StartListeningForSecondaryInstance(() =>
+        {
+            LogStartup("Secondary instance launch detected via IPC signal. Restoring MainWindow.");
+            if (Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
+            {
+                dispatcher.Invoke(() => showWindow(mainWindow));
+            }
+            else
+            {
+                showWindow(mainWindow);
+            }
+        });
         LogStartup("InitializeApplicationAsync completed");
     }
 
@@ -185,8 +233,10 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IAudioPlayerBackend, AudioPlayerBackend>();
         services.AddSingleton<ILanGroupService, LanGroupService>();
         services.AddSingleton<ILocalNetworkInfoService, LocalNetworkInfoService>();
+        services.AddSingleton<IQrCodeSvgGenerator, QrCodeSvgGenerator>();
         services.AddSingleton<IEmbeddedWebDropServer, EmbeddedWebDropServer>();
         services.AddSingleton<IWindowsAutostartService, WindowsAutostartService>();
+
 
         // Modulare Telephony Providers
         services.AddSingleton<ITelephonyProvider, SwyxItTelephonyProvider>();
@@ -195,6 +245,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<ITelephonyManager, TelephonyManager>();
 
         // Presentation Services & Views
+        services.AddSingleton<ISingleInstanceManager, SingleInstanceManager>();
         services.AddSingleton<ISystrayNotificationService, SystrayNotificationService>();
         services.AddSingleton<IGlobalHotkeyService, GlobalHotkeyService>();
         services.AddTransient<MainWindowViewModel>();

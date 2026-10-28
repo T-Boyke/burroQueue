@@ -396,6 +396,25 @@ public sealed class WebDropServerIntegrationTests : IAsyncLifetime, IDisposable
         string? statusLine = await reader.ReadLineAsync();
         statusLine.Should().Contain("303");
     }
+
+    [Fact]
+    public async Task GetQrCode_ShouldReturnSvgWithCorrectContentType()
+    {
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
+        HttpResponseMessage response = await _httpClient!.GetAsync($"http://localhost:{_port}/qr.svg");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("image/svg+xml");
+        string svg = await response.Content.ReadAsStringAsync();
+        svg.Should().StartWith("<svg");
+        svg.Should().EndWith("</svg>");
+        svg.Should().Contain("<rect");
+    }
 }
+
 
 

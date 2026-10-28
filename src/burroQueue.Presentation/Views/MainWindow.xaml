@@ -278,34 +278,59 @@
         <RowDefinition Height="*" />
       </Grid.RowDefinitions>
 
-      <!-- Primary Drop Zone -->
+      <!-- Primary Drop Zone & Quick Add Bar -->
       <Border
         Grid.Row="0"
         Margin="0,0,0,8"
-        Padding="12"
+        Padding="12,10"
         CornerRadius="8"
         Background="{DynamicResource SubtleFillColorSecondaryBrush}"
         BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
         BorderThickness="1">
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-          <ui:SymbolIcon
-            Symbol="ArrowDownload24"
-            FontSize="24"
-            Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
-          <TextBlock
-            Margin="0,4,0,0"
-            HorizontalAlignment="Center"
-            FontSize="13"
-            FontWeight="SemiBold"
-            Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-            Text="YouTube-Link hier hineinziehen oder per Ctrl+V einfügen" />
-          <TextBlock
-            Margin="0,2,0,0"
-            HorizontalAlignment="Center"
-            FontSize="11"
-            Opacity="0.65"
-            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-            Text="{Binding StatusMessage}" />
+        <StackPanel>
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+            <ui:SymbolIcon
+              Symbol="ArrowDownload24"
+              FontSize="22"
+              Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+            <TextBlock
+              Margin="0,3,0,0"
+              HorizontalAlignment="Center"
+              FontSize="12"
+              FontWeight="SemiBold"
+              Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+              Text="YouTube-Link hier hineinziehen oder per Ctrl+V einfügen" />
+            <TextBlock
+              Margin="0,1,0,0"
+              HorizontalAlignment="Center"
+              FontSize="11"
+              Opacity="0.65"
+              Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+              Text="{Binding StatusMessage}" />
+          </StackPanel>
+
+          <!-- Quick-Add Input Bar with Enter support -->
+          <Grid Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ui:TextBox
+              Grid.Column="0"
+              Margin="0,0,6,0"
+              Padding="8,5"
+              PlaceholderText="YouTube-Link oder Video-ID hier eintippen..."
+              Text="{Binding QuickAddUrl, UpdateSourceTrigger=PropertyChanged}"
+              KeyDown="OnQuickAddKeyDown" />
+            <ui:Button
+              Grid.Column="1"
+              Appearance="Primary"
+              Padding="10,5"
+              ToolTip="Titel zur Warteschlange hinzufügen"
+              Command="{Binding SubmitQuickAddCommand}">
+              <ui:SymbolIcon Symbol="Add24" FontSize="14" />
+            </ui:Button>
+          </Grid>
         </StackPanel>
       </Border>
 
@@ -386,18 +411,38 @@
                       Text="{Binding SubmittedBy, StringFormat='von {0}'}" />
                   </StackPanel>
 
-                  <ui:Button
-                    Grid.Column="1"
-                    Appearance="Transparent"
-                    Padding="4"
-                    ToolTip="Aus Warteschlange entfernen"
-                    Command="{Binding DataContext.RemoveTrackCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
-                    CommandParameter="{Binding}">
-                    <ui:SymbolIcon Symbol="Delete24" FontSize="12" />
-                  </ui:Button>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <ui:Button
+                      Appearance="Transparent"
+                      Padding="3"
+                      Margin="0,0,2,0"
+                      ToolTip="Nach oben verschieben"
+                      Command="{Binding DataContext.MoveTrackUpCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                      CommandParameter="{Binding}">
+                      <ui:SymbolIcon Symbol="ArrowUp24" FontSize="11" />
+                    </ui:Button>
+                    <ui:Button
+                      Appearance="Transparent"
+                      Padding="3"
+                      Margin="0,0,4,0"
+                      ToolTip="Nach unten verschieben"
+                      Command="{Binding DataContext.MoveTrackDownCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                      CommandParameter="{Binding}">
+                      <ui:SymbolIcon Symbol="ArrowDown24" FontSize="11" />
+                    </ui:Button>
+                    <ui:Button
+                      Appearance="Transparent"
+                      Padding="4"
+                      ToolTip="Aus Warteschlange entfernen"
+                      Command="{Binding DataContext.RemoveTrackCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                      CommandParameter="{Binding}">
+                      <ui:SymbolIcon Symbol="Delete24" FontSize="12" />
+                    </ui:Button>
+                  </StackPanel>
                 </Grid>
               </DataTemplate>
             </ListView.ItemTemplate>
+
           </ListView>
         </Grid>
       </Border>
@@ -444,12 +489,77 @@
           <ui:Button
             Appearance="Secondary"
             Padding="8,3"
+            Margin="0,0,4,0"
+            ToolTip="QR-Code zum Scannen auf dem Smartphone anzeigen"
+            Icon="{ui:SymbolIcon QrCode24}"
+            Content="QR-Code"
+            Command="{Binding ToggleQrCodeCommand}" />
+          <ui:Button
+            Appearance="Secondary"
+            Padding="8,3"
             ToolTip="Web-Drop direkt im Standardbrowser öffnen und testen"
             Icon="{ui:SymbolIcon Open24}"
             Content="Im Browser testen"
             Command="{Binding OpenWebDropInBrowserCommand}" />
         </StackPanel>
       </Grid>
+    </Border>
+
+    <!-- In-App QR-Code Flyout Overlay -->
+    <Border
+      Grid.Row="1"
+      Grid.RowSpan="7"
+      Margin="16"
+      Padding="16"
+      CornerRadius="10"
+      Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+      BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+      BorderThickness="1"
+      HorizontalAlignment="Center"
+      VerticalAlignment="Center"
+      Visibility="{Binding IsQrCodeVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+      <StackPanel HorizontalAlignment="Center">
+        <Grid Margin="0,0,0,10">
+          <TextBlock
+            Text="Web-Drop QR-Code"
+            FontWeight="SemiBold"
+            FontSize="14"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Center" />
+          <ui:Button
+            Appearance="Transparent"
+            Padding="4"
+            HorizontalAlignment="Right"
+            Icon="{ui:SymbolIcon Dismiss24}"
+            Command="{Binding CloseQrCodeCommand}" />
+        </Grid>
+
+        <Border
+          Background="White"
+          Padding="8"
+          CornerRadius="6"
+          HorizontalAlignment="Center">
+          <Image
+            Source="{Binding QrCodeImage}"
+            Width="200"
+            Height="200"
+            RenderOptions.BitmapScalingMode="NearestNeighbor" />
+        </Border>
+
+        <TextBlock
+          Margin="0,10,0,4"
+          Text="{Binding WebDropUrl}"
+          FontWeight="Medium"
+          FontSize="12"
+          HorizontalAlignment="Center"
+          Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+
+        <TextBlock
+          Text="Mit der Smartphone-Kamera scannen, um Songs einzuwerfen"
+          FontSize="11"
+          Opacity="0.7"
+          HorizontalAlignment="Center" />
+      </StackPanel>
     </Border>
 
     <!-- VoIP Call Ducking Notification Banner (Active Call) -->

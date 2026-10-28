@@ -130,3 +130,41 @@ Dieses Dokument hält alle zentralen architektonischen Entscheidungen für `burr
   3. `burroQueue.Presentation` implementiert `WpfMediaStreamPlayer` über `System.Windows.Media.MediaPlayer` (PresentationCore, 0 zusätzliche Fremdpakete).
   4. `YouTubeAudioStreamResolver` löst Audio-Streams nativ über `yt-dlp` (mit Invidious-API-Fallback) zu direkten Audio-Streams auf.
 - **Konsequenzen:** Echte, ressourcenschonende Musikwiedergabe mit automatischer Weiterschaltung und 100% Testbarkeit ohne Native-Audio-Hänger in CI-Pipelines.
+
+---
+
+## ADR-014: Systray Quick-Controls, dynamischer Tooltip und Songwechsel-Benachrichtigungen
+
+- **Status:** Angenommen
+- **Kontext:** Als residente Taskleisten-/Systray-App soll burroQueue im Hintergrund bedienbar sein, ohne dass das Hauptfenster geöffnet werden muss. Anwender wollen sehen, welcher Titel läuft, und Medien direkt über das Kontextmenü des Tray-Icons steuern.
+- **Entscheidung:**
+  1. `ISystrayNotificationService` bietet Callbacks für `Wiedergabe / Pause`, `Nächster Titel (Skip)` und `Stummschalten (Mute)` direkt im Systray-Kontextmenü.
+  2. Dynamische Aktualisierung von `NotifyIcon.Text` mit sicherem 63-Zeichen-Truncating für Windows Shell Limits (`burroQueue: [Titel]`).
+  3. Automatische Windows-Balloon/Toast-Benachrichtigungen via `ShowNotification` bei jedem Songwechsel.
+- **Konsequenzen:** Erstklassige native Windows 11 Desktop-Integration mit vollständiger Blindbedienung aus dem Infobereich.
+
+---
+
+## ADR-015: Offline QR-Code Generierung für mobilen WebDrop und Queue Reordering
+
+- **Status:** Angenommen
+- **Kontext:** Das Abtippen lokaler IPv4-Adressen (`http://192.168.x.x:8080`) auf Smartphones ist fehleranfällig. Zudem soll die Warteschlange im Hauptfenster bequem sortiert werden können.
+- **Entscheidung:**
+  1. Eigenständige, 100% offline funktionierende QR-Code SVG-Generierung (`IQrCodeSvgGenerator`, `QrCodeSvgGenerator`) nach ISO/IEC 18004 ohne externe Fremdpakete.
+  2. Bereitstellung eines schlanken `/qr.svg` Endpunkts und direkte Einbettung in den WebDrop-Header.
+  3. Erweiterung von `Playlist` um `MoveUp(TrackId)` und `MoveDown(TrackId)` mit entsprechenden Fluent-Pfeil-Buttons im WPF UI und Quick-Add Linkleiste mit Enter-Unterstützung.
+- **Konsequenzen:** Null zusätzliche NuGet-Abhängigkeiten, reibungsloser mobiler Zugriff für Kollegen im Büro und vollständige Kontrolle über die Queue-Reihenfolge.
+
+---
+
+## ADR-016: Single-Instance Mutex, MasterVolume-Persistenz, In-App QR-Code und yt-dlp App-Verzeichnis-Erkennung
+
+- **Status:** Angenommen
+- **Kontext:** Für die finale Produktionsreife 1.0 müssen versehentliche Mehrfachstarts (Doppelklick im Systray-Betrieb) verhindert, persönliche Lautstärkeeinstellungen über Restarts hinweg gemerkt, mobile Kollegen direkt vom Desktop-Bildschirm per QR-Code angebunden und portable yt-dlp Installationen im Programmverzeichnis ohne PATH-Konfiguration erkannt werden.
+- **Entscheidung:**
+  1. `ISingleInstanceManager` & `SingleInstanceManager` mit benanntem Win32 Mutex (`burroQueue_SingleInstance_Mutex`) und `EventWaitHandle` (`burroQueue_Show_Event`). Eine Zweitinstanz signalisiert die Erstinstanz zur Fenster-Wiederherstellung und beendet sich sofort sauber.
+  2. Erweiterung von `AppSettingsData` um `MasterVolume` (0.0 - 1.0) mit automatischem Speichern im `MainWindowViewModel` und Wiederherstellung beim Start.
+  3. Direktes In-App QR-Code Flyout in `MainWindow.xaml` mit nativer Vektor-/Bitmap-Darstellung über `IQrCodeSvgGenerator.GenerateMatrix` ohne externe NuGet-Pakete.
+  4. Ergänzung von `AppContext.BaseDirectory` als priorisierte Suchstelle in `YouTubeAudioStreamResolver.FindYtDlp()`.
+  5. Transparente System- & Audio-Diagnostik im Einstellungsfenster (`SettingsWindow.xaml`) für Audio-Engine (`yt-dlp` vs. API-Fallback), WebDrop-Endpunkt und P2P-Multicast.
+- **Konsequenzen:** Höchste Betriebsstabilität, kein Anwender-Frust durch Lautstärke-Resets oder Port-Kollisionen und erstklassige Benutzerfreundlichkeit.

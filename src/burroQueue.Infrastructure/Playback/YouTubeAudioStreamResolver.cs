@@ -9,6 +9,8 @@ public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
     private readonly HttpClient _httpClient;
     private readonly string? _ytDlpPath;
 
+    public bool IsYtDlpAvailable => !string.IsNullOrEmpty(_ytDlpPath);
+
     internal static Func<string, string, CancellationToken, Task<string?>> ProcessRunner { get; set; } = DefaultRunProcessAsync;
 
     public YouTubeAudioStreamResolver(HttpClient? httpClient = null, string? ytDlpPath = null)
@@ -20,6 +22,12 @@ public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     private static string? FindYtDlp()
     {
+        string appLocalYtDlp = Path.Combine(AppContext.BaseDirectory, "yt-dlp.exe");
+        if (File.Exists(appLocalYtDlp))
+        {
+            return appLocalYtDlp;
+        }
+
         string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         string wingetPath = Path.Combine(localAppData, "Microsoft", "WinGet", "Links", "yt-dlp.exe");
         if (File.Exists(wingetPath))

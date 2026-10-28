@@ -95,5 +95,19 @@ public sealed class YouTubeAudioStreamResolverTests
 
         uri.Should().BeNull();
     }
+
+    [Fact]
+    public void IsYtDlpAvailable_WhenYtDlpPathProvided_ShouldBeTrue()
+    {
+        YouTubeAudioStreamResolver resolver = new(ytDlpPath: "C:\\dummy\\yt-dlp.exe");
+        resolver.IsYtDlpAvailable.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsYtDlpAvailable_WhenYtDlpPathEmpty_ShouldBeFalse()
+    {
+        YouTubeAudioStreamResolver resolver = new(ytDlpPath: string.Empty);
+        resolver.IsYtDlpAvailable.Should().BeFalse();
+    }
 }
 

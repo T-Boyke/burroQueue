@@ -63,6 +63,29 @@ public sealed class Playlist
         return true;
     }
 
+    public bool MoveUp(TrackId trackId)
+    {
+        int index = _items.FindIndex(t => t.Id == trackId);
+        if (index <= 0)
+        {
+            return false;
+        }
+
+        return Move(index, index - 1);
+    }
+
+    public bool MoveDown(TrackId trackId)
+    {
+        int index = _items.FindIndex(t => t.Id == trackId);
+        if (index < 0 || index >= _items.Count - 1)
+        {
+            return false;
+        }
+
+        return Move(index, index + 1);
+    }
+
+
     public void Clear()
     {
         _items.Clear();

@@ -145,4 +145,30 @@ public sealed class SettingsViewModelTests
         await _settingsService.Received(1).SaveAsync(Arg.Is<AppSettingsData>(d =>
             d.ClientDisplayName == Environment.UserName));
     }
+
+    [Fact]
+    public void Constructor_WhenDiagnosticsProvided_ShouldPopulateDiagnosticsProperties()
+    {
+        burroQueue.Infrastructure.Playback.IStreamUriResolver resolver = Substitute.For<burroQueue.Infrastructure.Playback.IStreamUriResolver>();
+        resolver.IsYtDlpAvailable.Returns(true);
+
+        burroQueue.Infrastructure.Web.IEmbeddedWebDropServer webDrop = Substitute.For<burroQueue.Infrastructure.Web.IEmbeddedWebDropServer>();
+        webDrop.Port.Returns(8080);
+
+        burroQueue.Infrastructure.Network.ILocalNetworkInfoService netInfo = Substitute.For<burroQueue.Infrastructure.Network.ILocalNetworkInfoService>();
+        netInfo.GetWebDropUrl(8080).Returns("http://192.168.2.109:8080");
+
+        SettingsViewModel vm = new(
+            _settingsService,
+            _telephonyManager,
+            _autostartService,
+            _audioDeviceEnumerator,
+            resolver,
+            webDrop,
+            netInfo);
+
+        vm.AudioEngineStatus.Should().Contain("yt-dlp");
+        vm.WebDropEndpointInfo.Should().Be("http://192.168.2.109:8080");
+        vm.LanMulticastInfo.Should().Contain("239.255.42.99");
+    }
 }

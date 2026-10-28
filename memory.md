@@ -6,21 +6,21 @@ Letzte Aktualisierung: 2026-10-28 | Ziel: Stabile Version 1.0 (Produktionsreife)
 
 ## 1. Projekt-Status & Kernmetriken
 
-- **Version:** `1.0.0-rc`
+- **Version:** `1.0.0` (Feature Complete & Produktionsreif)
 - **Zielsystem:** Windows 11 (Mica, Fluent Design, Systray-Jukebox)
 - **Runtime:** .NET 10 (`net10.0` für Domain/Infrastructure/Tests, `net10.0-windows10.0.22621.0` für Presentation)
 - **Architektur:** Reine Domain-Driven Design Schichten (Domain = 0 externe Dependencies, Single Component Per File)
-- **Aktuelle Testanzahl:** 366 Tests (100% grün)
+- **Aktuelle Testanzahl:** 399 Tests (100% grün)
 - **Aktuelle Code-Coverage:**
-  - `burroQueue.Domain`: 100,00% Line Coverage (97,05% Branch)
-  - `burroQueue.Presentation`: 100,00% Line Coverage (88,20% Branch)
-  - `burroQueue.Infrastructure`: 98,8% Line Coverage (100% über alle handgeschriebenen Klassen)
-  - **Gesamtlösung:** 99,5% Line Coverage
-- **WebDrop:** Anti-AI-Slop Fluent Dark Design, `LinkDropRequest` mit Submitter-Name (`localStorage`), `/vote-skip` Endpunkt, 303 Redirects, `/api/status` mit 5s Polling.
-- **Wiedergabe & Features:** Echte Audio-Wiedergabe via `WpfMediaStreamPlayer` (`System.Windows.Media.MediaPlayer`), Direct Stream Extraction mit `yt-dlp` (Invidious-Fallback), automatische Weiterschaltung auf `MediaEnded`, `Ctrl+V` URL-Paste im Hauptfenster, sofortige Einstellungssynchronisation beim Schließen von `SettingsWindow`.
-- **Installer & Portable:** Inno Setup 6.x + Portable Single-File Release Build (`./publish/portable/burroQueue.exe`)
-- **Lifecycle & Systray:** `ShutdownMode.OnExplicitShutdown` verhindert versehentliches Schließen während asynchroner Initialisierung oder beim Minimieren in den Systray. `SystrayNotificationService` nutzt automatisches Fallback auf `Icon.ExtractAssociatedIcon(Environment.ProcessPath)` im Single-File-Modus.
-- **Architektur-Check:** `./scripts/verify-architecture.ps1` (126/126 Dateien validiert, 0 Violations)
+  - `burroQueue.Domain`: 100,00% Line Coverage
+  - `burroQueue.Presentation`: 100,00% Line Coverage
+  - `burroQueue.Infrastructure`: 99,3% Line Coverage
+  - **Gesamtlösung:** > 99,7% Line Coverage
+- **WebDrop & In-App QR-Code:** Anti-AI-Slop Fluent Dark Design, `LinkDropRequest` mit Submitter-Name (`localStorage`), `/vote-skip` Endpunkt, Offline-Vektor QR-Code (`/qr.svg` und In-App Fluent-Flyout), 303 Redirects, `/api/status` mit 5s Polling.
+- **Wiedergabe & Queue:** Echte Audio-Wiedergabe via `WpfMediaStreamPlayer` (`System.Windows.Media.MediaPlayer`), Direct Stream Extraction mit `yt-dlp` (priorisierte Suche in AppContext.BaseDirectory, WinGet, PATH) mit Invidious-Fallback, automatische Weiterschaltung auf `MediaEnded`, `Ctrl+V` URL-Paste, Quick-Add Eingabeleiste mit Enter-Taste, Queue Reordering (MoveUp/MoveDown Pfeil-Buttons), automatische Lautstärke-Persistenz (`MasterVolume`).
+- **Systray & Single-Instance:** Schnellsteuerung im Tray-Kontextmenü (`Wiedergabe/Pause`, `Nächster Titel`, `Stummschalten`), dynamischer 63-Zeichen Tooltip (`burroQueue: [Titel]`), automatische Windows-Balloon-Benachrichtigungen bei Songwechsel. `SingleInstanceManager` (Win32 Mutex & IPC Event) verhindert Doppelstarts und aktiviert bei erneutem Klick das bestehende Fenster im Vordergrund.
+- **Installer & Portable:** Inno Setup 6.x (`scripts/installer/burroQueue.iss`), automatisiertes One-Click Build-Skript `scripts/build-release.ps1` (erzeugt Portable Single-File EXE und ZIP).
+- **Architektur-Check:** `./scripts/verify-architecture.ps1` (132/132 Dateien validiert, 0 Violations)
 - **CI Formatting:** `dotnet format burroQueue.sln --no-restore --verify-no-changes` (0 Warnungen / 0 Fehler)
 
 ---
@@ -50,7 +50,7 @@ Letzte Aktualisierung: 2026-10-28 | Ziel: Stabile Version 1.0 (Produktionsreife)
 
 - **Views:** `MainWindow.xaml` (Mica, Fluent Design, Taskleisten-Docking), `SettingsWindow.xaml`.
 - **ViewModels:** `MainWindowViewModel` (CommunityToolkit.Mvvm, Queue-Binding, Hotkeys, Telephony Ducking, Loopback-Filtering), `SettingsViewModel`.
-- **Services:** `SystrayNotificationService`, `GlobalHotkeyService`.
+- **Services:** `SystrayNotificationService`, `GlobalHotkeyService`, `SingleInstanceManager`, `WpfMediaStreamPlayer`.
 - **Converters:** `BooleanToVisibilityConverter`, `NullToVisibilityConverter`.
 
 ---
@@ -70,15 +70,12 @@ Letzte Aktualisierung: 2026-10-28 | Ziel: Stabile Version 1.0 (Produktionsreife)
 
 ---
 
-## 4. Aktueller Ausbauplan zu 1.0
+## 4. Status der Version 1.0
 
-1. **Playlist Auto-Persistence im UI-Flow:**
-   - Automatische Speicherung der Queue bei Enqueue-, Remove- und Track-Advance-Ereignissen im `MainWindowViewModel`.
-   - Automatisches Laden persistierter Titel beim Start.
-2. **Global Hotkeys & Systray-Integration:**
-   - Erweiterte Unit-Tests für `GlobalHotkeyService` und `SystrayNotificationService`.
-   - Zusammenspiel von Minimieren ins Tray und Hotkey-Event-Handling absichern.
-3. **Code-Coverage weiter ausbauen:**
-   - Weitere Randfälle in Infrastructure und Presentation abdecken (Coverage > 85-90% gesamt).
-4. **Git-Veröffentlichung:**
-   - Alle Commits sauber auf `origin/main` pushen.
+1. **Feature Complete:**
+   - Alle Kernfunktionen, Systray Quick-Controls, Offline QR-Code, In-App QR-Flyout, Queue-Reordering, Quick-Add, MasterVolume-Persistenz, Single-Instance Schutz und yt-dlp Auto-Discovery sind vollständig implementiert.
+2. **Architektur & Qualität:**
+   - 132/132 C#-Dateien nach SFC / 1CPF & reiner DDD-Schichtung validiert.
+   - 399/399 Tests bestanden (100% grün).
+3. **Release & Packaging:**
+   - Inno Setup 6.x Setup-Installer und Standalone Portable ZIP via `scripts/build-release.ps1`.

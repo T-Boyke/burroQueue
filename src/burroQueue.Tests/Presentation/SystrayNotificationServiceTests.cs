@@ -27,37 +27,76 @@ public sealed class SystrayNotificationServiceTests
     }
 
     [Fact]
-    public void InitializeCore_ShouldSetupMenuAndHandleClicks()
+    public void InitializeCore_ShouldSetupMenuWithQuickControlsAndHandleClicks()
     {
         SystrayNotificationService service = new();
         bool restored = false;
         bool settingsOpened = false;
         bool exitCalled = false;
+        bool playPauseCalled = false;
+        bool skipCalled = false;
+        bool muteCalled = false;
 
         service.InitializeCore(
             onRestoreWindow: () => restored = true,
             onOpenSettings: () => settingsOpened = true,
-            onExitApp: () => exitCalled = true);
+            onExitApp: () => exitCalled = true,
+            onTogglePlayPause: () => playPauseCalled = true,
+            onSkipNext: () => skipCalled = true,
+            onToggleMute: () => muteCalled = true);
 
         service.IsIconVisible.Should().BeTrue();
         service.ContextMenu.Should().NotBeNull();
-        service.ContextMenu!.Items.Count.Should().Be(4);
+        service.ContextMenu!.Items.Count.Should().Be(8);
 
         // Click "burroQueue anzeigen"
         service.ContextMenu.Items[0].PerformClick();
         restored.Should().BeTrue();
 
+        // Click "Wiedergabe / Pause"
+        service.ContextMenu.Items[2].PerformClick();
+        playPauseCalled.Should().BeTrue();
+
+        // Click "Nächster Titel"
+        service.ContextMenu.Items[3].PerformClick();
+        skipCalled.Should().BeTrue();
+
+        // Click "Stummschalten"
+        service.ContextMenu.Items[4].PerformClick();
+        muteCalled.Should().BeTrue();
+
         // Click "Einstellungen..."
-        service.ContextMenu.Items[1].PerformClick();
+        service.ContextMenu.Items[6].PerformClick();
         settingsOpened.Should().BeTrue();
 
         // Click "Beenden"
-        service.ContextMenu.Items[3].PerformClick();
+        service.ContextMenu.Items[7].PerformClick();
         exitCalled.Should().BeTrue();
 
         service.Dispose();
         service.IsIconVisible.Should().BeFalse();
     }
+
+    [Fact]
+    public void UpdateTooltip_WhenTextProvided_ShouldUpdateAndCapAt63Chars()
+    {
+        SystrayNotificationService service = new();
+        service.InitializeCore(() => { }, () => { }, () => { });
+
+        service.UpdateTooltip("Daft Punk - One More Time");
+        service.NotifyIconText.Should().Be("Daft Punk - One More Time");
+
+        string longText = new('A', 100);
+        service.UpdateTooltip(longText);
+        service.NotifyIconText.Should().HaveLength(63);
+        service.NotifyIconText.Should().EndWith("...");
+
+        service.UpdateTooltip(string.Empty);
+        service.NotifyIconText.Should().Be("burroQueue – Office Jukebox");
+
+        service.Dispose();
+    }
+
 
     [Fact]
     public void InitializeCore_WhenCustomIconExists_ShouldLoadIcon()
@@ -74,7 +113,7 @@ public sealed class SystrayNotificationServiceTests
                 icon.Save(fs);
             }
 
-            service.InitializeCore(() => { }, () => { }, () => { }, tempIcon);
+            service.InitializeCore(() => { }, () => { }, () => { }, customIconPath: tempIcon);
             service.IsIconVisible.Should().BeTrue();
         }
         finally
@@ -96,7 +135,8 @@ public sealed class SystrayNotificationServiceTests
         {
             File.WriteAllText(tempCorrupt, "not an icon file format");
 
-            service.InitializeCore(() => { }, () => { }, () => { }, tempCorrupt);
+            service.InitializeCore(() => { }, () => { }, () => { }, customIconPath: tempCorrupt);
+
             service.IsIconVisible.Should().BeTrue();
         }
         finally

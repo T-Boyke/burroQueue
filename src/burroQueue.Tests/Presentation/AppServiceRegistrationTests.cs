@@ -48,6 +48,7 @@ public sealed class AppServiceRegistrationTests
         provider.GetRequiredService<ITelephonyManager>().Should().NotBeNull();
 
         // Presentation Services & ViewModels
+        provider.GetRequiredService<ISingleInstanceManager>().Should().NotBeNull();
         provider.GetRequiredService<ISystrayNotificationService>().Should().NotBeNull();
         provider.GetRequiredService<IGlobalHotkeyService>().Should().NotBeNull();
         provider.GetRequiredService<MainWindowViewModel>().Should().NotBeNull();

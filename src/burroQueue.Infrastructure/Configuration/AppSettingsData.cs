@@ -11,5 +11,7 @@ public sealed class AppSettingsData
     public bool AutoOpenCollaborativePlaylistOnJoin { get; set; } = true;
 
     public string ClientDisplayName { get; set; } = Environment.UserName;
+
+    public double MasterVolume { get; set; } = 0.8;
 }
 

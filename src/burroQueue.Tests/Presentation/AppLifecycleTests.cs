@@ -50,12 +50,19 @@ public sealed class AppLifecycleTests
 
         Action? capturedOpenSettings = null;
         Action? capturedExitApp = null;
-        systray.When(s => s.Initialize(dummyMain, Arg.Any<Action>(), Arg.Any<Action>()))
+        systray.When(s => s.Initialize(
+                dummyMain,
+                Arg.Any<Action>(),
+                Arg.Any<Action>(),
+                Arg.Any<Action?>(),
+                Arg.Any<Action?>(),
+                Arg.Any<Action?>()))
             .Do(call =>
             {
                 capturedOpenSettings = call.ArgAt<Action>(1);
                 capturedExitApp = call.ArgAt<Action>(2);
             });
+
 
         await App.InitializeApplicationAsync(
             sp,
@@ -124,5 +131,29 @@ public sealed class AppLifecycleTests
         Func<Task> act = async () => await App.ShutdownApplicationAsync(null, null);
 
         await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task InitializeApplicationAsync_WhenSingleInstanceFails_ShouldSignalExistingAndShutdown()
+    {
+        ServiceCollection services = new();
+        ISingleInstanceManager singleInstance = Substitute.For<ISingleInstanceManager>();
+        singleInstance.TryAcquireSingleInstance().Returns(false);
+        services.AddSingleton(singleInstance);
+
+        using ServiceProvider sp = services.BuildServiceProvider();
+
+        bool windowShown = false;
+        bool shutdownTriggered = false;
+
+        await App.InitializeApplicationAsync(
+            sp,
+            showWindow: _ => windowShown = true,
+            showSettings: (_, _) => { },
+            shutdownAction: () => shutdownTriggered = true);
+
+        singleInstance.Received(1).SignalExistingInstance();
+        shutdownTriggered.Should().BeTrue();
+        windowShown.Should().BeFalse();
     }
 }
