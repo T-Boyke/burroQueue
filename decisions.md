@@ -104,3 +104,29 @@ Dieses Dokument hält alle zentralen architektonischen Entscheidungen für `burr
 - **Kontext:** Dienste mit Systemabhängigkeiten (z. B. `Clipboard`, `Process.Start`, `Dispatcher`, `RegisterHotKey`, `Activator.CreateInstance` für COM) können in headless CI-Umgebungen nicht direkt ausgeführt werden oder werfen ohne Desktop-Sitzung Exceptions.
 - **Entscheidung:** Relevante Plattformaufrufe werden in internen Delegaten mit Produktions-Standardwerten gekapselt (z. B. `ClipboardAction`, `ProcessStarter`, `UiDispatcherRunner`, `ComActivator`, `WindowHandleProvider`). In Unit-Tests können diese punktuell überschrieben werden, um sowohl Erfolgs- als auch Ausnahme-Pfade deterministisch zu verifizieren.
 - **Konsequenzen:** Nahezu 100% Testabdeckung in Infrastructure und Presentation ohne schwerfällige Wrapper-Klassen oder Verletzungen der 1CPF/DDD-Regeln.
+
+---
+
+## ADR-012: Anti-AI-Slop WebDrop mit Fluent Dark Design, Submitter-Identität und Live-Polling
+
+- **Status:** Angenommen
+- **Kontext:** Der WebDrop-Server für Büro-Mitarbeiter soll weder generisch noch wie ein AI-Slop-Template wirken (keine Emojis wie `🫏`, kein grober SaaS-Cyan-Stil, keine rohen Text-Bestätigungsseiten). Zudem sollen Einreicher ihren Namen angeben können und über das Web-UI mobil für Skips stimmen können.
+- **Entscheidung:**
+  1. Gestaltung im Windows 11 Fluent Dark Look (`Segoe UI Variable`, saubere Surface-Hierarchie, dezente Status-Toasts, semantische Typografie).
+  2. Submitter-Eingabe mit clientseitiger Speicherung in `localStorage`.
+  3. POST-Endpunkte (`/drop`, `/vote-skip`) antworten mit `HTTP 303 See Other` statt rohem HTML (verhindert doppeltes Einwerfen bei Browser-Aktualisierung).
+  4. Bereitstellung von `GET /api/status` und 5-Sekunden Vanilla JS Polling zur dynamischen Queue- und Now-Playing-Aktualisierung im Browser ohne Neuladen.
+- **Konsequenzen:** Hochwertiges, responsives Benutzererlebnis auf Smartphones und Desktop-Browsern ohne zusätzliche Frontend-Frameworks.
+
+---
+
+## ADR-013: Abstraktion des Audio-Stream-Playbacks (IMediaStreamPlayer) und Queue Auto-Advance
+
+- **Status:** Angenommen
+- **Kontext:** burroQueue soll echte Audiodaten über das konfigurierte Windows-Audiogerät wiedergeben und nach Ablauf eines Songs automatisch zum nächsten Song der Queue weiterschalten, während die Trennung zwischen Infrastructure (`net10.0`) und Presentation (`WPF`) sauber gewahrt bleibt.
+- **Entscheidung:**
+  1. `burroQueue.Infrastructure` definiert die Schnittstelle `IMediaStreamPlayer` (`Open`, `Play`, `Pause`, `StopPlayback`, `Volume`, `MediaEnded`).
+  2. `AudioPlayerBackend` steuert den Player und reagiert auf `MediaEnded`, um via `TrackPlaybackFinished` die automatische Weiterschaltung (`SkipAsync()`) im ViewModel auszulösen.
+  3. `burroQueue.Presentation` implementiert `WpfMediaStreamPlayer` über `System.Windows.Media.MediaPlayer` (PresentationCore, 0 zusätzliche Fremdpakete).
+  4. `YouTubeAudioStreamResolver` löst Audio-Streams nativ über `yt-dlp` (mit Invidious-API-Fallback) zu direkten Audio-Streams auf.
+- **Konsequenzen:** Echte, ressourcenschonende Musikwiedergabe mit automatischer Weiterschaltung und 100% Testbarkeit ohne Native-Audio-Hänger in CI-Pipelines.

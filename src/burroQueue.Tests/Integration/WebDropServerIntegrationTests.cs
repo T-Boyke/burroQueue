@@ -118,12 +118,13 @@ public sealed class WebDropServerIntegrationTests : IAsyncLifetime, IDisposable
             return;
         }
 
-        string? droppedUrl = null;
-        _server.LinkDropped += (_, url) => droppedUrl = url;
+        LinkDropRequest? droppedRequest = null;
+        _server.LinkDropped += (_, req) => droppedRequest = req;
 
         Dictionary<string, string> form = new()
         {
-            ["url"] = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+            ["url"] = "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            ["submitter"] = "Martin"
         };
         FormUrlEncodedContent content = new(form);
 
@@ -131,9 +132,11 @@ public sealed class WebDropServerIntegrationTests : IAsyncLifetime, IDisposable
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         string responseHtml = await response.Content.ReadAsStringAsync();
-        responseHtml.Should().Contain("Song eingeworfen");
+        responseHtml.Should().Contain("Titel erfolgreich zur Warteschlange hinzugefügt");
 
-        droppedUrl.Should().Be("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+        droppedRequest.Should().NotBeNull();
+        droppedRequest!.Url.Should().Be("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+        droppedRequest.Submitter.Should().Be("Martin");
     }
 
     [Fact]
@@ -144,15 +147,64 @@ public sealed class WebDropServerIntegrationTests : IAsyncLifetime, IDisposable
             return;
         }
 
-        string? droppedUrl = null;
-        _server.LinkDropped += (_, url) => droppedUrl = url;
+        LinkDropRequest? droppedRequest = null;
+        _server.LinkDropped += (_, req) => droppedRequest = req;
 
         StringContent content = new("https://youtu.be/dQw4w9WgXcQ", System.Text.Encoding.UTF8, "text/plain");
 
         HttpResponseMessage response = await _httpClient!.PostAsync($"http://localhost:{_port}/drop", content);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        droppedUrl.Should().Be("https://youtu.be/dQw4w9WgXcQ");
+        droppedRequest.Should().NotBeNull();
+        droppedRequest!.Url.Should().Be("https://youtu.be/dQw4w9WgXcQ");
+        droppedRequest.Submitter.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task PostVoteSkip_ShouldRaiseSkipVoteRequestedEvent()
+    {
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
+        bool voted = false;
+        _server.SkipVoteRequested += (_, _) => voted = true;
+
+        HttpResponseMessage response = await _httpClient!.PostAsync($"http://localhost:{_port}/vote-skip", new StringContent(string.Empty));
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        voted.Should().BeTrue();
+        string html = await response.Content.ReadAsStringAsync();
+        html.Should().Contain("Deine Stimme für Skip wurde gezählt");
+    }
+
+    [Fact]
+    public async Task GetApiStatus_ShouldReturnValidJson()
+    {
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
+        _server.SkipVoteStatusProvider = () => "1 / 3 Votes";
+        Track current = new("t1", new Uri("https://www.youtube.com/watch?v=t1"), "Current Track", "Alice", DateTimeOffset.UtcNow);
+        Track queued = new("t2", new Uri("https://www.youtube.com/watch?v=t2"), "Queued Track", "Bob", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(current);
+        _group.Playlist.Enqueue(queued);
+
+        HttpResponseMessage response = await _httpClient!.GetAsync($"http://localhost:{_port}/api/status");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/json");
+
+        string json = await response.Content.ReadAsStringAsync();
+        json.Should().Contain("Integration Test Group");
+        json.Should().Contain("Current Track");
+        json.Should().Contain("Alice");
+        json.Should().Contain("Queued Track");
+        json.Should().Contain("Bob");
+        json.Should().Contain("1 / 3 Votes");
     }
 
     [Fact]
@@ -314,6 +366,35 @@ public sealed class WebDropServerIntegrationTests : IAsyncLifetime, IDisposable
         client.Client.LingerState = new LingerOption(true, 0);
         client.Close();
         await Task.Delay(50);
+    }
+
+    [Fact]
+    public void GenerateStatusJson_WhenPlaylistEmpty_ShouldOutputNullCurrentTrack()
+    {
+        EmbeddedWebDropServer server = new(8080, null);
+        string json = server.GenerateStatusJson();
+        json.Should().Contain("\"currentTrack\":null");
+        json.Should().Contain("\"queuedTracks\":[]");
+    }
+
+    [Fact]
+    public async Task PostDrop_WhenZeroContentLength_ShouldReturnEarlyWithEmptyBody()
+    {
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
+        using TcpClient client = new();
+        await client.ConnectAsync(IPAddress.Loopback, _port);
+        using NetworkStream stream = client.GetStream();
+        byte[] request = "POST /drop HTTP/1.1\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
+        await stream.WriteAsync(request);
+        await stream.FlushAsync();
+
+        using StreamReader reader = new(stream, System.Text.Encoding.UTF8);
+        string? statusLine = await reader.ReadLineAsync();
+        statusLine.Should().Contain("303");
     }
 }
 

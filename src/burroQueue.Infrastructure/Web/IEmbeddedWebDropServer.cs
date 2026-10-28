@@ -6,7 +6,11 @@ public interface IEmbeddedWebDropServer : IAsyncDisposable
 
     bool IsRunning { get; }
 
-    event EventHandler<string>? LinkDropped;
+    Func<string>? SkipVoteStatusProvider { get; set; }
+
+    event EventHandler<LinkDropRequest>? LinkDropped;
+
+    event EventHandler? SkipVoteRequested;
 
     Task StartAsync(CancellationToken cancellationToken = default);
 
