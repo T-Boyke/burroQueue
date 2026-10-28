@@ -47,11 +47,41 @@
           FontWeight="SemiBold"
           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
         <ComboBox
-          Margin="0,6,0,16"
+          Margin="0,6,0,8"
           ItemsSource="{Binding AvailableTelephonyProviders}"
           SelectedValue="{Binding SelectedProviderId, Mode=TwoWay}"
           SelectedValuePath="ProviderId"
           DisplayMemberPath="DisplayName" />
+
+        <!-- STARFACE Setup Info -->
+        <Border
+          Margin="0,0,0,16"
+          Padding="12,10"
+          CornerRadius="8"
+          Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+          BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+          BorderThickness="1"
+          Visibility="{Binding IsStarfaceSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+          <StackPanel>
+            <TextBlock
+              Text="STARFACE UCC Client ➔ URLs / Anruf-Aktionen:"
+              FontSize="12"
+              FontWeight="SemiBold"
+              Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+            <TextBlock
+              Margin="0,4,0,0"
+              FontSize="11"
+              TextWrapping="Wrap"
+              Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+              Text="Trage folgende URLs in den STARFACE-Einstellungen unter 'URLs / Anruf-Aktionen' ein:" />
+            <TextBlock
+              Margin="0,6,0,0"
+              FontFamily="Consolas"
+              FontSize="11"
+              Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+              Text="• Klingeln: http://127.0.0.1:41235/starface?state=ringing&#x0a;• Verbunden: http://127.0.0.1:41235/starface?state=connected&#x0a;• Beendet: http://127.0.0.1:41235/starface?state=idle" />
+          </StackPanel>
+        </Border>
 
         <!-- Collaborative Playlist -->
         <TextBlock

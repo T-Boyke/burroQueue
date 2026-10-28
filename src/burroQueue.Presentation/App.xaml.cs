@@ -262,6 +262,7 @@ public partial class App : System.Windows.Application
 
         // Modulare Telephony Providers
         services.AddSingleton<ITelephonyProvider, SwyxItTelephonyProvider>();
+        services.AddSingleton<ITelephonyProvider, StarfaceTelephonyProvider>();
         services.AddSingleton<ITelephonyProvider, WindowsCoreAudioTelephonyProvider>();
         services.AddSingleton<ITelephonyProvider, NullTelephonyProvider>();
         services.AddSingleton<ITelephonyManager, TelephonyManager>();

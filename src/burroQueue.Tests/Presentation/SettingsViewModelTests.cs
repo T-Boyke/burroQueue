@@ -241,4 +241,22 @@ public sealed class SettingsViewModelTests
         vm.NewGroupName.Should().BeEmpty();
         vm.StatusMessage.Should().Contain("Marketing Lounge");
     }
+
+    [Fact]
+    public void IsStarfaceSelected_WhenSelectedProviderIsStarface_ShouldReturnTrue()
+    {
+        SettingsViewModel vm = new(
+            _settingsService,
+            _telephonyManager,
+            _autostartService,
+            _audioDeviceEnumerator);
+
+        vm.IsStarfaceSelected.Should().BeFalse();
+
+        vm.SelectedProviderId = "Starface";
+        vm.IsStarfaceSelected.Should().BeTrue();
+
+        vm.SelectedProviderId = "SwyxIt";
+        vm.IsStarfaceSelected.Should().BeFalse();
+    }
 }

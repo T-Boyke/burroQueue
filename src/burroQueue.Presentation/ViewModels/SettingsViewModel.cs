@@ -72,6 +72,8 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public IReadOnlyList<ITelephonyProvider> AvailableTelephonyProviders => _telephonyManager.AvailableProviders;
 
+    public bool IsStarfaceSelected => string.Equals(SelectedProviderId, "Starface", StringComparison.OrdinalIgnoreCase);
+
     public IReadOnlyList<AudioDeviceOption> AvailableAudioDevices { get; }
 
     public SettingsViewModel(
@@ -149,6 +151,11 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnCollaborativePlaylistUrlChanged(string value)
     {
         ValidateCollaborativeUrl(value);
+    }
+
+    partial void OnSelectedProviderIdChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsStarfaceSelected));
     }
 
     private void ValidateCollaborativeUrl(string value)
