@@ -7,7 +7,7 @@ using Xunit;
 
 namespace burroQueue.Tests.Infrastructure;
 
-public sealed class StarfaceTelephonyProviderTests : IAsyncLifetime
+public sealed class StarfaceTelephonyProviderTests : IAsyncLifetime, IDisposable
 {
     private StarfaceTelephonyProvider? _provider;
     private int _testPort;
@@ -26,6 +26,12 @@ public sealed class StarfaceTelephonyProviderTests : IAsyncLifetime
             await _provider.DisposeAsync();
             _provider = null;
         }
+    }
+
+    public void Dispose()
+    {
+        DisposeAsync().GetAwaiter().GetResult();
+        GC.SuppressFinalize(this);
     }
 
     private static int GetFreeTcpPort()
@@ -108,3 +114,4 @@ public sealed class StarfaceTelephonyProviderTests : IAsyncLifetime
         await _provider.StopAsync();
     }
 }
+
