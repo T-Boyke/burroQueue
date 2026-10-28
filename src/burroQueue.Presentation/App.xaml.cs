@@ -44,6 +44,7 @@ public partial class App : System.Windows.Application
         DispatcherUnhandledException += (_, args) =>
         {
             LogStartup($"DISPATCHER UNHANDLED EXCEPTION: {args.Exception}");
+            args.Handled = true;
         };
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
         {
@@ -131,8 +132,15 @@ public partial class App : System.Windows.Application
         LogStartup("LAN group service started");
 
         IEmbeddedWebDropServer webDrop = serviceProvider.GetRequiredService<IEmbeddedWebDropServer>();
-        await webDrop.StartAsync().ConfigureAwait(true);
-        LogStartup($"WebDrop server started on port {webDrop.Port}");
+        if (settings.CurrentSettings.EnableWebDropServer)
+        {
+            await webDrop.StartAsync().ConfigureAwait(true);
+            LogStartup($"WebDrop server started on port {webDrop.Port}");
+        }
+        else
+        {
+            LogStartup("WebDrop server is disabled in settings (default: off)");
+        }
 
         MainWindow mainWindow = serviceProvider.GetRequiredService<MainWindow>();
         MainWindowViewModel? viewModel = mainWindow.DataContext as MainWindowViewModel;
@@ -171,7 +179,13 @@ public partial class App : System.Windows.Application
                     _ = viewModel.SkipAsync();
                 }
             },
-            onToggleMute: () => viewModel?.ToggleMute());
+            onToggleMute: () => viewModel?.ToggleMute(),
+            onOpenAbout: () =>
+            {
+                AboutWindow aboutWindow = serviceProvider.GetRequiredService<AboutWindow>();
+                aboutWindow.Owner = mainWindow;
+                aboutWindow.ShowDialog();
+            });
         LogStartup("Systray initialized");
 
 
@@ -228,6 +242,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IStreamUriResolver, YouTubeAudioStreamResolver>();
         services.AddSingleton<IYouTubeUrlParser, YouTubeUrlParser>();
         services.AddSingleton<IYouTubeMetadataFetcher, YouTubeMetadataFetcher>();
+        services.AddSingleton<IYouTubePlaylistReader, YouTubePlaylistReader>();
         services.AddSingleton<IAudioOutputController, AudioOutputController>();
         services.AddSingleton<IMediaStreamPlayer, WpfMediaStreamPlayer>();
         services.AddSingleton<IAudioPlayerBackend, AudioPlayerBackend>();
@@ -252,6 +267,7 @@ public partial class App : System.Windows.Application
         services.AddTransient<SettingsViewModel>();
         services.AddSingleton<MainWindow>();
         services.AddTransient<SettingsWindow>();
+        services.AddTransient<AboutWindow>();
     }
 
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]

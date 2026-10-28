@@ -89,6 +89,7 @@ public partial class MainWindow : FluentWindow
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal void OnLoaded(object sender, RoutedEventArgs e)
     {
+        Wpf.Ui.Appearance.SystemThemeWatcher.Watch(this);
         HandleHotkeyRegistration(_hotkeyService, this, _viewModel);
     }
 

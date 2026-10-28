@@ -29,64 +29,103 @@
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
-    <!-- Native Title Bar with Burro Icon and Settings Action -->
+    <!-- Native Title Bar with Burro Icon -->
     <ui:TitleBar Title="burroQueue" Grid.Row="0">
       <ui:TitleBar.Icon>
         <ui:ImageIcon Source="pack://application:,,,/burroQueue;component/Assets/logo.png" />
       </ui:TitleBar.Icon>
-      <ui:TitleBar.TrailingContent>
-        <ui:Button
-          Appearance="Transparent"
-          Padding="8,4"
-          Margin="0,0,8,0"
-          ToolTip="Einstellungen öffnen (Audio-Ausgabe, Swyx-Ducking, Autostart)"
-          Command="{Binding OpenSettingsCommand}">
-          <ui:SymbolIcon Symbol="Settings24" FontSize="16" />
-        </ui:Button>
-      </ui:TitleBar.TrailingContent>
     </ui:TitleBar>
 
     <!-- Group Header, Quick Settings & Collaborative Playlist -->
-    <Grid Grid.Row="1" Margin="0,6,0,8">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="Auto" />
-      </Grid.ColumnDefinitions>
+    <StackPanel Grid.Row="1" Margin="0,6,0,8">
+      <Grid Margin="0,0,0,4">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
 
-      <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-        <ui:SymbolIcon
-          Symbol="PeopleCommunity24"
-          Margin="0,0,8,0"
-          Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
-        <TextBlock
-          FontSize="13"
-          FontWeight="Normal"
-          Opacity="0.75"
-          Text="Gruppe: " />
-        <TextBlock
-          FontSize="13"
-          FontWeight="SemiBold"
-          Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
-          Text="{Binding GroupName}" />
-      </StackPanel>
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <ui:SymbolIcon
+            Symbol="PeopleCommunity24"
+            Margin="0,0,8,0"
+            Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+          <TextBlock
+            FontSize="13"
+            FontWeight="Normal"
+            Opacity="0.75"
+            Text="Gruppe: " />
+          <TextBlock
+            FontSize="13"
+            FontWeight="SemiBold"
+            Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+            Text="{Binding GroupName}" />
+        </StackPanel>
 
-      <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-        <ui:Button
-          Appearance="Secondary"
-          Padding="8,4"
-          Margin="0,0,6,0"
-          Icon="{ui:SymbolIcon Open24}"
-          Content="Playlist öffnen"
-          Visibility="{Binding CollaborativePlaylistUrl, Converter={StaticResource NullToVisibilityConverter}}"
-          Command="{Binding OpenCollaborativePlaylistCommand}" />
-        <ui:Button
-          Appearance="Secondary"
-          Padding="8,4"
-          Icon="{ui:SymbolIcon Settings24}"
-          Content="Einstellungen"
-          Command="{Binding OpenSettingsCommand}" />
-      </StackPanel>
-    </Grid>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+          <ui:Button
+            Appearance="Secondary"
+            Padding="8,4"
+            Margin="0,0,6,0"
+            Icon="{ui:SymbolIcon Open24}"
+            Content="Playlist öffnen"
+            Visibility="{Binding CollaborativePlaylistUrl, Converter={StaticResource NullToVisibilityConverter}}"
+            Command="{Binding OpenCollaborativePlaylistCommand}" />
+          <ui:Button
+            Appearance="Secondary"
+            Padding="8,4"
+            Icon="{ui:SymbolIcon Settings24}"
+            Content="Einstellungen"
+            Command="{Binding OpenSettingsCommand}" />
+        </StackPanel>
+      </Grid>
+
+      <!-- First-Join Collaborative YouTube Playlist Prompt Banner -->
+      <Border
+        Margin="0,4,0,0"
+        Padding="10,8"
+        CornerRadius="6"
+        Background="{DynamicResource SystemFillColorCautionBackgroundBrush}"
+        BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+        BorderThickness="1"
+        Visibility="{Binding IsFirstJoinPromptVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <StackPanel Grid.Column="0" VerticalAlignment="Center">
+            <TextBlock
+              FontWeight="SemiBold"
+              FontSize="11"
+              Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+              Text="Gemeinsame YouTube-Playlist verfügbar!" />
+            <TextBlock
+              Margin="0,1,0,0"
+              FontSize="10"
+              Opacity="0.8"
+              TextWrapping="Wrap"
+              Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+              Text="Tritt der YouTube-Playlist bei, um Songs mit der Gruppe zu synchronisieren." />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0,0,0">
+            <ui:Button
+              Appearance="Primary"
+              Padding="8,3"
+              Margin="0,0,4,0"
+              FontSize="11"
+              Content="Auf YouTube beitreten"
+              Command="{Binding OpenYouTubeInviteAndDismissPromptCommand}" />
+            <ui:Button
+              Appearance="Transparent"
+              Padding="4,2"
+              ToolTip="Ausblenden"
+              Command="{Binding DismissFirstJoinPromptCommand}">
+              <ui:SymbolIcon Symbol="Dismiss24" FontSize="12" />
+            </ui:Button>
+          </StackPanel>
+        </Grid>
+      </Border>
+    </StackPanel>
 
     <!-- Now Playing Card with Album Art & Skip Vote -->
     <Border
@@ -309,6 +348,25 @@
               Text="{Binding StatusMessage}" />
           </StackPanel>
 
+          <!-- Visual Add Feedback Banner -->
+          <Border
+            Margin="0,8,0,0"
+            Padding="8,5"
+            CornerRadius="6"
+            Background="{DynamicResource SystemFillColorSuccessBackgroundBrush}"
+            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            Visibility="{Binding IsAddFeedbackVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+              <ui:SymbolIcon Symbol="CheckmarkCircle24" FontSize="16" Margin="0,0,6,0" Foreground="{DynamicResource SystemFillColorSuccessBrush}" />
+              <TextBlock
+                FontSize="11"
+                FontWeight="SemiBold"
+                Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                Text="{Binding LastAddedFeedbackText}" />
+            </StackPanel>
+          </Border>
+
           <!-- Quick-Add Input Bar with Enter support -->
           <Grid Margin="0,8,0,0">
             <Grid.ColumnDefinitions>
@@ -399,17 +457,35 @@
                     <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
 
-                  <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                    <TextBlock
-                      FontSize="12"
-                      FontWeight="Medium"
-                      TextTrimming="CharacterEllipsis"
-                      Text="{Binding Title}" />
-                    <TextBlock
-                      FontSize="10"
-                      Opacity="0.6"
-                      Text="{Binding SubmittedBy, StringFormat='von {0}'}" />
-                  </StackPanel>
+                  <Grid Grid.Column="0" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border
+                      Grid.Column="0"
+                      Width="44"
+                      Height="33"
+                      CornerRadius="4"
+                      Margin="0,0,10,0"
+                      ClipToBounds="True"
+                      Background="{DynamicResource SubtleFillColorSecondaryBrush}">
+                      <Image Source="{Binding ThumbnailUrl}" Stretch="UniformToFill" />
+                    </Border>
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                      <TextBlock
+                        FontSize="12"
+                        FontWeight="Medium"
+                        TextTrimming="CharacterEllipsis"
+                        Text="{Binding Title}" />
+                      <TextBlock
+                        FontSize="10"
+                        Opacity="0.6"
+                        Text="{Binding SubmittedBy, StringFormat='von {0}'}" />
+                    </StackPanel>
+                  </Grid>
 
                   <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <ui:Button
@@ -454,7 +530,8 @@
       Margin="0,0,0,6"
       Padding="10,4"
       CornerRadius="6"
-      Background="{DynamicResource ControlFillColorSecondaryBrush}">
+      Background="{DynamicResource ControlFillColorSecondaryBrush}"
+      Visibility="{Binding IsWebDropActive, Converter={StaticResource BooleanToVisibilityConverter}}">
       <Grid>
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*" />
@@ -614,7 +691,7 @@
         FontSize="10"
         Opacity="0.5"
         Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-        Text="LAN-Sync &amp; WebDrop aktiv" />
+        Text="{Binding NetworkStatusText}" />
     </Grid>
   </Grid>
 </ui:FluentWindow>

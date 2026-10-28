@@ -31,10 +31,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private readonly IAudioDeviceEnumerator? _audioDeviceEnumerator;
     private readonly ISystrayNotificationService? _systrayService;
     private readonly IQrCodeSvgGenerator? _qrCodeGenerator;
+    private readonly IYouTubePlaylistReader? _playlistReader;
     private readonly ClientId _localClientId = ClientId.New();
     private SkipVotePool _skipVotePool;
     private bool _isUpdatingVolumeInternally;
     private double _lastUnmutedVolume = 0.8;
+    private CancellationTokenSource? _feedbackCts;
 
 
     public event EventHandler? OpenSettingsRequested;
@@ -141,6 +143,26 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private bool _isQueueExpanded;
 
+    [ObservableProperty]
+    private bool _isAddFeedbackVisible;
+
+    [ObservableProperty]
+    private string _lastAddedFeedbackText = string.Empty;
+
+    [ObservableProperty]
+    private bool _isFirstJoinPromptVisible;
+
+    [ObservableProperty]
+    private bool _isWebDropActive;
+
+    partial void OnIsWebDropActiveChanged(bool value)
+    {
+        NetworkStatusText = value ? "LAN-Sync & WebDrop aktiv" : "LAN-Sync aktiv (WebDrop aus)";
+    }
+
+    [ObservableProperty]
+    private string _networkStatusText = "LAN-Sync & WebDrop aktiv";
+
     public ObservableCollection<Track> QueuedItems { get; } = [];
 
     internal Task AutoSaveTask { get; private set; } = Task.CompletedTask;
@@ -165,7 +187,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         IPlaylistStorageService playlistStorage,
         IAudioDeviceEnumerator? audioDeviceEnumerator = null,
         ISystrayNotificationService? systrayService = null,
-        IQrCodeSvgGenerator? qrCodeGenerator = null)
+        IQrCodeSvgGenerator? qrCodeGenerator = null,
+        IYouTubePlaylistReader? playlistReader = null)
     {
         _group = group ?? throw new ArgumentNullException(nameof(group));
         _urlParser = urlParser ?? throw new ArgumentNullException(nameof(urlParser));
@@ -180,13 +203,16 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _audioDeviceEnumerator = audioDeviceEnumerator;
         _systrayService = systrayService;
         _qrCodeGenerator = qrCodeGenerator;
+        _playlistReader = playlistReader;
         ArgumentNullException.ThrowIfNull(networkInfoService);
-
 
         _groupName = _group.Name;
         _collaborativePlaylistUrl = _settingsService.CurrentSettings.CollaborativePlaylistUrl;
         _webDropUrl = networkInfoService.GetWebDropUrl(8080);
         _skipVotePool = new SkipVotePool(TrackId.New(), requiredVotes: 3);
+        _isWebDropActive = _settingsService.CurrentSettings.EnableWebDropServer;
+        _networkStatusText = _isWebDropActive ? "LAN-Sync & WebDrop aktiv" : "LAN-Sync aktiv (WebDrop aus)";
+        _isFirstJoinPromptVisible = !string.IsNullOrWhiteSpace(_collaborativePlaylistUrl) && !_settingsService.CurrentSettings.HasJoinedCollaborativePlaylist;
 
         if (_settingsService.CurrentSettings.MasterVolume > 0 && Math.Abs(_settingsService.CurrentSettings.MasterVolume - 0.8) > 0.001)
         {
@@ -255,6 +281,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
         catch
         {
             // Fail-safe: Fallback auf leere Playlist
+        }
+
+        if (_group.Playlist.Count == 0 && !string.IsNullOrWhiteSpace(_collaborativePlaylistUrl))
+        {
+            await ImportPlaylistFromYouTubeAsync(_collaborativePlaylistUrl).ConfigureAwait(false);
         }
     }
 
@@ -369,7 +400,25 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     public void ReloadSettings()
     {
+        string? oldPlaylistUrl = CollaborativePlaylistUrl;
         CollaborativePlaylistUrl = _settingsService.CurrentSettings.CollaborativePlaylistUrl;
+        IsWebDropActive = _settingsService.CurrentSettings.EnableWebDropServer;
+
+        if (!string.IsNullOrWhiteSpace(CollaborativePlaylistUrl) &&
+            !string.Equals(oldPlaylistUrl, CollaborativePlaylistUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!_settingsService.CurrentSettings.HasJoinedCollaborativePlaylist)
+            {
+                IsFirstJoinPromptVisible = true;
+            }
+
+            _ = ImportPlaylistFromYouTubeAsync(CollaborativePlaylistUrl);
+        }
+        else if (string.IsNullOrWhiteSpace(CollaborativePlaylistUrl))
+        {
+            IsFirstJoinPromptVisible = false;
+        }
+
         if (_telephonyManager.ActiveProvider is { } activeProvider)
         {
             TelephonyProviderName = activeProvider.DisplayName;
@@ -490,6 +539,10 @@ public sealed partial class MainWindowViewModel : ObservableObject
         SyncQueuedItems();
         StatusMessage = $"Enqueued: {videoId}";
         AutoSavePlaylist();
+
+        TriggerAddFeedback($"'{videoId}' zur Warteschlange hinzugefügt");
+
+        _ = FetchQueueTrackMetadataAsync(track);
 
         _ = _lanGroupService.SendQueueSyncAsync(_group.Id, "Enqueue", track);
 
@@ -744,6 +797,15 @@ public sealed partial class MainWindowViewModel : ObservableObject
             _group.Rename(action.Payload);
             GroupName = _group.Name;
         }
+        else if (action.ActionType == "Join")
+        {
+            string peerName = !string.IsNullOrWhiteSpace(action.Payload) ? action.Payload : "Ein neues Mitglied";
+            RunOnUi(() =>
+            {
+                StatusMessage = $"{peerName} ist der Gruppe beigetreten";
+            });
+            _systrayService?.ShowNotification("burroQueue – Neues Gruppenmitglied", $"{peerName} ist der Gruppe beigetreten.");
+        }
     }
 
     private void OnPlaybackCommandReceived(object? sender, PlaybackCommandMessage cmd)
@@ -781,6 +843,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
         }
 
         CollaborativePlaylistUrl = message.CollaborativePlaylistUrl;
+
+        if (!_settingsService.CurrentSettings.HasJoinedCollaborativePlaylist && !string.IsNullOrWhiteSpace(message.CollaborativePlaylistUrl))
+        {
+            RunOnUi(() => IsFirstJoinPromptVisible = true);
+        }
 
         if (_settingsService.CurrentSettings.AutoOpenCollaborativePlaylistOnJoin)
         {
@@ -875,6 +942,118 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 RunOnUi(() => StatusMessage = "Vote threshold reached! Skipping song...");
                 await SkipAsync().ConfigureAwait(true);
             }
+        }
+    }
+
+    [RelayCommand]
+    public void OpenYouTubeInviteAndDismissPrompt()
+    {
+        IsFirstJoinPromptVisible = false;
+        _settingsService.CurrentSettings.HasJoinedCollaborativePlaylist = true;
+        AutoSaveSettings();
+        OpenCollaborativePlaylist();
+    }
+
+    [RelayCommand]
+    public void DismissFirstJoinPrompt()
+    {
+        IsFirstJoinPromptVisible = false;
+        _settingsService.CurrentSettings.HasJoinedCollaborativePlaylist = true;
+        AutoSaveSettings();
+    }
+
+    public void TriggerAddFeedback(string message)
+    {
+        RunOnUi(() =>
+        {
+            LastAddedFeedbackText = message;
+            IsAddFeedbackVisible = true;
+        });
+
+        _feedbackCts?.Cancel();
+        _feedbackCts = new CancellationTokenSource();
+        CancellationToken token = _feedbackCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(3500, token).ConfigureAwait(false);
+                RunOnUi(() =>
+                {
+                    if (!token.IsCancellationRequested)
+                    {
+                        IsAddFeedbackVisible = false;
+                    }
+                });
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }, token);
+    }
+
+    private async Task FetchQueueTrackMetadataAsync(Track track)
+    {
+        try
+        {
+            TrackMetadata? meta = await _metadataFetcher.FetchMetadataAsync(track.VideoId).ConfigureAwait(false);
+            if (meta is not null && !string.IsNullOrWhiteSpace(meta.Title))
+            {
+                track.SetTitle(meta.Title);
+                RunOnUi(() =>
+                {
+                    int index = QueuedItems.IndexOf(track);
+                    if (index >= 0)
+                    {
+                        QueuedItems[index] = track;
+                    }
+                });
+            }
+        }
+        catch
+        {
+            // Fail-safe
+        }
+    }
+
+    public async Task ImportPlaylistFromYouTubeAsync(string? playlistUrl)
+    {
+        if (_playlistReader is null || string.IsNullOrWhiteSpace(playlistUrl))
+        {
+            return;
+        }
+
+        try
+        {
+            IReadOnlyList<Track> tracks = await _playlistReader.ReadPlaylistTracksAsync(playlistUrl).ConfigureAwait(false);
+            if (tracks.Count > 0)
+            {
+                RunOnUi(() =>
+                {
+                    int addedCount = 0;
+                    foreach (Track track in tracks)
+                    {
+                        if (!_group.Playlist.QueuedTracks.Any(t => t.VideoId == track.VideoId) &&
+                            _group.Playlist.CurrentTrack?.VideoId != track.VideoId)
+                        {
+                            _group.Playlist.Enqueue(track);
+                            addedCount++;
+                        }
+                    }
+
+                    if (addedCount > 0)
+                    {
+                        SyncQueuedItems();
+                        AutoSavePlaylist();
+                        TriggerAddFeedback($"{addedCount} Songs aus Playlist importiert");
+                    }
+                });
+            }
+        }
+        catch
+        {
+            // Fail-safe
         }
     }
 
