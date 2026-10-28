@@ -11,8 +11,19 @@ public sealed class WpfMediaStreamPlayer : IMediaStreamPlayer
 
     public double Volume
     {
-        get => _mediaPlayer.Volume;
-        set => _mediaPlayer.Volume = Math.Clamp(value, 0.0, 1.0);
+        get => _mediaPlayer.Dispatcher.CheckAccess() ? _mediaPlayer.Volume : _mediaPlayer.Dispatcher.Invoke(() => _mediaPlayer.Volume);
+        set
+        {
+            double clamped = Math.Clamp(value, 0.0, 1.0);
+            if (_mediaPlayer.Dispatcher.CheckAccess())
+            {
+                _mediaPlayer.Volume = clamped;
+            }
+            else
+            {
+                _mediaPlayer.Dispatcher.Invoke(() => _mediaPlayer.Volume = clamped);
+            }
+        }
     }
 
     public event EventHandler? MediaEnded;
@@ -26,23 +37,55 @@ public sealed class WpfMediaStreamPlayer : IMediaStreamPlayer
     public void Open(Uri uri)
     {
         ArgumentNullException.ThrowIfNull(uri);
-        _mediaPlayer.Open(uri);
+        if (_mediaPlayer.Dispatcher.CheckAccess())
+        {
+            _mediaPlayer.Open(uri);
+        }
+        else
+        {
+            _mediaPlayer.Dispatcher.Invoke(() => _mediaPlayer.Open(uri));
+        }
     }
 
     public void Play()
     {
-        _mediaPlayer.Play();
+        if (_mediaPlayer.Dispatcher.CheckAccess())
+        {
+            _mediaPlayer.Play();
+        }
+        else
+        {
+            _mediaPlayer.Dispatcher.Invoke(() => _mediaPlayer.Play());
+        }
     }
 
     public void Pause()
     {
-        _mediaPlayer.Pause();
+        if (_mediaPlayer.Dispatcher.CheckAccess())
+        {
+            _mediaPlayer.Pause();
+        }
+        else
+        {
+            _mediaPlayer.Dispatcher.Invoke(() => _mediaPlayer.Pause());
+        }
     }
 
     public void StopPlayback()
     {
-        _mediaPlayer.Stop();
-        _mediaPlayer.Close();
+        if (_mediaPlayer.Dispatcher.CheckAccess())
+        {
+            _mediaPlayer.Stop();
+            _mediaPlayer.Close();
+        }
+        else
+        {
+            _mediaPlayer.Dispatcher.Invoke(() =>
+            {
+                _mediaPlayer.Stop();
+                _mediaPlayer.Close();
+            });
+        }
     }
 
     public ValueTask DisposeAsync()
@@ -50,8 +93,19 @@ public sealed class WpfMediaStreamPlayer : IMediaStreamPlayer
         if (!_isDisposed)
         {
             _isDisposed = true;
-            _mediaPlayer.Stop();
-            _mediaPlayer.Close();
+            if (_mediaPlayer.Dispatcher.CheckAccess())
+            {
+                _mediaPlayer.Stop();
+                _mediaPlayer.Close();
+            }
+            else
+            {
+                _mediaPlayer.Dispatcher.Invoke(() =>
+                {
+                    _mediaPlayer.Stop();
+                    _mediaPlayer.Close();
+                });
+            }
         }
 
         return ValueTask.CompletedTask;
