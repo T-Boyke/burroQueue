@@ -285,4 +285,35 @@ public sealed class SettingsViewModelTests
             d.UseSystemAccentColor));
         vm.AvailableWindowBackdrops.Should().ContainInOrder("Auto", "Mica", "Tabbed", "Acrylic", "None");
     }
+
+    [Fact]
+    public async Task EnableWebDropServer_WhenToggled_ShouldImmediatelyStartAndStopServer()
+    {
+        burroQueue.Infrastructure.Web.IEmbeddedWebDropServer webDrop = Substitute.For<burroQueue.Infrastructure.Web.IEmbeddedWebDropServer>();
+        webDrop.Port.Returns(8080);
+
+        burroQueue.Infrastructure.Network.ILocalNetworkInfoService netInfo = Substitute.For<burroQueue.Infrastructure.Network.ILocalNetworkInfoService>();
+        netInfo.GetWebDropUrl(8080).Returns("http://192.168.1.42:8080");
+
+        SettingsViewModel vm = new(
+            _settingsService,
+            _telephonyManager,
+            _autostartService,
+            _audioDeviceEnumerator,
+            webDropServer: webDrop,
+            networkInfo: netInfo);
+
+        webDrop.IsRunning.Returns(false);
+        vm.EnableWebDropServer = true;
+        await Task.Delay(50);
+
+        await webDrop.Received(1).StartAsync(Arg.Any<CancellationToken>());
+        vm.WebDropEndpointInfo.Should().Be("http://192.168.1.42:8080");
+
+        webDrop.IsRunning.Returns(true);
+        vm.EnableWebDropServer = false;
+        await Task.Delay(50);
+
+        await webDrop.Received(1).StopAsync(Arg.Any<CancellationToken>());
+    }
 }

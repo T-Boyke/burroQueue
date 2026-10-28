@@ -51,7 +51,13 @@ public sealed class LocalNetworkInfoService : ILocalNetworkInfoService
                     {
                         string ipString = address.ToString();
                         if (!ipString.StartsWith("127.", StringComparison.Ordinal) &&
-                            !ipString.StartsWith("169.254.", StringComparison.Ordinal))
+                            !ipString.StartsWith("169.254.", StringComparison.Ordinal) &&
+                            !ipString.StartsWith("172.17.", StringComparison.Ordinal) &&
+                            !ipString.StartsWith("172.18.", StringComparison.Ordinal) &&
+                            !ipString.StartsWith("172.19.", StringComparison.Ordinal) &&
+                            !ipString.StartsWith("172.2", StringComparison.Ordinal) &&
+                            !ipString.StartsWith("172.30.", StringComparison.Ordinal) &&
+                            !ipString.StartsWith("172.31.", StringComparison.Ordinal))
                         {
                             return ipString;
                         }

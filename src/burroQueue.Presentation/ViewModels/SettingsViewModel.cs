@@ -19,6 +19,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly ITelephonyManager _telephonyManager;
     private readonly IWindowsAutostartService _autostartService;
     private readonly IAudioDeviceEnumerator _audioDeviceEnumerator;
+    private readonly ILocalNetworkInfoService? _networkInfo;
     private readonly BurroGroup? _group;
     private readonly ILanGroupService? _lanGroupService;
     private readonly IEmbeddedWebDropServer? _webDropServer;
@@ -115,6 +116,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _telephonyManager = telephonyManager;
         _autostartService = autostartService;
         _audioDeviceEnumerator = audioDeviceEnumerator;
+        _networkInfo = networkInfo;
         _group = group;
         _lanGroupService = lanGroupService;
         _webDropServer = webDropServer;
@@ -174,6 +176,48 @@ public sealed partial class SettingsViewModel : ObservableObject
         else
         {
             DiscoveredGroups.Add(new DiscoveredGroupItem(beacon.GroupId, beacon.GroupName, beacon.MemberCount, beacon.HostDisplayName, DateTimeOffset.UtcNow));
+        }
+    }
+
+    partial void OnEnableWebDropServerChanged(bool value)
+    {
+        if (_webDropServer is null)
+        {
+            return;
+        }
+
+        _ = ToggleWebDropServerImmediatelyAsync(value);
+    }
+
+    private async Task ToggleWebDropServerImmediatelyAsync(bool enable)
+    {
+        if (_webDropServer is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (enable && !_webDropServer.IsRunning)
+            {
+                await _webDropServer.StartAsync().ConfigureAwait(false);
+            }
+            else if (!enable && _webDropServer.IsRunning)
+            {
+                await _webDropServer.StopAsync().ConfigureAwait(false);
+            }
+
+            if (_networkInfo is not null)
+            {
+                WebDropEndpointInfo = _networkInfo.GetWebDropUrl(_webDropServer.Port);
+            }
+
+            _settingsService.CurrentSettings.EnableWebDropServer = enable;
+            await _settingsService.SaveAsync(_settingsService.CurrentSettings).ConfigureAwait(false);
+        }
+        catch
+        {
+            // Fail-safe
         }
     }
 
@@ -298,6 +342,11 @@ public sealed partial class SettingsViewModel : ObservableObject
             else if (!EnableWebDropServer && _webDropServer.IsRunning)
             {
                 await _webDropServer.StopAsync().ConfigureAwait(false);
+            }
+
+            if (_networkInfo is not null)
+            {
+                WebDropEndpointInfo = _networkInfo.GetWebDropUrl(_webDropServer.Port);
             }
         }
 

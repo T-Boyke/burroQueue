@@ -49,38 +49,61 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
             return Task.CompletedTask;
         }
 
-        try
+        int[] candidatePorts = _configuredPort == 8080
+            ? [8080, 8081, 8082, 8088, 18080, 0]
+            : [_configuredPort];
+
+        bool started = false;
+        foreach (int candidatePort in candidatePorts)
         {
-            TcpListener listener = new(IPAddress.Any, _configuredPort);
-            listener.Start();
-            _tcpListener = listener;
-            if (listener.LocalEndpoint is IPEndPoint ep)
+            if (TryStartListener(IPAddress.Any, candidatePort))
             {
-                _actualPort = ep.Port;
+                started = true;
+                break;
             }
         }
-        catch
+
+        if (!started)
         {
-            try
+            foreach (int candidatePort in candidatePorts)
             {
-                TcpListener fallback = new(IPAddress.Loopback, _configuredPort);
-                fallback.Start();
-                _tcpListener = fallback;
-                if (fallback.LocalEndpoint is IPEndPoint ep)
+                if (TryStartListener(IPAddress.Loopback, candidatePort))
                 {
-                    _actualPort = ep.Port;
+                    started = true;
+                    break;
                 }
             }
-            catch
-            {
-                return Task.CompletedTask;
-            }
+        }
+
+        if (!started)
+        {
+            return Task.CompletedTask;
         }
 
         _isRunning = true;
         _cts = new CancellationTokenSource();
         _listenTask = Task.Run(() => AcceptLoopAsync(_cts.Token), CancellationToken.None);
         return Task.CompletedTask;
+    }
+
+    private bool TryStartListener(IPAddress bindAddress, int port)
+    {
+        try
+        {
+            TcpListener listener = new(bindAddress, port);
+            listener.Start();
+            _tcpListener = listener;
+            if (listener.LocalEndpoint is IPEndPoint ep)
+            {
+                _actualPort = ep.Port;
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)

@@ -26,6 +26,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private readonly IAudioOutputController _audioController;
     private readonly IAppSettingsService _settingsService;
     private readonly IEmbeddedWebDropServer _webDropServer;
+    private readonly ILocalNetworkInfoService _networkInfoService;
     private readonly IAudioPlayerBackend _audioPlayerBackend;
     private readonly IPlaylistStorageService _playlistStorage;
     private readonly IAudioDeviceEnumerator? _audioDeviceEnumerator;
@@ -224,12 +225,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _qrCodeGenerator = qrCodeGenerator;
         _playlistReader = playlistReader;
         _playlistWriter = playlistWriter;
-        ArgumentNullException.ThrowIfNull(networkInfoService);
+        _networkInfoService = networkInfoService ?? throw new ArgumentNullException(nameof(networkInfoService));
 
         _groupName = _group.Name;
         _group.Renamed += OnGroupRenamed;
         _collaborativePlaylistUrl = _settingsService.CurrentSettings.CollaborativePlaylistUrl;
-        _webDropUrl = networkInfoService.GetWebDropUrl(8080);
+        _webDropUrl = _networkInfoService.GetWebDropUrl(_webDropServer.Port > 0 ? _webDropServer.Port : 8080);
         _skipVotePool = new SkipVotePool(TrackId.New(), requiredVotes: 3);
         _isWebDropActive = _settingsService.CurrentSettings.EnableWebDropServer;
         _networkStatusText = _isWebDropActive ? "LAN-Sync & WebDrop aktiv" : "LAN-Sync aktiv (WebDrop aus)";
@@ -448,7 +449,25 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         string? oldPlaylistUrl = CollaborativePlaylistUrl;
         CollaborativePlaylistUrl = _settingsService.CurrentSettings.CollaborativePlaylistUrl;
-        IsWebDropActive = _settingsService.CurrentSettings.EnableWebDropServer;
+        IsWebDropActive = _settingsService.CurrentSettings.EnableWebDropServer || _webDropServer.IsRunning;
+        NetworkStatusText = IsWebDropActive ? "LAN-Sync & WebDrop aktiv" : "LAN-Sync aktiv (WebDrop aus)";
+
+        if (IsWebDropActive && !_webDropServer.IsRunning)
+        {
+            _ = Task.Run(async () =>
+            {
+                await _webDropServer.StartAsync().ConfigureAwait(false);
+                RunOnUi(() => RefreshWebDropEndpointUrl());
+            });
+        }
+        else if (!IsWebDropActive && _webDropServer.IsRunning)
+        {
+            _ = _webDropServer.StopAsync();
+        }
+        else
+        {
+            RefreshWebDropEndpointUrl();
+        }
 
         if (!string.IsNullOrWhiteSpace(CollaborativePlaylistUrl) &&
             !string.Equals(oldPlaylistUrl, CollaborativePlaylistUrl, StringComparison.OrdinalIgnoreCase))
@@ -483,6 +502,18 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         ConfigurePlaylistAutoSyncLoop();
     }
 
+    private void RefreshWebDropEndpointUrl()
+    {
+        int activePort = _webDropServer.Port > 0 ? _webDropServer.Port : 8080;
+        string updatedUrl = _networkInfoService.GetWebDropUrl(activePort);
+        if (!string.Equals(WebDropUrl, updatedUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            WebDropUrl = updatedUrl;
+            QrCodeSvg = string.Empty;
+            QrCodeImage = null;
+        }
+    }
+
     [RelayCommand]
     public void ToggleMute()
     {
@@ -515,6 +546,13 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             try
             {
+                if (!_webDropServer.IsRunning)
+                {
+                    _webDropServer.StartAsync().GetAwaiter().GetResult();
+                    IsWebDropActive = _settingsService.CurrentSettings.EnableWebDropServer || _webDropServer.IsRunning;
+                    RefreshWebDropEndpointUrl();
+                }
+
                 ProcessStarter(new ProcessStartInfo
                 {
                     FileName = WebDropUrl,
