@@ -102,25 +102,34 @@ public sealed class StarfaceTelephonyProvider : ITelephonyProvider
 
         string normalized = query.TrimStart('?').ToLowerInvariant();
 
-        if (normalized.Contains("ringing") ||
-            normalized.Contains("klingeln") ||
-            normalized.Contains("incoming") ||
-            normalized.Contains("alerting"))
+        if (normalized.Contains("disconnected", StringComparison.Ordinal) ||
+            normalized.Contains("idle", StringComparison.Ordinal) ||
+            normalized.Contains("ended", StringComparison.Ordinal) ||
+            normalized.Contains("beendet", StringComparison.Ordinal) ||
+            normalized.Contains("aufgelegt", StringComparison.Ordinal))
+        {
+            return TelephonyState.Idle;
+        }
+
+        if (normalized.Contains("ringing", StringComparison.Ordinal) ||
+            normalized.Contains("klingeln", StringComparison.Ordinal) ||
+            normalized.Contains("incoming", StringComparison.Ordinal) ||
+            normalized.Contains("alerting", StringComparison.Ordinal))
         {
             return TelephonyState.Ringing;
         }
 
-        if (normalized.Contains("connected") ||
-            normalized.Contains("active") ||
-            normalized.Contains("verbunden") ||
-            normalized.Contains("gespraech"))
+        if (normalized.Contains("connected", StringComparison.Ordinal) ||
+            normalized.Contains("active", StringComparison.Ordinal) ||
+            normalized.Contains("verbunden", StringComparison.Ordinal) ||
+            normalized.Contains("gespraech", StringComparison.Ordinal))
         {
             return TelephonyState.ActiveCall;
         }
 
-        if (normalized.Contains("connecting") ||
-            normalized.Contains("waehlt") ||
-            normalized.Contains("dialing"))
+        if (normalized.Contains("connecting", StringComparison.Ordinal) ||
+            normalized.Contains("waehlt", StringComparison.Ordinal) ||
+            normalized.Contains("dialing", StringComparison.Ordinal))
         {
             return TelephonyState.Connecting;
         }
