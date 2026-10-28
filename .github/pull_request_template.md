@@ -1,23 +1,23 @@
 # Pull Request
 
-## Zusammenfassung der Änderungen
+## Summary of Changes
 
-<!-- Bitte beschreibe kurz und präzise, was geändert wurde und warum. -->
+<!-- Provide a concise description of what changed and the motivation behind it. -->
 
-## Betroffene Schichten
+## Affected Layers
 
-- [ ] `burroQueue.Domain` (Reine Geschäftslogik, 0 Dependencies)
+- [ ] `burroQueue.Domain` (Pure business logic, 0 dependencies)
 - [ ] `burroQueue.Infrastructure` (Audio, YouTube, Network, Persistence, Telephony)
 - [ ] `burroQueue.Presentation` (WPF UI, ViewModels, Systray)
-- [ ] `burroQueue.Tests` (Unit, Integration, System, E2E)
-- [ ] Dokumentation & Build-Skripte
+- [ ] `burroQueue.Tests` (Unit, integration, system tests)
+- [ ] Documentation & Build scripts
 
-## Checkliste vor dem Einreichen
+## Pre-Submission Checklist
 
-- [ ] **Architektur-Prüfung:** `./scripts/verify-architecture.ps1` ausgeführt und erfolgreich bestanden (0 Fehler).
-- [ ] **1CPF:** Jede `.cs`-Datei enthält exakt eine Komponente, Dateiname entspricht Typname.
-- [ ] **TDD:** Jeder Produktionsänderung liegt ein fehlschlagender xUnit-Test zugrunde.
-- [ ] **Tests & Build:** `dotnet test` läuft fehlerfrei durch (0 Warnungen bei `-warnaserror`).
-- [ ] **Code Formatting:** `dotnet format --verify-no-changes` meckert nicht.
-- [ ] **Conventional Commits:** Alle Commit-Nachrichten folgen `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, etc.
-- [ ] **Memory & ADR:** Bei architektonischen Änderungen wurden `memory.md` und `decisions.md` gepflegt.
+- [ ] **Architecture Audit:** `./scripts/verify-architecture.ps1` ran and passed with 0 errors.
+- [ ] **1CPF (Single Component Per File):** Every `.cs` file defines exactly one component, with matching filename.
+- [ ] **TDD:** Every production code modification is backed by a failing xUnit test written beforehand.
+- [ ] **Build & Tests:** `dotnet test` runs cleanly with 0 warnings under `-warnaserror`.
+- [ ] **Code Formatting:** `dotnet format --verify-no-changes` reports 0 formatting issues.
+- [ ] **Conventional Commits:** Commit messages strictly follow Conventional Commits 1.0.0 (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`).
+- [ ] **Memory & ADR:** `memory.md` and `decisions.md` updated for architectural changes.

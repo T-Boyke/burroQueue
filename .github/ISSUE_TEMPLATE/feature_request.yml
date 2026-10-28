@@ -1,33 +1,33 @@
-name: "💡 Feature-Vorschlag"
-description: "Schlage eine neue Funktion oder Verbesserung für burroQueue vor."
+name: "Feature Request"
+description: "Propose a new feature, improvement, or architectural enhancement for burroQueue."
 title: "[Feature]: "
 labels: ["enhancement"]
 body:
   - type: textarea
     id: problem
     attributes:
-      label: "Problem oder Anwendungsfall"
-      description: "Welches konkrete Problem im Büro soll gelöst werden?"
+      label: "Problem / Use Case"
+      description: "What office or audio workflow challenge does this address?"
     validations:
       required: true
   - type: textarea
     id: solution
     attributes:
-      label: "Vorgeschlagene Lösung"
-      description: "Wie stellst du dir die Umsetzung vor?"
+      label: "Proposed Solution"
+      description: "Describe the desired capability and its technical behavior."
     validations:
       required: true
   - type: textarea
     id: alternatives
     attributes:
-      label: "In Betracht gezogene Alternativen"
-      description: "Gibt es alternative Lösungswege oder Workarounds?"
+      label: "Alternatives Considered"
+      description: "Any alternative approaches or workarounds evaluated?"
   - type: checkboxes
     id: guidelines
     attributes:
-      label: "Architektur-Konformität"
+      label: "Architecture Compliance"
       options:
-        - label: "Ich habe verstanden, dass Domain-Logik strikt frei von UI- und externen NuGet-Dependencies bleiben muss."
+        - label: "Domain logic must remain pure (zero external NuGet packages, zero UI or network dependencies)."
           required: true
-        - label: "Ich habe verstanden, dass burroQueue unter 30 MB RAM im Leerlauf bleiben soll (kein WebView2/Electron)."
+        - label: "Standby memory footprint must remain under 30 MB RAM (no WebView2 or Electron wrappers)."
           required: true

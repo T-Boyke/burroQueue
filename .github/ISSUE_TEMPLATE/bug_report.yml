@@ -1,56 +1,56 @@
-name: "🐛 Fehlerbericht"
-description: "Melde einen unerwarteten Fehler oder ein Problem in burroQueue."
+name: "Bug Report"
+description: "Report an unexpected error or defect in burroQueue."
 title: "[Bug]: "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Vielen Dank, dass du dir die Zeit nimmst, einen Fehler zu melden!
+        Thank you for reporting an issue! Please provide detailed steps to reproduce the problem.
   - type: input
     id: version
     attributes:
       label: "burroQueue Version"
-      description: "Welche Version von burroQueue nutzt du? (z. B. v1.0.0)"
+      description: "Which version of burroQueue are you running? (e.g., 1.0.0 or commit hash)"
       placeholder: "1.0.0"
     validations:
       required: true
   - type: input
     id: os
     attributes:
-      label: "Windows Version"
-      description: "Welche Windows 11 Build-Version ist installiert?"
+      label: "Windows Build"
+      description: "Which Windows 11 build is installed?"
       placeholder: "Windows 11 Pro 24H2 (Build 26100)"
     validations:
       required: true
   - type: textarea
     id: what-happened
     attributes:
-      label: "Was ist passiert?"
-      description: "Beschreibe das unerwartete Verhalten detailliert."
+      label: "Description"
+      description: "Describe what went wrong."
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: "Schritte zur Reproduktion"
-      description: "Wie lässt sich der Fehler reproduzieren?"
+      label: "Steps to Reproduce"
+      description: "Exact steps to trigger the bug."
       value: |
-        1. Starte burroQueue
-        2. Droppe folgenden YouTube-Link: '...'
-        3. Beobachte das Verhalten: '...'
+        1. Start burroQueue.
+        2. Paste or drop link: '...'
+        3. Observe: '...'
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
-      label: "Erwartetes Verhalten"
-      description: "Was hättest du stattdessen erwartet?"
+      label: "Expected Behavior"
+      description: "What should have happened instead?"
     validations:
       required: true
   - type: textarea
     id: logs
     attributes:
-      label: "Logs oder Konsolenausgabe"
-      description: "Füge relevante Ausgaben oder Stacktraces ein."
+      label: "Logs / Diagnostics"
+      description: "Paste relevant log messages, stack traces, or console outputs."
       render: shell
