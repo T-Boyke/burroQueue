@@ -16,7 +16,7 @@ using Xunit;
 
 namespace burroQueue.Tests.Presentation;
 
-public sealed class MainWindowViewModelAddFeedbackAndGroupTests
+public sealed class MainWindowViewModelAddFeedbackAndGroupTests : IDisposable
 {
     private readonly BurroGroup _group;
     private readonly IYouTubeUrlParser _urlParser;
@@ -31,6 +31,7 @@ public sealed class MainWindowViewModelAddFeedbackAndGroupTests
     private readonly IPlaylistStorageService _playlistStorage;
     private readonly ISystrayNotificationService _systrayService;
     private readonly IYouTubePlaylistReader _playlistReader;
+    private readonly Action<Action> _originalDispatcher;
 
     public MainWindowViewModelAddFeedbackAndGroupTests()
     {
@@ -59,7 +60,13 @@ public sealed class MainWindowViewModelAddFeedbackAndGroupTests
 
         _networkInfoService.GetWebDropUrl(8080).Returns("http://192.168.1.10:8080");
 
+        _originalDispatcher = MainWindowViewModel.UiDispatcherRunner;
         MainWindowViewModel.UiDispatcherRunner = action => action();
+    }
+
+    public void Dispose()
+    {
+        MainWindowViewModel.UiDispatcherRunner = _originalDispatcher;
     }
 
     private MainWindowViewModel CreateViewModel()
@@ -115,13 +122,21 @@ public sealed class MainWindowViewModelAddFeedbackAndGroupTests
     [Fact]
     public void OpenYouTubeInviteAndDismissPrompt_ShouldHidePromptAndMarkSetting()
     {
-        MainWindowViewModel.ProcessStarter = _ => { };
-        MainWindowViewModel vm = CreateViewModel();
+        Action<System.Diagnostics.ProcessStartInfo> original = MainWindowViewModel.ProcessStarter;
+        try
+        {
+            MainWindowViewModel.ProcessStarter = _ => { };
+            MainWindowViewModel vm = CreateViewModel();
 
-        vm.OpenYouTubeInviteAndDismissPrompt();
+            vm.OpenYouTubeInviteAndDismissPrompt();
 
-        vm.IsFirstJoinPromptVisible.Should().BeFalse();
-        _settingsService.CurrentSettings.HasJoinedCollaborativePlaylist.Should().BeTrue();
+            vm.IsFirstJoinPromptVisible.Should().BeFalse();
+            _settingsService.CurrentSettings.HasJoinedCollaborativePlaylist.Should().BeTrue();
+        }
+        finally
+        {
+            MainWindowViewModel.ProcessStarter = original;
+        }
     }
 
     [Fact]
