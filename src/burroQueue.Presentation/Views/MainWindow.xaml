@@ -477,6 +477,12 @@
             Grid.Row="1"
             Visibility="{Binding IsQueueExpanded, Converter={StaticResource BooleanToVisibilityConverter}}"
             ItemsSource="{Binding QueuedItems}"
+            VirtualizingPanel.IsVirtualizing="True"
+            VirtualizingPanel.VirtualizationMode="Recycling"
+            VirtualizingPanel.ScrollUnit="Pixel"
+            VirtualizingPanel.CacheLength="1,1"
+            VirtualizingPanel.CacheLengthUnit="Page"
+            ScrollViewer.IsDeferredScrollingEnabled="True"
             Background="Transparent"
             BorderThickness="0"
             ScrollViewer.VerticalScrollBarVisibility="Auto">
@@ -502,7 +508,10 @@
                       Margin="0,0,10,0"
                       ClipToBounds="True"
                       Background="{DynamicResource SubtleFillColorSecondaryBrush}">
-                      <Image Source="{Binding ThumbnailUrl}" Stretch="UniformToFill" />
+                      <Image
+                        Source="{Binding ThumbnailUrl}"
+                        Stretch="UniformToFill"
+                        RenderOptions.BitmapScalingMode="LowQuality" />
                     </Border>
 
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">

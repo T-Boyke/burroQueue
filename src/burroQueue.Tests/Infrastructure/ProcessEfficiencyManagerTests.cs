@@ -17,6 +17,16 @@ public sealed class ProcessEfficiencyManagerTests
     }
 
     [Fact]
+    public void EnableCurrentThreadEfficiencyMode_ShouldNotThrow()
+    {
+        ProcessEfficiencyManager manager = new();
+
+        Action act = () => manager.EnableCurrentThreadEfficiencyMode();
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
     public void TrimMemoryWorkingSet_ShouldNotThrow()
     {
         ProcessEfficiencyManager manager = new();
@@ -26,4 +36,3 @@ public sealed class ProcessEfficiencyManagerTests
         act.Should().NotThrow();
     }
 }
-

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime;
 using System.Runtime.InteropServices;
 
 namespace burroQueue.Infrastructure.Performance;
@@ -6,8 +7,9 @@ namespace burroQueue.Infrastructure.Performance;
 public sealed class ProcessEfficiencyManager : IProcessEfficiencyManager
 {
     private const int ProcessPowerThrottling = 4;
-    private const uint ProcessPowerThrottlingCurrentVersion = 1;
-    private const uint ProcessPowerThrottlingExecutionSpeed = 0x1;
+    private const int ThreadPowerThrottling = 3;
+    private const uint PowerThrottlingCurrentVersion = 1;
+    private const uint PowerThrottlingExecutionSpeed = 0x1;
 
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -19,10 +21,25 @@ public sealed class ProcessEfficiencyManager : IProcessEfficiencyManager
 
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetThreadInformation(
+        IntPtr hThread,
+        int threadInformationClass,
+        ref ProcessPowerThrottlingState threadInformation,
+        uint threadInformationSize);
+
+    [DllImport("kernel32.dll")]
+    private static extern IntPtr GetCurrentThread();
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetProcessWorkingSetSize(
         IntPtr hProcess,
         IntPtr dwMinimumWorkingSetSize,
         IntPtr dwMaximumWorkingSetSize);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool K32EmptyWorkingSet(IntPtr hProcess);
 
     public bool IsEfficiencyModeSupported => RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && Environment.OSVersion.Version.Build >= 22000;
 
@@ -37,15 +54,56 @@ public sealed class ProcessEfficiencyManager : IProcessEfficiencyManager
         {
             ProcessPowerThrottlingState state = new()
             {
-                Version = ProcessPowerThrottlingCurrentVersion,
-                ControlMask = ProcessPowerThrottlingExecutionSpeed,
-                StateMask = ProcessPowerThrottlingExecutionSpeed
+                Version = PowerThrottlingCurrentVersion,
+                ControlMask = PowerThrottlingExecutionSpeed,
+                StateMask = PowerThrottlingExecutionSpeed
             };
 
             using Process currentProcess = Process.GetCurrentProcess();
+            if (string.Equals(currentProcess.ProcessName, "burroQueue", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    currentProcess.PriorityClass = ProcessPriorityClass.Idle;
+                    currentProcess.PriorityBoostEnabled = false;
+                }
+                catch
+                {
+                    // Fallback falls Prozess-Rechte eingeschränkt sind
+                }
+            }
+
             return SetProcessInformation(
                 currentProcess.Handle,
                 ProcessPowerThrottling,
+                ref state,
+                (uint)Marshal.SizeOf<ProcessPowerThrottlingState>());
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public bool EnableCurrentThreadEfficiencyMode()
+    {
+        if (!IsEfficiencyModeSupported)
+        {
+            return false;
+        }
+
+        try
+        {
+            ProcessPowerThrottlingState state = new()
+            {
+                Version = PowerThrottlingCurrentVersion,
+                ControlMask = PowerThrottlingExecutionSpeed,
+                StateMask = PowerThrottlingExecutionSpeed
+            };
+
+            return SetThreadInformation(
+                GetCurrentThread(),
+                ThreadPowerThrottling,
                 ref state,
                 (uint)Marshal.SizeOf<ProcessPowerThrottlingState>());
         }
@@ -59,14 +117,16 @@ public sealed class ProcessEfficiencyManager : IProcessEfficiencyManager
     {
         try
         {
-            GC.Collect(2, GCCollectionMode.Aggressive, true, true);
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
             GC.WaitForPendingFinalizers();
-            GC.Collect(2, GCCollectionMode.Aggressive, true, true);
+            GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 using Process currentProcess = Process.GetCurrentProcess();
                 _ = SetProcessWorkingSetSize(currentProcess.Handle, -1, -1);
+                _ = K32EmptyWorkingSet(currentProcess.Handle);
             }
         }
         catch
@@ -75,4 +135,3 @@ public sealed class ProcessEfficiencyManager : IProcessEfficiencyManager
         }
     }
 }
-

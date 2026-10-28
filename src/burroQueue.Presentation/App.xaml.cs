@@ -147,6 +147,9 @@ public partial class App : System.Windows.Application
         MainWindowViewModel? viewModel = mainWindow.DataContext as MainWindowViewModel;
         LogStartup("MainWindow resolved successfully");
 
+        IProcessEfficiencyManager? efficiency = serviceProvider.GetService<IProcessEfficiencyManager>();
+        efficiency?.EnableEfficiencyMode();
+
         ISystrayNotificationService systrayService = serviceProvider.GetRequiredService<ISystrayNotificationService>();
         systrayService.Initialize(
             mainWindow,
@@ -154,6 +157,7 @@ public partial class App : System.Windows.Application
             {
                 SettingsWindow settingsWindow = serviceProvider.GetRequiredService<SettingsWindow>();
                 showSettings(settingsWindow, mainWindow);
+                efficiency?.TrimMemoryWorkingSet();
             },
             onExitApp: shutdownAction,
             onTogglePlayPause: () =>
@@ -186,6 +190,7 @@ public partial class App : System.Windows.Application
                 AboutWindow aboutWindow = serviceProvider.GetRequiredService<AboutWindow>();
                 aboutWindow.Owner = mainWindow;
                 aboutWindow.ShowDialog();
+                efficiency?.TrimMemoryWorkingSet();
             });
         LogStartup("Systray initialized");
 
@@ -194,9 +199,13 @@ public partial class App : System.Windows.Application
         LogStartup("Invoking showWindow callback...");
         showWindow(mainWindow);
 
-        IProcessEfficiencyManager? efficiency = serviceProvider.GetService<IProcessEfficiencyManager>();
-        efficiency?.EnableEfficiencyMode();
         efficiency?.TrimMemoryWorkingSet();
+        _ = Task.Run(async () =>
+        {
+            efficiency?.EnableCurrentThreadEfficiencyMode();
+            await Task.Delay(2500).ConfigureAwait(false);
+            efficiency?.TrimMemoryWorkingSet();
+        });
 
         singleInstance?.StartListeningForSecondaryInstance(() =>
         {

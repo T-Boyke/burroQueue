@@ -10,9 +10,11 @@
     <AssemblyName>burroQueue</AssemblyName>
     <RootNamespace>burroQueue.Presentation</RootNamespace>
     <ServerGarbageCollection>false</ServerGarbageCollection>
-    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <RetainVMGarbageCollection>false</RetainVMGarbageCollection>
     <GarbageCollectionAdaptationMode>1</GarbageCollectionAdaptationMode>
     <TieredPGO>true</TieredPGO>
+    <TieredCompilationQuickJitForLoops>true</TieredCompilationQuickJitForLoops>
   </PropertyGroup>
 
   <ItemGroup>

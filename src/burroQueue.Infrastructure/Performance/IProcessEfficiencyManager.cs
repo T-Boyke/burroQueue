@@ -6,6 +6,7 @@ public interface IProcessEfficiencyManager
 
     bool EnableEfficiencyMode();
 
+    bool EnableCurrentThreadEfficiencyMode();
+
     void TrimMemoryWorkingSet();
 }
-

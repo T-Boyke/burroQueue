@@ -37,14 +37,33 @@ public partial class MainWindow : FluentWindow
                 settingsWindow.Owner = this;
                 settingsWindow.ShowDialog();
                 _viewModel.ReloadSettings();
+                serviceProvider.GetService<burroQueue.Infrastructure.Performance.IProcessEfficiencyManager>()?.TrimMemoryWorkingSet();
             };
         }
 
         Loaded += (_, _) => App.LogStartup($"MainWindow Loaded event fired. HWND=0x{new System.Windows.Interop.WindowInteropHelper(this).Handle:X}");
         Activated += (_, _) => App.LogStartup("MainWindow Activated event fired");
-        Deactivated += (_, _) => App.LogStartup("MainWindow Deactivated event fired");
-        IsVisibleChanged += (_, _) => App.LogStartup($"MainWindow IsVisibleChanged event fired: {IsVisible}");
-        StateChanged += (_, _) => App.LogStartup($"MainWindow StateChanged event fired: {WindowState}");
+        Deactivated += (_, _) =>
+        {
+            App.LogStartup("MainWindow Deactivated event fired");
+            _serviceProvider?.GetService<burroQueue.Infrastructure.Performance.IProcessEfficiencyManager>()?.TrimMemoryWorkingSet();
+        };
+        IsVisibleChanged += (_, _) =>
+        {
+            App.LogStartup($"MainWindow IsVisibleChanged event fired: {IsVisible}");
+            if (!IsVisible)
+            {
+                _serviceProvider?.GetService<burroQueue.Infrastructure.Performance.IProcessEfficiencyManager>()?.TrimMemoryWorkingSet();
+            }
+        };
+        StateChanged += (_, _) =>
+        {
+            App.LogStartup($"MainWindow StateChanged event fired: {WindowState}");
+            if (WindowState == WindowState.Minimized)
+            {
+                _serviceProvider?.GetService<burroQueue.Infrastructure.Performance.IProcessEfficiencyManager>()?.TrimMemoryWorkingSet();
+            }
+        };
         Closed += (_, _) => App.LogStartup("MainWindow Closed event fired");
 
         Loaded += OnLoaded;
