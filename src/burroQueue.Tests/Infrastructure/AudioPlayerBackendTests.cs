@@ -103,4 +103,57 @@ public sealed class AudioPlayerBackendTests : IAsyncLifetime, IDisposable
 
         _backend.CurrentVolume.Should().Be(0.25);
     }
+
+    [Fact]
+    public async Task PlayTrackAsync_WithMediaStreamPlayer_ShouldOpenAndPlayStream()
+    {
+        IMediaStreamPlayer player = Substitute.For<IMediaStreamPlayer>();
+        await using AudioPlayerBackend backendWithPlayer = new(_audioOutput, _streamResolver, player);
+
+        Track track = new("media-1", new Uri("https://www.youtube.com/watch?v=media-1"), "Media Track", "Bob", DateTimeOffset.UtcNow);
+        Uri streamUri = new("https://direct.audio/stream.webm");
+        _streamResolver.ResolveAudioStreamUriAsync("media-1", Arg.Any<CancellationToken>()).Returns(streamUri);
+
+        await backendWithPlayer.PlayTrackAsync(track);
+
+        player.Received(1).Open(streamUri);
+        player.Received(1).Play();
+        player.Volume.Should().Be(_audioOutput.CurrentVolume);
+
+        await backendWithPlayer.PauseAsync();
+        player.Received(1).Pause();
+
+        await backendWithPlayer.ResumeAsync();
+        player.Received(2).Play();
+
+        _audioOutput.VolumeChanged += Raise.Event<EventHandler<double>>(_audioOutput, 0.45);
+        player.Volume.Should().Be(0.45);
+
+        await backendWithPlayer.StopAsync();
+        player.Received(1).StopPlayback();
+    }
+
+    [Fact]
+    public async Task MediaStreamPlayer_WhenMediaEndedFires_ShouldNotifyTrackFinishedAndAdvance()
+    {
+        IMediaStreamPlayer player = Substitute.For<IMediaStreamPlayer>();
+        await using AudioPlayerBackend backendWithPlayer = new(_audioOutput, _streamResolver, player);
+
+        Track track = new("ended-1", new Uri("https://www.youtube.com/watch?v=ended-1"), "Ended Song", "Clara", DateTimeOffset.UtcNow);
+        Uri streamUri = new("https://direct.audio/ended.m4a");
+        _streamResolver.ResolveAudioStreamUriAsync("ended-1", Arg.Any<CancellationToken>()).Returns(streamUri);
+
+        Track? finishedTrack = null;
+        backendWithPlayer.TrackPlaybackFinished += (_, t) => finishedTrack = t;
+
+        await backendWithPlayer.PlayTrackAsync(track);
+
+        // Fire MediaEnded on player
+        player.MediaEnded += Raise.Event<EventHandler>(player, EventArgs.Empty);
+
+        finishedTrack.Should().Be(track);
+        backendWithPlayer.CurrentState.Should().Be(PlaybackState.Stopped);
+        backendWithPlayer.ActiveTrack.Should().BeNull();
+    }
 }
+

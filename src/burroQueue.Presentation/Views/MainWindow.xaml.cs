@@ -34,6 +34,7 @@ public partial class MainWindow : FluentWindow
                 SettingsWindow settingsWindow = serviceProvider.GetRequiredService<SettingsWindow>();
                 settingsWindow.Owner = this;
                 settingsWindow.ShowDialog();
+                _viewModel.ReloadSettings();
             };
         }
 
@@ -46,6 +47,27 @@ public partial class MainWindow : FluentWindow
 
         Loaded += OnLoaded;
         Closing += OnClosing;
+        KeyDown += OnKeyDown;
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal void OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        bool isCtrl = (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) == System.Windows.Input.ModifierKeys.Control;
+        HandleKeyDown(_viewModel, e.Key, isCtrl, () => System.Windows.Clipboard.ContainsText() ? System.Windows.Clipboard.GetText() : null, h => e.Handled = h);
+    }
+
+    internal static void HandleKeyDown(MainWindowViewModel viewModel, System.Windows.Input.Key key, bool isControl, Func<string?> getClipboardText, Action<bool> setHandled)
+    {
+        if (key == System.Windows.Input.Key.V && isControl)
+        {
+            string? clipboardText = getClipboardText();
+            if (!string.IsNullOrWhiteSpace(clipboardText))
+            {
+                viewModel.EnqueueRawUrlCommand.Execute(clipboardText.Trim());
+                setHandled(true);
+            }
+        }
     }
 
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]

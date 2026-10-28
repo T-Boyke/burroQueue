@@ -763,6 +763,95 @@ public sealed class MainWindowViewModelPlaybackTests
 
         vm.StatusMessage.Should().Be("Konnte Browser nicht öffnen");
     }
+
+    [Fact]
+    public void ReloadSettings_ShouldRefreshPlaylistUrlAndAudioDevice()
+    {
+        IAudioDeviceEnumerator audioEnumerator = Substitute.For<IAudioDeviceEnumerator>();
+        audioEnumerator.GetAvailableRenderDevices().Returns(
+        [
+            new AudioDeviceOption("{dev-1}", "Initial Speaker", false),
+            new AudioDeviceOption("{dev-2}", "Headset (Jabra)", false)
+        ]);
+
+        _settingsService.CurrentSettings.Returns(new burroQueue.Infrastructure.Configuration.AppSettingsData
+        {
+            SelectedAudioDeviceId = "{dev-1}",
+            CollaborativePlaylistUrl = "https://youtube.com/playlist?list=initial"
+        });
+
+        MainWindowViewModel vm = new(
+            _group,
+            _urlParser,
+            _metadataFetcher,
+            _telephonyManager,
+            _lanGroupService,
+            _audioController,
+            _settingsService,
+            _webDropServer,
+            _networkInfoService,
+            _audioPlayerBackend,
+            _playlistStorage,
+            audioEnumerator);
+
+        vm.ActiveAudioDeviceName.Should().Be("Initial Speaker");
+        vm.CollaborativePlaylistUrl.Should().Be("https://youtube.com/playlist?list=initial");
+
+        // Simulate settings change
+        _settingsService.CurrentSettings.Returns(new burroQueue.Infrastructure.Configuration.AppSettingsData
+        {
+            SelectedAudioDeviceId = "{dev-2}",
+            CollaborativePlaylistUrl = "https://youtube.com/playlist?list=updated"
+        });
+
+        vm.ReloadSettings();
+
+        vm.ActiveAudioDeviceName.Should().Be("Headset (Jabra)");
+        vm.CollaborativePlaylistUrl.Should().Be("https://youtube.com/playlist?list=updated");
+    }
+
+    [Fact]
+    public void EnqueueRawUrl_WithCustomSubmitter_ShouldSetSubmittedByOnEnqueuedTrack()
+    {
+        _urlParser.TryExtractVideoId("https://youtube.com/watch?v=subm123", out Arg.Any<string>()!, out Arg.Any<Uri>()!)
+            .Returns(x =>
+            {
+                x[1] = "subm123";
+                x[2] = new Uri("https://youtube.com/watch?v=subm123");
+                return true;
+            });
+
+        _urlParser.TryExtractVideoId("https://youtube.com/watch?v=subm456", out Arg.Any<string>()!, out Arg.Any<Uri>()!)
+            .Returns(x =>
+            {
+                x[1] = "subm456";
+                x[2] = new Uri("https://youtube.com/watch?v=subm456");
+                return true;
+            });
+
+        MainWindowViewModel vm = CreateViewModel();
+        vm.EnqueueRawUrl("https://youtube.com/watch?v=subm123", "Chef Frank");
+        vm.EnqueueRawUrl("https://youtube.com/watch?v=subm456", "Dev Sarah");
+
+        _group.Playlist.CurrentTrack.Should().NotBeNull();
+        _group.Playlist.CurrentTrack!.SubmittedBy.Should().Be("Chef Frank");
+        _group.Playlist.QueuedTracks.Should().ContainSingle(t => t.VideoId == "subm456" && t.SubmittedBy == "Dev Sarah");
+    }
+
+    [Fact]
+    public async Task WebDropServer_WhenSkipVoteRequested_ShouldCastVoteToSkip()
+    {
+        Track track = new("skip-web-1", new Uri("https://www.youtube.com/watch?v=skip-web-1"), "Song 1", "Artist", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(track);
+
+        MainWindowViewModel vm = CreateViewModel();
+        vm.SkipVoteStatus.Should().Be("0 / 3 Votes");
+
+        _webDropServer.SkipVoteRequested += Raise.Event<EventHandler>(_webDropServer, EventArgs.Empty);
+        await Task.Delay(20);
+
+        vm.SkipVoteStatus.Should().Be("1 / 3 Votes");
+    }
 }
 
 

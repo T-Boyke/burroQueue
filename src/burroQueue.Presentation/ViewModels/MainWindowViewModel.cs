@@ -27,6 +27,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private readonly IEmbeddedWebDropServer _webDropServer;
     private readonly IAudioPlayerBackend _audioPlayerBackend;
     private readonly IPlaylistStorageService _playlistStorage;
+    private readonly IAudioDeviceEnumerator? _audioDeviceEnumerator;
     private readonly ClientId _localClientId = ClientId.New();
     private SkipVotePool _skipVotePool;
     private bool _isUpdatingVolumeInternally;
@@ -169,9 +170,10 @@ public sealed partial class MainWindowViewModel : ObservableObject
             _telephonyProviderName = activeProvider.DisplayName;
         }
 
-        if (audioDeviceEnumerator is not null && !string.IsNullOrEmpty(_settingsService.CurrentSettings.SelectedAudioDeviceId))
+        _audioDeviceEnumerator = audioDeviceEnumerator;
+        if (_audioDeviceEnumerator is not null && !string.IsNullOrEmpty(_settingsService.CurrentSettings.SelectedAudioDeviceId))
         {
-            AudioDeviceOption? device = audioDeviceEnumerator.GetAvailableRenderDevices()
+            AudioDeviceOption? device = _audioDeviceEnumerator.GetAvailableRenderDevices()
                 .FirstOrDefault(d => d.Id == _settingsService.CurrentSettings.SelectedAudioDeviceId);
             if (device is not null)
             {
@@ -198,7 +200,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _lanGroupService.QueueSyncReceived += OnQueueSyncReceived;
         _lanGroupService.SkipVoteReceived += OnSkipVoteReceived;
         _audioPlayerBackend.TrackPlaybackFinished += OnTrackPlaybackFinished;
-        _webDropServer.LinkDropped += (_, droppedUrl) => EnqueueRawUrl(droppedUrl);
+        _webDropServer.LinkDropped += (_, req) => EnqueueRawUrl(req.Url, req.Submitter);
+        _webDropServer.SkipVoteRequested += async (_, _) => await VoteToSkipAsync().ConfigureAwait(false);
+        _webDropServer.SkipVoteStatusProvider = () => SkipVoteStatus;
     }
 
     public async Task InitializeAsync()
@@ -233,6 +237,25 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public void OpenSettings()
     {
         OpenSettingsRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void ReloadSettings()
+    {
+        CollaborativePlaylistUrl = _settingsService.CurrentSettings.CollaborativePlaylistUrl;
+        if (_telephonyManager.ActiveProvider is { } activeProvider)
+        {
+            TelephonyProviderName = activeProvider.DisplayName;
+        }
+
+        if (_audioDeviceEnumerator is not null && !string.IsNullOrEmpty(_settingsService.CurrentSettings.SelectedAudioDeviceId))
+        {
+            AudioDeviceOption? device = _audioDeviceEnumerator.GetAvailableRenderDevices()
+                .FirstOrDefault(d => d.Id == _settingsService.CurrentSettings.SelectedAudioDeviceId);
+            if (device is not null)
+            {
+                ActiveAudioDeviceName = device.DisplayName;
+            }
+        }
     }
 
     [RelayCommand]
@@ -306,13 +329,22 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     public void EnqueueRawUrl(string? rawUrl)
     {
+        EnqueueRawUrl(rawUrl, null);
+    }
+
+    public void EnqueueRawUrl(string? rawUrl, string? submitter = null)
+    {
         if (string.IsNullOrWhiteSpace(rawUrl) || !_urlParser.TryExtractVideoId(rawUrl, out string videoId, out Uri normalizedUri))
         {
             StatusMessage = "Invalid YouTube URL";
             return;
         }
 
-        Track track = new(videoId, normalizedUri, videoId, _settingsService.CurrentSettings.ClientDisplayName, DateTimeOffset.UtcNow);
+        string effectiveSubmitter = !string.IsNullOrWhiteSpace(submitter)
+            ? submitter.Trim()
+            : _settingsService.CurrentSettings.ClientDisplayName;
+
+        Track track = new(videoId, normalizedUri, videoId, effectiveSubmitter, DateTimeOffset.UtcNow);
         _group.Playlist.Enqueue(track);
         SyncQueuedItems();
         StatusMessage = $"Enqueued: {videoId}";

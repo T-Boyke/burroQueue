@@ -181,6 +181,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IYouTubeUrlParser, YouTubeUrlParser>();
         services.AddSingleton<IYouTubeMetadataFetcher, YouTubeMetadataFetcher>();
         services.AddSingleton<IAudioOutputController, AudioOutputController>();
+        services.AddSingleton<IMediaStreamPlayer, WpfMediaStreamPlayer>();
         services.AddSingleton<IAudioPlayerBackend, AudioPlayerBackend>();
         services.AddSingleton<ILanGroupService, LanGroupService>();
         services.AddSingleton<ILocalNetworkInfoService, LocalNetworkInfoService>();

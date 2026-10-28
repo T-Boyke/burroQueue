@@ -1,6 +1,6 @@
 # 🫏 burroQueue – Repository Memory
 
-Letzte Aktualisierung: 2026-10-27 | Ziel: Stabile Version 1.0 (Produktionsreife)
+Letzte Aktualisierung: 2026-10-28 | Ziel: Stabile Version 1.0 (Produktionsreife)
 
 ---
 
@@ -10,15 +10,17 @@ Letzte Aktualisierung: 2026-10-27 | Ziel: Stabile Version 1.0 (Produktionsreife)
 - **Zielsystem:** Windows 11 (Mica, Fluent Design, Systray-Jukebox)
 - **Runtime:** .NET 10 (`net10.0` für Domain/Infrastructure/Tests, `net10.0-windows10.0.22621.0` für Presentation)
 - **Architektur:** Reine Domain-Driven Design Schichten (Domain = 0 externe Dependencies, Single Component Per File)
-- **Aktuelle Testanzahl:** 351 Tests (100% grün)
+- **Aktuelle Testanzahl:** 366 Tests (100% grün)
 - **Aktuelle Code-Coverage:**
   - `burroQueue.Domain`: 100,00% Line Coverage (97,05% Branch)
   - `burroQueue.Presentation`: 100,00% Line Coverage (88,20% Branch)
-  - `burroQueue.Infrastructure`: 99,03% Line Coverage (85,55% Branch – 100% über alle handgeschriebenen Klassen)
-  - **Gesamtlösung:** 99,44% Line Coverage
+  - `burroQueue.Infrastructure`: 98,8% Line Coverage (100% über alle handgeschriebenen Klassen)
+  - **Gesamtlösung:** 99,5% Line Coverage
+- **WebDrop:** Anti-AI-Slop Fluent Dark Design, `LinkDropRequest` mit Submitter-Name (`localStorage`), `/vote-skip` Endpunkt, 303 Redirects, `/api/status` mit 5s Polling.
+- **Wiedergabe & Features:** Echte Audio-Wiedergabe via `WpfMediaStreamPlayer` (`System.Windows.Media.MediaPlayer`), Direct Stream Extraction mit `yt-dlp` (Invidious-Fallback), automatische Weiterschaltung auf `MediaEnded`, `Ctrl+V` URL-Paste im Hauptfenster, sofortige Einstellungssynchronisation beim Schließen von `SettingsWindow`.
 - **Installer & Portable:** Inno Setup 6.x + Portable Single-File Release Build (`./publish/portable/burroQueue.exe`)
 - **Lifecycle & Systray:** `ShutdownMode.OnExplicitShutdown` verhindert versehentliches Schließen während asynchroner Initialisierung oder beim Minimieren in den Systray. `SystrayNotificationService` nutzt automatisches Fallback auf `Icon.ExtractAssociatedIcon(Environment.ProcessPath)` im Single-File-Modus.
-- **Architektur-Check:** `./scripts/verify-architecture.ps1` (123/123 Dateien validiert, 0 Violations)
+- **Architektur-Check:** `./scripts/verify-architecture.ps1` (126/126 Dateien validiert, 0 Violations)
 - **CI Formatting:** `dotnet format burroQueue.sln --no-restore --verify-no-changes` (0 Warnungen / 0 Fehler)
 
 ---

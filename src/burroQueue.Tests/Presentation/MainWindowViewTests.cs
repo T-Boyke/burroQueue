@@ -193,4 +193,69 @@ public sealed class MainWindowViewTests
         hotkeyService.PlayPausePressed += Raise.Event<EventHandler>(this, EventArgs.Empty);
         await Task.Delay(20);
     }
+
+    [Fact]
+    public void HandleKeyDown_WhenCtrlVWithValidText_ShouldExecuteEnqueue()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        _urlParser.TryExtractVideoId("https://youtube.com/watch?v=paste123", out Arg.Any<string>()!, out Arg.Any<Uri>()!)
+            .Returns(x =>
+            {
+                x[1] = "paste123";
+                x[2] = new Uri("https://youtube.com/watch?v=paste123");
+                return true;
+            });
+
+        bool handled = false;
+        MainWindow.HandleKeyDown(
+            vm,
+            System.Windows.Input.Key.V,
+            isControl: true,
+            getClipboardText: () => "https://youtube.com/watch?v=paste123",
+            setHandled: h => handled = h);
+
+        handled.Should().BeTrue();
+        vm.StatusMessage.Should().Contain("paste123");
+    }
+
+    [Fact]
+    public void HandleKeyDown_WhenCtrlVWithEmptyText_ShouldDoNothing()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        bool handled = false;
+        MainWindow.HandleKeyDown(
+            vm,
+            System.Windows.Input.Key.V,
+            isControl: true,
+            getClipboardText: () => "   ",
+            setHandled: h => handled = h);
+
+        handled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void HandleKeyDown_WhenKeyIsNotCtrlV_ShouldDoNothing()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        bool handled = false;
+
+        // V without Ctrl
+        MainWindow.HandleKeyDown(
+            vm,
+            System.Windows.Input.Key.V,
+            isControl: false,
+            getClipboardText: () => "https://youtube.com",
+            setHandled: h => handled = h);
+        handled.Should().BeFalse();
+
+        // Ctrl+C instead of Ctrl+V
+        MainWindow.HandleKeyDown(
+            vm,
+            System.Windows.Input.Key.C,
+            isControl: true,
+            getClipboardText: () => "https://youtube.com",
+            setHandled: h => handled = h);
+        handled.Should().BeFalse();
+    }
 }
+
