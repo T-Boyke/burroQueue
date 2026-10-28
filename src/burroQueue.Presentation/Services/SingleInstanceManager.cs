@@ -30,6 +30,10 @@ public sealed class SingleInstanceManager : ISingleInstanceManager
         {
             _mutex = new Mutex(true, _mutexName, out bool createdNew);
             _hasAcquired = createdNew;
+            if (createdNew && _eventWaitHandle is null)
+            {
+                _eventWaitHandle = new EventWaitHandle(false, EventResetMode.AutoReset, _eventName);
+            }
             return createdNew;
         }
         catch
@@ -40,19 +44,25 @@ public sealed class SingleInstanceManager : ISingleInstanceManager
 
     public void SignalExistingInstance()
     {
-        try
+        for (int i = 0; i < 20; i++)
         {
-            if (EventWaitHandle.TryOpenExisting(_eventName, out EventWaitHandle? existingEvent))
+            try
             {
-                using (existingEvent)
+                if (EventWaitHandle.TryOpenExisting(_eventName, out EventWaitHandle? existingEvent))
                 {
-                    existingEvent.Set();
+                    using (existingEvent)
+                    {
+                        existingEvent.Set();
+                        return;
+                    }
                 }
             }
-        }
-        catch
-        {
-            // Fail-safe
+            catch
+            {
+                // Fail-safe
+            }
+
+            Thread.Sleep(50);
         }
     }
 
@@ -67,7 +77,7 @@ public sealed class SingleInstanceManager : ISingleInstanceManager
 
         try
         {
-            _eventWaitHandle = new EventWaitHandle(false, EventResetMode.AutoReset, _eventName);
+            _eventWaitHandle ??= new EventWaitHandle(false, EventResetMode.AutoReset, _eventName);
             _listeningCts = new CancellationTokenSource();
             CancellationToken token = _listeningCts.Token;
 
