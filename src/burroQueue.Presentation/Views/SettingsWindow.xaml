@@ -60,19 +60,116 @@
           FontWeight="SemiBold"
           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
         <ui:TextBox
-          Margin="0,6,0,6"
+          Margin="0,6,0,2"
           PlaceholderText="https://www.youtube.com/playlist?list=...&amp;jct=..."
           Text="{Binding CollaborativePlaylistUrl, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBlock
+          Margin="0,0,0,6"
+          FontSize="11"
+          FontWeight="Medium"
+          Foreground="{DynamicResource SystemFillColorSuccessBrush}"
+          Text="{Binding CollaborativeUrlValidationText}"
+          Visibility="{Binding IsCollaborativeUrlValid, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
         <CheckBox
-          Margin="0,4,0,12"
+          Margin="0,4,0,8"
           Content="Gemeinsame Playlist beim Gruppenbeitritt automatisch im Browser öffnen"
           IsChecked="{Binding AutoOpenCollaborativePlaylistOnJoin}" />
+
+        <CheckBox
+          Margin="0,0,0,8"
+          Content="Mobilen Web-Drop-Server für Smartphone-Uploads aktivieren (Port 8080)"
+          IsChecked="{Binding EnableWebDropServer}" />
 
         <CheckBox
           Margin="0,0,0,16"
           Content="burroQueue beim Windows-Start automatisch im Hintergrund ausführen"
           IsChecked="{Binding IsAutostartEnabled}" />
+
+        <!-- LAN Group Discovery & Management -->
+        <TextBlock
+          Text="Büro-Gruppen im lokalen Netzwerk (LAN)"
+          FontSize="13"
+          FontWeight="SemiBold"
+          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+        <Border
+          Margin="0,6,0,16"
+          Padding="12,10"
+          CornerRadius="8"
+          Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+          BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+          BorderThickness="1">
+          <StackPanel>
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="Aktuelle Gruppe: " FontSize="12" Opacity="0.7" />
+                <TextBlock Text="{Binding CurrentGroupName}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+              </StackPanel>
+              <ui:Button
+                Grid.Column="1"
+                Appearance="Secondary"
+                Padding="8,4"
+                Icon="{ui:SymbolIcon ArrowSync24}"
+                Content="Netzwerk suchen"
+                Command="{Binding ScanGroupsCommand}" />
+            </Grid>
+
+            <!-- Discovered Groups List -->
+            <ListView
+              ItemsSource="{Binding DiscoveredGroups}"
+              Background="Transparent"
+              BorderThickness="0"
+              MaxHeight="120"
+              ScrollViewer.VerticalScrollBarVisibility="Auto">
+              <ListView.ItemTemplate>
+                <DataTemplate>
+                  <Grid Margin="0,2,0,2">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding GroupName}" FontSize="12" FontWeight="SemiBold" />
+                      <TextBlock Text="{Binding HostEndpoint, StringFormat='Host: {0}'}" FontSize="10" Opacity="0.6" />
+                    </StackPanel>
+                    <ui:Button
+                      Grid.Column="1"
+                      Appearance="Subtle"
+                      Padding="8,3"
+                      Content="Beitreten"
+                      Command="{Binding DataContext.JoinGroupCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                      CommandParameter="{Binding}" />
+                  </Grid>
+                </DataTemplate>
+              </ListView.ItemTemplate>
+            </ListView>
+
+            <Separator Margin="0,6" Opacity="0.3" />
+
+            <!-- Create New Group -->
+            <Grid Margin="0,4,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <ui:TextBox
+                Grid.Column="0"
+                Margin="0,0,6,0"
+                PlaceholderText="Name für neue Jukebox-Gruppe..."
+                Text="{Binding NewGroupName, UpdateSourceTrigger=PropertyChanged}" />
+              <ui:Button
+                Grid.Column="1"
+                Appearance="Secondary"
+                Padding="10,5"
+                Content="Gruppe gründen"
+                Command="{Binding CreateNewGroupCommand}" />
+            </Grid>
+          </StackPanel>
+        </Border>
 
         <!-- Display Name -->
         <TextBlock

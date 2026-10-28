@@ -11,6 +11,7 @@ public partial class SettingsWindow : FluentWindow
     {
         InitializeComponent();
         DataContext = viewModel;
+        Loaded += (_, _) => Wpf.Ui.Appearance.SystemThemeWatcher.Watch(this);
     }
 
     private void OnCloseClicked(object sender, System.Windows.RoutedEventArgs e)

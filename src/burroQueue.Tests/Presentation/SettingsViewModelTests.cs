@@ -171,4 +171,74 @@ public sealed class SettingsViewModelTests
         vm.WebDropEndpointInfo.Should().Be("http://192.168.2.109:8080");
         vm.LanMulticastInfo.Should().Contain("239.255.42.99");
     }
+
+    [Fact]
+    public void CollaborativePlaylistUrl_WhenValidInviteLink_ShouldValidateAsTrue()
+    {
+        SettingsViewModel vm = new(
+            _settingsService,
+            _telephonyManager,
+            _autostartService,
+            _audioDeviceEnumerator);
+
+        vm.CollaborativePlaylistUrl = "https://www.youtube.com/playlist?list=PL1234567890&jct=abcdef123";
+
+        vm.IsCollaborativePlaylistValid.Should().BeTrue();
+        vm.CollaborativePlaylistValidationText.Should().Contain("Gültiger Einladungslink");
+    }
+
+    [Fact]
+    public void CollaborativePlaylistUrl_WhenInvalidLink_ShouldValidateAsFalse()
+    {
+        SettingsViewModel vm = new(
+            _settingsService,
+            _telephonyManager,
+            _autostartService,
+            _audioDeviceEnumerator);
+
+        vm.CollaborativePlaylistUrl = "https://google.com";
+
+        vm.IsCollaborativePlaylistValid.Should().BeFalse();
+        vm.CollaborativePlaylistValidationText.Should().Contain("Ungültig");
+    }
+
+    [Fact]
+    public async Task SaveSettingsAsync_WithEnableWebDropServer_ShouldPersistSetting()
+    {
+        SettingsViewModel vm = new(
+            _settingsService,
+            _telephonyManager,
+            _autostartService,
+            _audioDeviceEnumerator);
+
+        vm.EnableWebDropServer = true;
+
+        await vm.SaveSettingsAsync();
+
+        await _settingsService.Received(1).SaveAsync(Arg.Is<AppSettingsData>(d => d.EnableWebDropServer));
+    }
+
+    [Fact]
+    public async Task CreateNewGroupAsync_WithValidName_ShouldUpdateGroupAndBroadcast()
+    {
+        burroQueue.Domain.Model.BurroGroup group = new(burroQueue.Domain.Model.GroupId.New(), "Initial Group");
+        burroQueue.Infrastructure.Network.ILanGroupService lan = Substitute.For<burroQueue.Infrastructure.Network.ILanGroupService>();
+
+        SettingsViewModel vm = new(
+            _settingsService,
+            _telephonyManager,
+            _autostartService,
+            _audioDeviceEnumerator,
+            burroGroup: group,
+            lanGroupService: lan);
+
+        vm.NewGroupNameInput = "Marketing Lounge";
+
+        await vm.CreateNewGroupAsync();
+
+        group.Name.Should().Be("Marketing Lounge");
+        vm.ActiveGroupName.Should().Be("Marketing Lounge");
+        vm.NewGroupNameInput.Should().BeEmpty();
+        await lan.Received(1).SendGroupActionAsync(group.Id, Arg.Any<burroQueue.Domain.Model.ClientId>(), "Rename", "Marketing Lounge");
+    }
 }

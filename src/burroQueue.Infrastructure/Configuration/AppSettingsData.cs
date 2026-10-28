@@ -13,5 +13,9 @@ public sealed class AppSettingsData
     public string ClientDisplayName { get; set; } = Environment.UserName;
 
     public double MasterVolume { get; set; } = 0.8;
+
+    public bool EnableWebDropServer { get; set; } = false;
+
+    public bool HasJoinedCollaborativePlaylist { get; set; } = false;
 }
 
