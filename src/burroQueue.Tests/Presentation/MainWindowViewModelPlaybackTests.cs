@@ -1041,14 +1041,16 @@ public sealed class MainWindowViewModelPlaybackTests
     }
 
     [Fact]
-    public void MasterVolume_WhenChanged_ShouldUpdateSettingsAndAutoSave()
+    public async Task MasterVolume_WhenChanged_ShouldUpdateSettingsAndAutoSave()
     {
         MainWindowViewModel vm = CreateViewModel();
 
         vm.MasterVolume = 0.55;
 
+        await vm.AutoSaveSettingsTask;
+
         _settingsService.CurrentSettings.MasterVolume.Should().Be(0.55);
-        _settingsService.Received().SaveAsync(Arg.Is<burroQueue.Infrastructure.Configuration.AppSettingsData>(d => Math.Abs(d.MasterVolume - 0.55) < 0.001));
+        await _settingsService.Received().SaveAsync(Arg.Is<burroQueue.Infrastructure.Configuration.AppSettingsData>(d => Math.Abs(d.MasterVolume - 0.55) < 0.001));
     }
 
     [Fact]

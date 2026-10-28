@@ -145,6 +145,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     internal Task AutoSaveTask { get; private set; } = Task.CompletedTask;
 
+    internal Task AutoSaveSettingsTask { get; private set; } = Task.CompletedTask;
+
     internal Task MetadataLoadTask { get; private set; } = Task.CompletedTask;
 
     internal Task PlaybackCommandTask { get; private set; } = Task.CompletedTask;
@@ -273,7 +275,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     private void AutoSaveSettings()
     {
-        Task.Run(async () =>
+        AutoSaveSettingsTask = Task.Run(async () =>
         {
             try
             {
