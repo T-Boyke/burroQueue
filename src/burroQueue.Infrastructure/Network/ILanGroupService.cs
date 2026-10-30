@@ -21,6 +21,8 @@ public interface ILanGroupService : IAsyncDisposable
 
     event EventHandler<QueueOrderSyncMessage>? QueueOrderSyncReceived;
 
+    event EventHandler<TrackUpvoteMessage>? TrackUpvoteReceived;
+
     void SetBeaconResponder(Func<DiscoveryBeaconMessage?>? responder)
     {
     }
@@ -48,6 +50,9 @@ public interface ILanGroupService : IAsyncDisposable
     Task SendSkipVoteAsync(GroupId groupId, string trackId, ClientId voterId, CancellationToken cancellationToken = default);
 
     Task SendQueueOrderSyncAsync(GroupId groupId, ClientId issuerId, bool isShuffleEnabled, IReadOnlyList<string> orderedVideoIds, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+
+    Task SendTrackUpvoteAsync(GroupId groupId, string videoId, string trackUrl, string title, string voterUsername, bool isUpvoted, CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
 }
 

@@ -122,3 +122,4 @@ public sealed class GitHubRepoStatsClient : IGitHubRepoStatsClient, IDisposable
         }
     }
 }
+

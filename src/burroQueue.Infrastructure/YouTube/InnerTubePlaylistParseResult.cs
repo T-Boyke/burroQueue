@@ -7,3 +7,4 @@ public sealed record InnerTubePlaylistParseResult(
     string? ContinuationToken,
     string? PlaylistOwnerName,
     Uri? PlaylistOwnerAvatarUrl);
+

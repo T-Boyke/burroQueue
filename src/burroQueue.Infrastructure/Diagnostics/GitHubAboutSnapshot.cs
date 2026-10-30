@@ -27,3 +27,4 @@ public sealed record GitHubAboutSnapshot(
             AppVersion: appVersion,
             IsLive: false);
 }
+

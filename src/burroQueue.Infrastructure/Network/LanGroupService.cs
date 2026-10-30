@@ -44,6 +44,8 @@ public sealed class LanGroupService : ILanGroupService
 
     public event EventHandler<QueueOrderSyncMessage>? QueueOrderSyncReceived;
 
+    public event EventHandler<TrackUpvoteMessage>? TrackUpvoteReceived;
+
     public LanGroupService(ILocalNetworkInfoService? networkInfo = null)
     {
         _networkInfo = networkInfo ?? new LocalNetworkInfoService();
@@ -290,6 +292,27 @@ public sealed class LanGroupService : ILanGroupService
         await SendMessageAsync("QUEUE_ORDER_SYNC", message, includeBroadcastFallback: false, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task SendTrackUpvoteAsync(
+        GroupId groupId,
+        string videoId,
+        string trackUrl,
+        string title,
+        string voterUsername,
+        bool isUpvoted,
+        CancellationToken cancellationToken = default)
+    {
+        TrackUpvoteMessage message = new(
+            groupId.Value,
+            videoId,
+            trackUrl,
+            title,
+            string.IsNullOrWhiteSpace(voterUsername) ? Environment.UserName : voterUsername.Trim(),
+            isUpvoted,
+            DateTimeOffset.UtcNow);
+
+        await SendMessageAsync("TRACK_UPVOTE", message, includeBroadcastFallback: false, cancellationToken).ConfigureAwait(false);
+    }
+
     private async Task SendMessageAsync<T>(string type, T payload, bool includeBroadcastFallback, CancellationToken cancellationToken)
     {
         UdpClient? client = _udpClient;
@@ -465,6 +488,14 @@ public sealed class LanGroupService : ILanGroupService
                         if (orderSync is not null)
                         {
                             QueueOrderSyncReceived?.Invoke(this, orderSync);
+                        }
+                        break;
+
+                    case "TRACK_UPVOTE":
+                        TrackUpvoteMessage? upvoteMsg = JsonSerializer.Deserialize<TrackUpvoteMessage>(rawData);
+                        if (upvoteMsg is not null)
+                        {
+                            TrackUpvoteReceived?.Invoke(this, upvoteMsg);
                         }
                         break;
                 }

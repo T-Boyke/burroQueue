@@ -55,3 +55,4 @@ public sealed partial class QueueTrackItemViewModel : ObservableObject
         OnPropertyChanged(nameof(SubmitterAvatarUrl));
     }
 }
+

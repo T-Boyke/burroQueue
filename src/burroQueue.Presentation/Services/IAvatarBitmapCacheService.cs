@@ -10,3 +10,4 @@ public interface IAvatarBitmapCacheService : IDisposable
 
     Task<ImageSource?> GetOrLoadAsync(Uri? avatarUri, CancellationToken cancellationToken = default);
 }
+

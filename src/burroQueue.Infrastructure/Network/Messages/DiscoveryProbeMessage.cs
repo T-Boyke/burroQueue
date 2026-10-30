@@ -4,3 +4,4 @@ public sealed record DiscoveryProbeMessage(
     Guid RequesterClientId,
     string RequesterDisplayName,
     DateTimeOffset Timestamp);
+

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using burroQueue.Domain.Model;
+using burroQueue.Domain.Repositories;
 using burroQueue.Domain.Services;
 using burroQueue.Infrastructure.Audio;
 using burroQueue.Infrastructure.Configuration;
@@ -39,6 +40,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private readonly IStreamUriResolver? _streamUriResolver;
     private readonly IEntropySource _entropySource;
     private readonly QueueShuffleEngine _shuffleEngine;
+    private readonly IFavoriteQueueRepository? _favoriteRepository;
+    private readonly Dictionary<string, FavoriteTrackEntry> _favoritesByVideoId = new(StringComparer.Ordinal);
     private readonly ClientId _localClientId = ClientId.New();
     private readonly HashSet<Guid> _activeRemoteCallPeers = [];
     private bool _localCallActive;
@@ -189,6 +192,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private bool _isRepeatAllEnabled;
 
     [ObservableProperty]
+    private bool _hasFavoriteTracks;
+
+    [ObservableProperty]
+    private bool _isFavoritesExpanded = true;
+
+    [ObservableProperty]
     private bool _isAddFeedbackVisible;
 
     [ObservableProperty]
@@ -211,6 +220,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public ObservableCollection<Track> QueuedItems { get; } = [];
 
     public ObservableCollection<QueueTrackItemViewModel> QueueViewItems { get; } = [];
+
+    public ObservableCollection<FavoriteTrackEntry> FavoriteTracks { get; } = [];
 
     internal Task AutoSaveTask { get; private set; } = Task.CompletedTask;
 
@@ -241,7 +252,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         IYouTubePlaylistWriter? playlistWriter = null,
         IStreamUriResolver? streamUriResolver = null,
         IEntropySource? entropySource = null,
-        QueueShuffleEngine? shuffleEngine = null)
+        QueueShuffleEngine? shuffleEngine = null,
+        IFavoriteQueueRepository? favoriteRepository = null)
     {
         _group = group ?? throw new ArgumentNullException(nameof(group));
         _urlParser = urlParser ?? throw new ArgumentNullException(nameof(urlParser));
@@ -261,6 +273,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _streamUriResolver = streamUriResolver;
         _entropySource = entropySource ?? new HardwareCsprngEntropySource();
         _shuffleEngine = shuffleEngine ?? new QueueShuffleEngine();
+        _favoriteRepository = favoriteRepository;
         _networkInfoService = networkInfoService ?? throw new ArgumentNullException(nameof(networkInfoService));
 
         _groupName = _group.Name;
@@ -333,6 +346,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _lanGroupService.SkipVoteReceived += OnSkipVoteReceived;
         _lanGroupService.TelephonyStateReceived += OnPeerTelephonyStateReceived;
         _lanGroupService.QueueOrderSyncReceived += OnQueueOrderSyncReceived;
+        _lanGroupService.TrackUpvoteReceived += OnTrackUpvoteReceived;
         _lanGroupService.SetBeaconResponder(() => new DiscoveryBeaconMessage(
             _group.Id.Value,
             _group.Name,
@@ -393,6 +407,28 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         if (_group.Playlist.TotalCount == 0 && !string.IsNullOrWhiteSpace(CollaborativePlaylistUrl))
         {
             await ImportPlaylistFromYouTubeAsync(CollaborativePlaylistUrl).ConfigureAwait(false);
+        }
+
+        if (_favoriteRepository is not null)
+        {
+            try
+            {
+                IReadOnlyList<FavoriteTrackEntry> loadedFavorites = await _favoriteRepository.LoadFavoritesAsync(_group.Name).ConfigureAwait(false);
+                RunOnUi(() =>
+                {
+                    _favoritesByVideoId.Clear();
+                    foreach (FavoriteTrackEntry fav in loadedFavorites)
+                    {
+                        _favoritesByVideoId[fav.VideoId] = fav;
+                    }
+
+                    RefreshFavoriteTracksCollection();
+                    SyncQueuedItems();
+                });
+            }
+            catch
+            {
+            }
         }
 
         ConfigurePlaylistAutoSyncLoop();
@@ -802,20 +838,132 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
             QueueViewItems.Clear();
             int currentIdx = _group.Playlist.CurrentTrackIndex;
+            string localUser = GetLocalVoterUsername();
             IReadOnlyList<Track> allTracks = _group.Playlist.AllTracks;
             for (int i = 0; i < allTracks.Count; i++)
             {
+                Track item = allTracks[i];
                 bool isCurrent = i == currentIdx;
                 bool hasPlayed = currentIdx >= 0 && i < currentIdx;
+                int upvoteCount = 0;
+                bool isUpvotedByLocal = false;
+                if (_favoritesByVideoId.TryGetValue(item.VideoId, out FavoriteTrackEntry? fav))
+                {
+                    upvoteCount = fav.Likes;
+                    isUpvotedByLocal = fav.IsLikedBy(localUser);
+                }
+
                 QueueViewItems.Add(new QueueTrackItemViewModel(
-                    allTracks[i],
+                    item,
                     isCurrentlyPlaying: isCurrent,
-                    hasPlayed: hasPlayed));
+                    hasPlayed: hasPlayed,
+                    upvoteCount: upvoteCount,
+                    isUpvotedByLocalUser: isUpvotedByLocal));
             }
 
             QueuedCount = _group.Playlist.Count;
             SyncCurrentTrackDisplayIfEmpty();
         });
+    }
+
+    private string GetLocalVoterUsername()
+    {
+        string? configured = _settingsService.CurrentSettings?.ClientDisplayName;
+        return string.IsNullOrWhiteSpace(configured) ? Environment.UserName : configured.Trim();
+    }
+
+    [RelayCommand]
+    public void ToggleFavoritesExpanded()
+    {
+        IsFavoritesExpanded = !IsFavoritesExpanded;
+    }
+
+    [RelayCommand]
+    public void EnqueueFavoriteTrack(FavoriteTrackEntry? favorite)
+    {
+        if (favorite is null)
+        {
+            return;
+        }
+
+        EnqueueRawUrl(favorite.Url.ToString());
+    }
+
+    [RelayCommand]
+    public async Task ToggleTrackUpvoteAsync(Track? track)
+    {
+        if (track is null)
+        {
+            return;
+        }
+
+        string voter = GetLocalVoterUsername();
+        if (!_favoritesByVideoId.TryGetValue(track.VideoId, out FavoriteTrackEntry? entry))
+        {
+            entry = new FavoriteTrackEntry(track.VideoId, track.Url, track.Title);
+            _favoritesByVideoId[track.VideoId] = entry;
+        }
+        else
+        {
+            entry.UpdateTitle(track.Title);
+        }
+
+        bool isNowUpvoted = entry.ToggleVote(voter);
+        if (entry.Likes <= 0)
+        {
+            _favoritesByVideoId.Remove(track.VideoId);
+        }
+
+        RunOnUi(() =>
+        {
+            RefreshFavoriteTracksCollection();
+            foreach (QueueTrackItemViewModel itemVm in QueueViewItems.Where(q => q.VideoId == track.VideoId))
+            {
+                itemVm.UpvoteCount = entry.Likes;
+                itemVm.IsUpvotedByLocalUser = isNowUpvoted;
+            }
+        });
+
+        await SaveGroupFavoritesSafeAsync().ConfigureAwait(false);
+        await _lanGroupService.SendTrackUpvoteAsync(
+            _group.Id,
+            track.VideoId,
+            track.Url.ToString(),
+            track.Title,
+            voter,
+            isNowUpvoted).ConfigureAwait(false);
+    }
+
+    private void RefreshFavoriteTracksCollection()
+    {
+        FavoriteTracks.Clear();
+        foreach (FavoriteTrackEntry fav in _favoritesByVideoId.Values
+            .Where(f => f.Likes > 0)
+            .OrderByDescending(f => f.Likes)
+            .ThenBy(f => f.Title, StringComparer.OrdinalIgnoreCase))
+        {
+            FavoriteTracks.Add(fav);
+        }
+
+        HasFavoriteTracks = FavoriteTracks.Count > 0;
+    }
+
+    private async Task SaveGroupFavoritesSafeAsync()
+    {
+        if (_favoriteRepository is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _favoriteRepository.SaveFavoritesAsync(
+                _group.Name,
+                _favoritesByVideoId.Values.Where(f => f.Likes > 0).ToList()).ConfigureAwait(false);
+        }
+        catch
+        {
+        }
     }
 
     private void SyncCurrentTrackDisplayIfEmpty()
@@ -1346,6 +1494,48 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             IsShuffleEnabled = message.IsShuffleEnabled;
             SyncQueuedItems();
             AutoSavePlaylist();
+        });
+    }
+
+    private void OnTrackUpvoteReceived(object? sender, TrackUpvoteMessage message)
+    {
+        if (message.GroupId != _group.Id.Value || string.IsNullOrWhiteSpace(message.VideoId))
+        {
+            return;
+        }
+
+        RunOnUi(() =>
+        {
+            if (!_favoritesByVideoId.TryGetValue(message.VideoId, out FavoriteTrackEntry? entry))
+            {
+                if (!message.IsUpvoted || !Uri.TryCreate(message.TrackUrl, UriKind.Absolute, out Uri? url))
+                {
+                    return;
+                }
+
+                entry = new FavoriteTrackEntry(message.VideoId, url, message.Title);
+                _favoritesByVideoId[message.VideoId] = entry;
+            }
+            else
+            {
+                entry.UpdateTitle(message.Title);
+            }
+
+            entry.SetVote(message.VoterUsername, message.IsUpvoted);
+            if (entry.Likes <= 0)
+            {
+                _favoritesByVideoId.Remove(message.VideoId);
+            }
+
+            string localUser = GetLocalVoterUsername();
+            RefreshFavoriteTracksCollection();
+            foreach (QueueTrackItemViewModel itemVm in QueueViewItems.Where(q => q.VideoId == message.VideoId))
+            {
+                itemVm.UpvoteCount = entry.Likes;
+                itemVm.IsUpvotedByLocalUser = entry.IsLikedBy(localUser);
+            }
+
+            _ = SaveGroupFavoritesSafeAsync();
         });
     }
 

@@ -6,3 +6,4 @@ internal readonly record struct InnerTubePlaylistTrackInfo(
     string? ArtistName,
     string? ContributorName,
     Uri? ContributorAvatar);
+

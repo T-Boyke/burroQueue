@@ -328,3 +328,4 @@ public static class TomlDocumentSerializer
         return line;
     }
 }
+

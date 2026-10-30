@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using burroQueue.Domain.Model;
+using burroQueue.Domain.Repositories;
 using burroQueue.Domain.Services;
 using burroQueue.Infrastructure.Audio;
 using burroQueue.Infrastructure.Configuration;
@@ -270,6 +271,7 @@ public partial class App : System.Windows.Application
 
         // Infrastructure
         services.AddSingleton<IEntropySource, HardwareCsprngEntropySource>();
+        services.AddSingleton<IFavoriteQueueRepository, TomlFavoriteQueueRepository>();
         services.AddSingleton<IAppSettingsService, AppSettingsService>();
         services.AddSingleton<IPlaylistStorageService, PlaylistStorageService>();
         services.AddSingleton<IAudioDeviceEnumerator, WindowsAudioDeviceEnumerator>();

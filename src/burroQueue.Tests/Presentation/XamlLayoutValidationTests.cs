@@ -80,6 +80,8 @@ public sealed class XamlLayoutValidationTests
         rawXaml.Should().Contain("IsCurrentlyPlaying", "Active track row must highlight via IsCurrentlyPlaying (#9)");
         rawXaml.Should().Contain("ToggleShuffleCommand", "Transport bar must expose Shuffle toggle button (#10)");
         rawXaml.Should().Contain("ArrowShuffle24", "Shuffle button must use SymbolRegular.ArrowShuffle24 (#10)");
+        rawXaml.Should().Contain("ToggleTrackUpvoteCommand", "Queue row must include Thumbs-Up upvote button (#19)");
+        rawXaml.Should().Contain("HasFavoriteTracks", "Group Favorites queue must auto-hide when FavoriteTracks is empty (#19)");
     }
 
     [Fact]

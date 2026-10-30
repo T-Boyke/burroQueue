@@ -6,3 +6,4 @@ public interface IEntropySource
 
     void Shuffle<T>(Span<T> values);
 }
+

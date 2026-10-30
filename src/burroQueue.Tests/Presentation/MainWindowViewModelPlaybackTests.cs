@@ -1330,4 +1330,40 @@ public sealed class MainWindowViewModelPlaybackTests
         vm.IsShuffleEnabled.Should().BeFalse();
         _group.Playlist.AllTracks.Select(t => t.VideoId).Should().Equal("s1", "s2", "s3");
     }
+
+    [Fact]
+    public async Task ToggleTrackUpvoteAsync_ShouldUpdateVoteCountCurateGroupFavoritesAndAutoHideWhenUnvoted()
+    {
+        Track t1 = new("up1", new Uri("https://www.youtube.com/watch?v=up1"), "Hard Beat", "Alice", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(t1);
+        _settingsService.CurrentSettings.Returns(new burroQueue.Infrastructure.Configuration.AppSettingsData
+        {
+            ClientDisplayName = "Tobias"
+        });
+
+        MainWindowViewModel vm = CreateViewModel();
+        vm.HasFavoriteTracks.Should().BeFalse();
+
+        await vm.ToggleTrackUpvoteAsync(t1);
+
+        vm.HasFavoriteTracks.Should().BeTrue();
+        vm.FavoriteTracks.Should().ContainSingle(f => f.VideoId == "up1" && f.Likes == 1);
+        vm.QueueViewItems[0].UpvoteCount.Should().Be(1);
+        vm.QueueViewItems[0].IsUpvotedByLocalUser.Should().BeTrue();
+        await _lanGroupService.Received(1).SendTrackUpvoteAsync(
+            _group.Id,
+            "up1",
+            t1.Url.ToString(),
+            "Hard Beat",
+            "Tobias",
+            true,
+            Arg.Any<CancellationToken>());
+
+        // Toggle off -> 0 likes -> Favorites auto-hides!
+        await vm.ToggleTrackUpvoteAsync(t1);
+
+        vm.HasFavoriteTracks.Should().BeFalse();
+        vm.FavoriteTracks.Should().BeEmpty();
+        vm.QueueViewItems[0].UpvoteCount.Should().Be(0);
+    }
 }

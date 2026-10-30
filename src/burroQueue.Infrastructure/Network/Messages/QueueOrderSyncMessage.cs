@@ -6,3 +6,4 @@ public sealed record QueueOrderSyncMessage(
     bool IsShuffleEnabled,
     IReadOnlyList<string> OrderedVideoIds,
     DateTimeOffset Timestamp);
+

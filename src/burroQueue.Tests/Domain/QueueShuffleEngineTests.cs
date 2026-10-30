@@ -83,3 +83,4 @@ public sealed class QueueShuffleEngineTests
     private static Track CreateTrack(string id, string title) =>
         new(id, new Uri($"https://www.youtube.com/watch?v={id}"), title, "Tester", DateTimeOffset.UtcNow);
 }
+

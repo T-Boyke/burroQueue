@@ -7,3 +7,4 @@ public sealed record PeerTelephonyStateMessage(
     string ProviderId,
     bool IsCallActive,
     DateTimeOffset Timestamp);
+

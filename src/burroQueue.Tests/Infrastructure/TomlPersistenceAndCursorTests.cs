@@ -167,3 +167,4 @@ public sealed class TomlPersistenceAndCursorTests : IDisposable
         mediaPlayer.Received(1).Seek(TimeSpan.FromSeconds(83.5));
     }
 }
+

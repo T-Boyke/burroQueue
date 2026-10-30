@@ -8,3 +8,4 @@ public readonly record struct QueuePlaybackCursor(
 {
     public static QueuePlaybackCursor Empty => new(string.Empty, -1, TimeSpan.Zero, false);
 }
+

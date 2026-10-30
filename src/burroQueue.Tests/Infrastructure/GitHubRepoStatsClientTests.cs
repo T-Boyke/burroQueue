@@ -65,3 +65,4 @@ public sealed class GitHubRepoStatsClientTests
         snapshot.RepositoryUri.Should().Be(new Uri("https://github.com/T-Boyke/burroQueue"));
     }
 }
+

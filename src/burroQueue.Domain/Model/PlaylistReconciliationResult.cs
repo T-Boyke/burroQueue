@@ -7,3 +7,4 @@ public sealed record PlaylistReconciliationResult(
 {
     public bool HasChanges => AddedTracks.Count > 0 || RemovedTracks.Count > 0 || UpdatedAttributionCount > 0;
 }
+

@@ -11,3 +11,4 @@ public sealed class HardwareCsprngEntropySource : IEntropySource
     public void Shuffle<T>(Span<T> values) =>
         RandomNumberGenerator.Shuffle(values);
 }
+

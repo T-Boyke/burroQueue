@@ -132,3 +132,4 @@ public sealed class QueueShuffleEngine
         playlist.ReplaceOrderPreservingCursor(restored);
     }
 }
+
