@@ -291,6 +291,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IYouTubeMusicValidator, YouTubeMusicValidator>();
         services.AddSingleton<IYouTubePlaylistReader, YouTubePlaylistReader>();
         services.AddSingleton<IYouTubePlaylistWriter, YouTubePlaylistWriter>();
+        services.AddSingleton<ISimdAudioDspProcessor, SimdAudioDspProcessor>();
         services.AddSingleton<IAudioOutputController, AudioOutputController>();
         services.AddSingleton<IMediaStreamPlayer, WpfMediaStreamPlayer>();
         services.AddSingleton<IAudioPlayerBackend, AudioPlayerBackend>();
