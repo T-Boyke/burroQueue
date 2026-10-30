@@ -1247,4 +1247,43 @@ public sealed class MainWindowViewModelPlaybackTests
         vm.CurrentTrackArtist.Should().Be("Artist X");
         vm.CurrentTrackThumbnailUrl.Should().Be(track.ThumbnailUrl);
     }
+
+    [Fact]
+    public void PeerTelephonyState_WhenRemoteGroupMemberEntersAndExitsCall_ShouldDuckAndRestoreHostVolume()
+    {
+        _settingsService.CurrentSettings.Returns(new burroQueue.Infrastructure.Configuration.AppSettingsData
+        {
+            MasterVolume = 0.8,
+            DuckingReleaseDelaySeconds = 0,
+            ClientDisplayName = "Host-PC"
+        });
+
+        MainWindowViewModel vm = CreateViewModel();
+        Guid peerClientId = Guid.NewGuid();
+
+        _lanGroupService.TelephonyStateReceived += Raise.Event<EventHandler<burroQueue.Infrastructure.Network.Messages.PeerTelephonyStateMessage>>(
+            _lanGroupService,
+            new burroQueue.Infrastructure.Network.Messages.PeerTelephonyStateMessage(
+                _group.Id.Value,
+                peerClientId,
+                "Bob",
+                "SwyxIt!",
+                IsCallActive: true,
+                DateTimeOffset.UtcNow));
+
+        vm.IsAudioDucked.Should().BeTrue();
+        vm.TelephonyStatusText.Should().Contain("Bob");
+
+        _lanGroupService.TelephonyStateReceived += Raise.Event<EventHandler<burroQueue.Infrastructure.Network.Messages.PeerTelephonyStateMessage>>(
+            _lanGroupService,
+            new burroQueue.Infrastructure.Network.Messages.PeerTelephonyStateMessage(
+                _group.Id.Value,
+                peerClientId,
+                "Bob",
+                "SwyxIt!",
+                IsCallActive: false,
+                DateTimeOffset.UtcNow));
+
+        vm.IsAudioDucked.Should().BeFalse();
+    }
 }

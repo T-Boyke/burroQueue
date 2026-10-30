@@ -190,6 +190,79 @@ public sealed class LanGroupServiceTests : IAsyncLifetime, IDisposable
         await act.Should().NotThrowAsync();
         await service.StopAsync();
     }
+
+    [Fact]
+    public async Task DiscoveryProbe_WhenReceivedByHost_ShouldReplyWithDirectUnicastBeacon()
+    {
+        const int testPort = 41987;
+        BurroGroup hostGroup = new(GroupId.New(), "Engineering Floor 3");
+        ClientId hostClientId = ClientId.New();
+
+        await using LanGroupService host = new() { Port = testPort };
+        host.SetBeaconResponder(() => new burroQueue.Infrastructure.Network.Messages.DiscoveryBeaconMessage(
+            hostGroup.Id.Value,
+            hostGroup.Name,
+            hostClientId.Value,
+            "Host-PC",
+            MemberCount: 2,
+            HasCollaborativePlaylist: false,
+            CollaborativePlaylistUrl: null,
+            DateTimeOffset.UtcNow));
+        await host.StartAsync();
+
+        // Simulate Client B sending DISCOVER_PROBE from an ephemeral UDP socket and awaiting direct unicast BEACON reply
+        using UdpClient clientSocket = new(new IPEndPoint(IPAddress.Loopback, 0));
+        string probeJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Type = "DISCOVER_PROBE",
+            Data = new burroQueue.Infrastructure.Network.Messages.DiscoveryProbeMessage(
+                Guid.NewGuid(),
+                "Client-B",
+                DateTimeOffset.UtcNow)
+        });
+        byte[] probeBytes = System.Text.Encoding.UTF8.GetBytes(probeJson);
+        await clientSocket.SendAsync(probeBytes, probeBytes.Length, new IPEndPoint(IPAddress.Loopback, testPort));
+
+        UdpReceiveResult reply = await clientSocket.ReceiveAsync().WaitAsync(TimeSpan.FromSeconds(2));
+        string replyJson = System.Text.Encoding.UTF8.GetString(reply.Buffer);
+
+        replyJson.Should().Contain("\"Type\":\"BEACON\"");
+        replyJson.Should().Contain("Engineering Floor 3");
+        replyJson.Should().Contain("Host-PC");
+    }
+
+    [Fact]
+    public async Task SendTelephonyStateAsync_WhenReceived_ShouldRaiseTelephonyStateReceivedEvent()
+    {
+        const int testPort = 41988;
+        await using LanGroupService receiver = new() { Port = testPort };
+        TaskCompletionSource<burroQueue.Infrastructure.Network.Messages.PeerTelephonyStateMessage> tcs = new();
+        receiver.TelephonyStateReceived += (_, msg) => tcs.TrySetResult(msg);
+        await receiver.StartAsync();
+
+        GroupId gid = GroupId.New();
+        ClientId peerId = ClientId.New();
+        using UdpClient sender = new();
+        string packet = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Type = "PEER_TELEPHONY",
+            Data = new burroQueue.Infrastructure.Network.Messages.PeerTelephonyStateMessage(
+                gid.Value,
+                peerId.Value,
+                "Sabine",
+                "Starface",
+                IsCallActive: true,
+                DateTimeOffset.UtcNow)
+        });
+        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(packet);
+        await sender.SendAsync(bytes, bytes.Length, new IPEndPoint(IPAddress.Loopback, testPort));
+
+        var received = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        received.GroupId.Should().Be(gid.Value);
+        received.ClientDisplayName.Should().Be("Sabine");
+        received.ProviderId.Should().Be("Starface");
+        received.IsCallActive.Should().BeTrue();
+    }
 }
 
 

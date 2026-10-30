@@ -376,4 +376,26 @@ public sealed class SettingsViewModelTests
             SettingsViewModel.ProcessStarter = originalStarter;
         }
     }
+
+    [Fact]
+    public async Task ScanGroupsAsync_ShouldSendActiveDiscoveryProbeAndAnnounceBeacon()
+    {
+        burroQueue.Domain.Model.BurroGroup group = new(burroQueue.Domain.Model.GroupId.New(), "Office A");
+        burroQueue.Infrastructure.Network.ILanGroupService lan = Substitute.For<burroQueue.Infrastructure.Network.ILanGroupService>();
+
+        SettingsViewModel vm = new(
+            _settingsService,
+            _telephonyManager,
+            _autostartService,
+            _audioDeviceEnumerator,
+            group: group,
+            lanGroupService: lan);
+
+        await vm.ScanGroupsAsync();
+
+        await lan.Received(1).SendDiscoveryProbeAsync(
+            Arg.Any<burroQueue.Domain.Model.ClientId>(),
+            "Alice",
+            Arg.Any<CancellationToken>());
+    }
 }

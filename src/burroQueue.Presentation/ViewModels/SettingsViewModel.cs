@@ -362,9 +362,15 @@ public sealed partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     public async Task ScanGroupsAsync()
     {
-        if (_lanGroupService is not null && _group is not null)
+        if (_lanGroupService is not null)
         {
-            await _lanGroupService.BroadcastBeaconAsync(_group, ClientId.New(), ClientDisplayName).ConfigureAwait(false);
+            ClientId probeId = ClientId.New();
+            await _lanGroupService.SendDiscoveryProbeAsync(probeId, ClientDisplayName).ConfigureAwait(false);
+            if (_group is not null)
+            {
+                await _lanGroupService.BroadcastBeaconAsync(_group, probeId, ClientDisplayName).ConfigureAwait(false);
+            }
+
             StatusMessage = "Suche nach Jukebox-Gruppen im Netzwerk...";
         }
     }

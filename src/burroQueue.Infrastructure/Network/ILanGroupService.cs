@@ -17,11 +17,23 @@ public interface ILanGroupService : IAsyncDisposable
 
     event EventHandler<SkipVoteMessage>? SkipVoteReceived;
 
+    event EventHandler<PeerTelephonyStateMessage>? TelephonyStateReceived;
+
+    void SetBeaconResponder(Func<DiscoveryBeaconMessage?>? responder)
+    {
+    }
+
     Task StartAsync(CancellationToken cancellationToken = default);
 
     Task StopAsync(CancellationToken cancellationToken = default);
 
     Task BroadcastBeaconAsync(BurroGroup group, ClientId hostId, string hostName, CancellationToken cancellationToken = default);
+
+    Task SendDiscoveryProbeAsync(ClientId requesterId, string requesterDisplayName, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+
+    Task SendTelephonyStateAsync(GroupId groupId, ClientId clientId, string clientDisplayName, string providerId, bool isCallActive, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
 
     Task ShareCollaborativePlaylistAsync(GroupId groupId, string playlistUrl, string sharedByName, CancellationToken cancellationToken = default);
 

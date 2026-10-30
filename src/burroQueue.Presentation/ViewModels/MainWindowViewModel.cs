@@ -36,6 +36,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private readonly IYouTubePlaylistWriter? _playlistWriter;
     private readonly IStreamUriResolver? _streamUriResolver;
     private readonly ClientId _localClientId = ClientId.New();
+    private readonly HashSet<Guid> _activeRemoteCallPeers = [];
+    private bool _localCallActive;
     private SkipVotePool _skipVotePool;
     private bool _isUpdatingVolumeInternally;
     private double _lastUnmutedVolume = 0.8;
@@ -312,6 +314,16 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _lanGroupService.CollaborativePlaylistReceived += OnCollaborativePlaylistReceived;
         _lanGroupService.QueueSyncReceived += OnQueueSyncReceived;
         _lanGroupService.SkipVoteReceived += OnSkipVoteReceived;
+        _lanGroupService.TelephonyStateReceived += OnPeerTelephonyStateReceived;
+        _lanGroupService.SetBeaconResponder(() => new DiscoveryBeaconMessage(
+            _group.Id.Value,
+            _group.Name,
+            _localClientId.Value,
+            _settingsService.CurrentSettings?.ClientDisplayName ?? Environment.UserName,
+            Math.Max(1, _group.Members.Count),
+            !string.IsNullOrWhiteSpace(CollaborativePlaylistUrl),
+            CollaborativePlaylistUrl,
+            DateTimeOffset.UtcNow));
         _audioPlayerBackend.TrackPlaybackFinished += OnTrackPlaybackFinished;
 
         if (System.Windows.Application.Current?.Dispatcher is { HasShutdownStarted: false } dispatcher)
@@ -1012,26 +1024,66 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     private void OnTelephonyStateChanged(object? sender, TelephonyCallEventArgs e)
     {
+        _localCallActive = e.IsCallActive;
+        string displayName = _settingsService.CurrentSettings?.ClientDisplayName ?? Environment.UserName;
+        _ = _lanGroupService.SendTelephonyStateAsync(_group.Id, _localClientId, displayName, e.ProviderId, e.IsCallActive);
+
         if (e.IsCallActive)
         {
-            _duckingReleaseCts?.Cancel();
-            _duckingReleaseCts?.Dispose();
-            _duckingReleaseCts = null;
-
-            RunOnUi(() =>
-            {
-                IsCallActive = true;
-                IsAudioDucked = true;
-                TelephonyStatusText = $"{e.ProviderId} Anruf aktiv – Lautstärke abgesenkt";
-                TelephonyStateSummary = "Anruf aktiv (Ducking aktiv)";
-
-                AudioVolume volume = new(MasterVolume > 0 ? MasterVolume : 0.8, 0.15);
-                double target = volume.CalculateEffectiveLevel(e.State);
-                _audioController.SetTargetVolume(target, true);
-            });
+            ActivateDucking($"{e.ProviderId} Anruf aktiv – Lautstärke abgesenkt", e.State);
             return;
         }
 
+        if (_activeRemoteCallPeers.Count == 0)
+        {
+            ScheduleOrApplyDuckingRelease();
+        }
+    }
+
+    private void OnPeerTelephonyStateReceived(object? sender, PeerTelephonyStateMessage message)
+    {
+        if (message.GroupId != _group.Id.Value || message.ClientId == _localClientId.Value)
+        {
+            return;
+        }
+
+        if (message.IsCallActive)
+        {
+            _activeRemoteCallPeers.Add(message.ClientId);
+            ActivateDucking(
+                $"{message.ClientDisplayName} ({message.ProviderId}) im Gespräch – Lautstärke abgesenkt",
+                TelephonyState.ActiveCall);
+            return;
+        }
+
+        _activeRemoteCallPeers.Remove(message.ClientId);
+        if (!_localCallActive && _activeRemoteCallPeers.Count == 0)
+        {
+            ScheduleOrApplyDuckingRelease();
+        }
+    }
+
+    private void ActivateDucking(string statusText, TelephonyState state)
+    {
+        _duckingReleaseCts?.Cancel();
+        _duckingReleaseCts?.Dispose();
+        _duckingReleaseCts = null;
+
+        RunOnUi(() =>
+        {
+            IsCallActive = true;
+            IsAudioDucked = true;
+            TelephonyStatusText = statusText;
+            TelephonyStateSummary = "Anruf aktiv (Ducking aktiv)";
+
+            AudioVolume volume = new(MasterVolume > 0 ? MasterVolume : 0.8, 0.15);
+            double target = volume.CalculateEffectiveLevel(state);
+            _audioController.SetTargetVolume(target, true);
+        });
+    }
+
+    private void ScheduleOrApplyDuckingRelease()
+    {
         int releaseDelaySeconds = Math.Clamp(_settingsService.CurrentSettings?.DuckingReleaseDelaySeconds ?? 0, 0, 120);
         if (releaseDelaySeconds <= 0 || !IsAudioDucked)
         {

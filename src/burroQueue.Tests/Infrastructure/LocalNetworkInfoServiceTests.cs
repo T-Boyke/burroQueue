@@ -134,4 +134,37 @@ public sealed class LocalNetworkInfoServiceTests
 
         ip.Should().Be("127.0.0.1");
     }
+
+    [Fact]
+    public void ResolvePhysicalIPv4Addresses_ShouldExcludeVirtualHyperVWslDockerAndLoopbackAdapters()
+    {
+        var adapters = new[]
+        {
+            (
+                Name: "vEthernet (WSL (Hyper-V firewall))",
+                Description: "Hyper-V Virtual Ethernet Adapter",
+                Status: System.Net.NetworkInformation.OperationalStatus.Up,
+                Type: System.Net.NetworkInformation.NetworkInterfaceType.Ethernet,
+                Addresses: (IEnumerable<IPAddress>)[IPAddress.Parse("172.24.80.1"), IPAddress.Parse("192.168.56.1")]
+            ),
+            (
+                Name: "Ethernet",
+                Description: "Intel(R) Ethernet Controller I226-V",
+                Status: System.Net.NetworkInformation.OperationalStatus.Up,
+                Type: System.Net.NetworkInformation.NetworkInterfaceType.Ethernet,
+                Addresses: (IEnumerable<IPAddress>)[IPAddress.Parse("192.168.10.42"), IPAddress.Parse("169.254.1.1")]
+            ),
+            (
+                Name: "Wi-Fi",
+                Description: "Intel(R) Wi-Fi 7 BE200",
+                Status: System.Net.NetworkInformation.OperationalStatus.Up,
+                Type: System.Net.NetworkInformation.NetworkInterfaceType.Wireless80211,
+                Addresses: (IEnumerable<IPAddress>)[IPAddress.Parse("10.10.20.15")]
+            )
+        };
+
+        IReadOnlyList<IPAddress> physical = LocalNetworkInfoService.ResolvePhysicalIPv4Addresses(() => adapters);
+
+        physical.Select(a => a.ToString()).Should().Equal("192.168.10.42", "10.10.20.15");
+    }
 }
