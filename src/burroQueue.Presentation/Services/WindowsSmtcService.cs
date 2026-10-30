@@ -155,3 +155,4 @@ public sealed class WindowsSmtcService : ISystemMediaControlsService
         }
     }
 }
+

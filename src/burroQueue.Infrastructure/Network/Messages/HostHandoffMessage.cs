@@ -8,3 +8,4 @@ public sealed record HostHandoffMessage(
     double PlaybackPositionSeconds,
     bool WasPlaying,
     DateTimeOffset Timestamp);
+

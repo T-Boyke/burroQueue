@@ -48,3 +48,4 @@ public sealed class WindowsFocusAssistDetectorTests
         end.Should().BeApproximately(0.0, 0.001);
     }
 }
+

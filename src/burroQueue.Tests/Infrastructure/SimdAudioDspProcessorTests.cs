@@ -41,3 +41,4 @@ public sealed class SimdAudioDspProcessorTests
         gainForLoud.Should().BeLessThan(1.0f);
     }
 }
+

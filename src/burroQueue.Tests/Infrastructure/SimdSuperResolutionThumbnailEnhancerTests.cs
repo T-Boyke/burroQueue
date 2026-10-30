@@ -40,3 +40,4 @@ public sealed class SimdSuperResolutionThumbnailEnhancerTests
         outSpan[((192 * 256) - 1) * 4].Should().BeCloseTo(220, 2);
     }
 }
+

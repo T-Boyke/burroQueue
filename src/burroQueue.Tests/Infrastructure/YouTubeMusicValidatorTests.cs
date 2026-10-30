@@ -67,3 +67,4 @@ public sealed class YouTubeMusicValidatorTests
         result.RejectionReason.Should().NotBeNullOrWhiteSpace();
     }
 }
+

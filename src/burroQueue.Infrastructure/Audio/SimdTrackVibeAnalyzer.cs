@@ -94,3 +94,4 @@ public sealed class SimdTrackVibeAnalyzer : ITrackVibeAnalyzer
             isDisruptive ? "High-Transient / Disruptive" : "Deep-Work Safe");
     }
 }
+

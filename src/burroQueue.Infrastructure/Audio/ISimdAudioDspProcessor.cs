@@ -10,3 +10,4 @@ public interface ISimdAudioDspProcessor
 
     void ApplyGainAndSoftClip(Span<float> samples, float linearGain);
 }
+

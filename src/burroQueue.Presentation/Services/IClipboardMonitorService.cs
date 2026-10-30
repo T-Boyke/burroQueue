@@ -8,3 +8,4 @@ public interface IClipboardMonitorService : IDisposable
 
     void Detach();
 }
+

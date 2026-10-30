@@ -36,3 +36,4 @@ public sealed class WinGetManifestValidationTests
         File.ReadAllText(localeEnFile).Should().Contain("License: AGPL-3.0-only");
     }
 }
+

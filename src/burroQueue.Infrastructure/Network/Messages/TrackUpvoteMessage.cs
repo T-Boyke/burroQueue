@@ -8,3 +8,4 @@ public sealed record TrackUpvoteMessage(
     string VoterUsername,
     bool IsUpvoted,
     DateTimeOffset Timestamp);
+

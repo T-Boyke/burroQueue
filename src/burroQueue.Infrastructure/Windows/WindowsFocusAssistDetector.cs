@@ -45,3 +45,4 @@ public sealed class WindowsFocusAssistDetector : IFocusAssistDetector
         return hr == 0 ? state : 5;
     }
 }
+

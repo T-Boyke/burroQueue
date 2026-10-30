@@ -7,3 +7,4 @@ public readonly record struct MusicValidationResult(
     string Author,
     TimeSpan Duration,
     string? RejectionReason);
+

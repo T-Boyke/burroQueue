@@ -8,3 +8,4 @@ public interface ITrackVibeAnalyzer
 
     TrackVibeProfile AnalyzeSamplesAndTitle(string title, ReadOnlySpan<float> pcmPreviewSamples);
 }
+

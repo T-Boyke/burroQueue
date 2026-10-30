@@ -10,3 +10,4 @@ public static class OfficeVibePolicy
         return vibeProfile.IsDisruptiveToDeepWork ? 1 : baseline;
     }
 }
+

@@ -36,3 +36,4 @@ public sealed class OfficeVibePolicyTests
         OfficeVibePolicy.CalculateRequiredSkipVotes(chillProfile, defaultRequiredVotes: 3).Should().Be(3);
     }
 }
+

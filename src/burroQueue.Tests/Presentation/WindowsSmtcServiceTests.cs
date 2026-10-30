@@ -31,3 +31,4 @@ public sealed class WindowsSmtcServiceTests
         nextRaised.Should().BeTrue();
     }
 }
+

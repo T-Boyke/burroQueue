@@ -9,3 +9,4 @@ public interface IYouTubeMusicValidator
         TimeSpan maxDuration,
         CancellationToken cancellationToken = default);
 }
+

@@ -8,3 +8,4 @@ public interface IFavoriteQueueRepository
 
     Task SaveFavoritesAsync(string groupKey, IReadOnlyList<FavoriteTrackEntry> favorites, CancellationToken cancellationToken = default);
 }
+

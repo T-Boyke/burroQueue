@@ -41,3 +41,4 @@ public sealed class LocalizationManagerTests
         manager.CurrentCulture.Name.Should().Be("en-US");
     }
 }
+

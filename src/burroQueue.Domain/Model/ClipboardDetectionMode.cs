@@ -6,3 +6,4 @@ public enum ClipboardDetectionMode
     AskToast = 1,
     AutoQueueVerifiedMusic = 2
 }
+

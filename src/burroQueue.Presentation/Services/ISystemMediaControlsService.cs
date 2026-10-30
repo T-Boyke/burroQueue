@@ -22,3 +22,4 @@ public interface ISystemMediaControlsService : IDisposable
 
     void UpdateTrackMetadata(string title, string artist, string? thumbnailUrl = null);
 }
+

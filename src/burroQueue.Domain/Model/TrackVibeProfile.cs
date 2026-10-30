@@ -6,3 +6,4 @@ public readonly record struct TrackVibeProfile(
     float CrestFactor,
     bool IsDisruptiveToDeepWork,
     string ClassificationLabel);
+
