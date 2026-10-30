@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-    Automated Release & Packaging Script for burroQueue
+    Automated Release & Packaging Script for burroQueue (.NET 11 & UnoCSS 66.12.0)
 .DESCRIPTION
-    1. Runs architecture and 1CPF verification.
-    2. Executes full test suite in Release configuration.
-    3. Publishes self-contained single-file executable for win-x64.
-    4. Copies assets (app.ico, logo.png, LICENSE, README.md).
-    5. Packages portable ZIP archive.
-    6. Compiles Inno Setup installer if iscc.exe is available.
+    1. Compiles UnoCSS 66.12.0 atomic WebDrop stylesheet (when npm is installed).
+    2. Runs DDD architecture and 1CPF verification.
+    3. Executes full test suite in Release configuration.
+    4. Publishes self-contained single-file executable for win-x64 (.NET 11).
+    5. Optionally signs binaries via signtool.exe if BURROQUEUE_CERT_SHA1 is set.
+    6. Copies assets, packages portable ZIP archive, compiles Inno Setup installer, and writes SHA256SUMS.txt.
 #>
 [CmdletBinding()]
 param(
@@ -17,6 +17,41 @@ param(
 $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
+function Invoke-OptionalLocalAuthenticodeSign([string]$TargetExe) {
+    if ([string]::IsNullOrWhiteSpace($env:BURROQUEUE_CERT_SHA1)) {
+        return
+    }
+    $signtool = Get-Command signtool.exe -ErrorAction SilentlyContinue
+    if (-not $signtool) {
+        Write-Warning "BURROQUEUE_CERT_SHA1 is set, but signtool.exe was not found in PATH."
+        return
+    }
+    Write-Host "Signing $TargetExe with certificate $($env:BURROQUEUE_CERT_SHA1) ..." -ForegroundColor Cyan
+    & $signtool.Source sign /sha1 $env:BURROQUEUE_CERT_SHA1 /fd SHA256 /tr "http://timestamp.digicert.com" /td SHA256 $TargetExe
+    if ($LASTEXITCODE -ne 0) {
+        throw "Authenticode signing failed for $TargetExe (exit code $LASTEXITCODE)."
+    }
+}
+
+Write-Host "=== [0/5] Building UnoCSS 66.12.0 WebDrop Stylesheet ===" -ForegroundColor Cyan
+$NpmCmd = Get-Command npm -ErrorAction SilentlyContinue
+if ($NpmCmd -and (Test-Path "$RepoRoot/src/burroQueue.WebDrop/package.json")) {
+    Push-Location "$RepoRoot/src/burroQueue.WebDrop"
+    try {
+        if (-not (Test-Path "node_modules")) {
+            & npm ci
+        }
+        & npm run build:css
+        if ($LASTEXITCODE -ne 0) {
+            throw "UnoCSS build:css failed!"
+        }
+    } finally {
+        Pop-Location
+    }
+} else {
+    Write-Host "[INFO] npm not found; using committed webdrop.uno.min.css embedded resource." -ForegroundColor Yellow
+}
+
 Write-Host "=== [1/5] Verifying DDD Boundaries & 1CPF Architecture ===" -ForegroundColor Cyan
 & pwsh "$RepoRoot/scripts/verify-architecture.ps1"
 if ($LASTEXITCODE -ne 0) {
@@ -25,7 +60,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 if (-not $SkipTests) {
-    Write-Host "=== [2/5] Running TDD Unit & Integration Tests (Release) ===" -ForegroundColor Cyan
+    Write-Host "=== [2/5] Running TDD Unit & Integration Tests (.NET 11 Release) ===" -ForegroundColor Cyan
     & dotnet test "$RepoRoot/burroQueue.sln" --configuration Release --verbosity minimal
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Test suite execution failed!"
@@ -35,7 +70,7 @@ if (-not $SkipTests) {
     Write-Host "=== [2/5] Skipping Tests as requested ===" -ForegroundColor Yellow
 }
 
-Write-Host "=== [3/5] Publishing Self-Contained Win-x64 Single-File Executable ===" -ForegroundColor Cyan
+Write-Host "=== [3/5] Publishing Self-Contained Win-x64 Single-File Executable (.NET 11) ===" -ForegroundColor Cyan
 $PublishDir = "$RepoRoot/publish/burroQueue-win-x64"
 $InstallerDir = "$RepoRoot/publish-installer"
 
@@ -56,6 +91,8 @@ if ($LASTEXITCODE -ne 0) {
     Write-Error "Dotnet publish failed!"
     exit 1
 }
+
+Invoke-OptionalLocalAuthenticodeSign "$PublishDir/burroQueue.exe"
 
 # Assets kopieren
 $AssetsDir = "$PublishDir/Assets"
@@ -89,14 +126,22 @@ if ($IsccPath) {
     Write-Host "Compiling installer using $IsccPath ..." -ForegroundColor Cyan
     & $IsccPath "$RepoRoot/scripts/installer/burroQueue.iss"
     if ($LASTEXITCODE -eq 0) {
+        Invoke-OptionalLocalAuthenticodeSign "$InstallerDir/burroQueue-Setup-x64.exe"
         Write-Host "[OK] Installer successfully built in $InstallerDir/burroQueue-Setup-x64.exe" -ForegroundColor Green
     } else {
         Write-Warning "Inno Setup compilation returned exit code $LASTEXITCODE"
     }
 } else {
-    Write-Host "[INFO] Inno Setup (iscc.exe) not found locally. (Installer will be generated automatically in GitHub Actions on Release tags)." -ForegroundColor Yellow
+    Write-Host "[INFO] Inno Setup (iscc.exe) not found locally. (Installer will be generated and signed via SignPath.io in GitHub Actions on Release tags)." -ForegroundColor Yellow
 }
 
-Write-Host "`n[SUCCESS] burroQueue 1.0 Release Build Completed Successfully!" -ForegroundColor Green
+$ChecksumFile = "$InstallerDir/SHA256SUMS.txt"
+Get-ChildItem $InstallerDir -File -Include *.exe, *.zip | ForEach-Object {
+    $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+    "$hash  $($_.Name)"
+} | Set-Content -Path $ChecksumFile -Encoding utf8NoBOM
+
+Write-Host "`n[SUCCESS] burroQueue Release Build Completed Successfully!" -ForegroundColor Green
 Write-Host "Portable Exe: $PublishDir\burroQueue.exe" -ForegroundColor Gray
 Write-Host "Portable Zip: $ZipPath" -ForegroundColor Gray
+Write-Host "Checksums:    $ChecksumFile" -ForegroundColor Gray

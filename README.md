@@ -14,8 +14,8 @@
     <img src="https://github.com/T-Boyke/burroQueue/actions/workflows/ci.yml/badge.svg" alt="Architecture Audit, Build & TDD Suite" />
   </a>
   <img src="https://img.shields.io/badge/Platform-Windows%2011-0078D4?style=flat-square" alt="Platform" />
-  <img src="https://img.shields.io/badge/Runtime-.NET%2010%20%7C%20C%23%2014-512BD4?style=flat-square" alt="Runtime" />
-  <img src="https://img.shields.io/badge/UI-WPF%20%2B%20Wpf.Ui%20(Fluent%20%2F%20Mica)-005FB8?style=flat-square" alt="UI" />
+  <img src="https://img.shields.io/badge/Runtime-.NET%2011%20%7C%20C%23%2015-512BD4?style=flat-square" alt="Runtime" />
+  <img src="https://img.shields.io/badge/UI-WPF%20%2B%20Wpf.Ui%20%7C%20UnoCSS%2066.12-005FB8?style=flat-square" alt="UI" />
   <img src="https://img.shields.io/badge/Memory-%3C%2030%20MB%20%7C%20EcoQoS-2EA043?style=flat-square" alt="Memory" />
   <img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg?style=flat-square" alt="License" />
 </p>
@@ -65,9 +65,9 @@ In German, an office is a **Büro**. In Spanish, a **burro** is a donkey—a har
 - **Windows 11 EcoQoS & Efficiency Cores:** `ProcessEfficiencyManager` applies `PROCESS_POWER_THROTTLING_EXECUTION_SPEED` and `THREAD_POWER_THROTTLING_EXECUTION_SPEED` via `SetProcessInformation` / `SetThreadInformation` together with `ProcessPriorityClass.Idle`, steering background workers onto Intel Hybrid **E-Cores** / AMD low-power states.
 - **Working-Set Trimming & UI Virtualization:** Automatically compacts the Large Object Heap (`GCLargeObjectHeapCompactionMode.CompactOnce`) and invokes Win32 `K32EmptyWorkingSet` when minimizing to the systray or closing dialogs, paired with `VirtualizingStackPanel` (`VirtualizationMode.Recycling`) in the queue view.
 
-### 5. Peer-to-Peer LAN Sync & Instant Mobile Web-Drop
+### 5. Peer-to-Peer LAN Sync & Instant Mobile Web-Drop (UnoCSS 66.12.0)
 - **Zero-Config LAN Discovery:** Discovers office groups over UDP multicast (`239.255.42.99:41234`) for real-time queue synchronization and democratic **Vote-to-Skip**.
-- **Instant-Toggle Mobile Web-Drop (`http://<LAN-IP>:<PORT>`):** Toggling the Web-Drop checkbox in Settings immediately starts or stops the embedded HTTP listener, binds to the primary physical LAN IPv4 address (automatically skipping virtual WSL/Hyper-V/Docker adapters and falling back across ports if `8080` is occupied), and generates an in-app QR code for smartphone uploads.
+- **Instant-Toggle Mobile Web-Drop (`http://<LAN-IP>:<PORT>`):** Toggling the Web-Drop checkbox in Settings immediately starts or stops the embedded HTTP listener, binds to the primary physical LAN IPv4 address (automatically skipping virtual WSL/Hyper-V/Docker adapters and falling back across ports if `8080` is occupied), serves a build-time compiled **UnoCSS 66.12.0** atomic Windows 11 Fluent Light/Dark UI (`< 9 KB`, zero Bootstrap, zero WebView2/Node runtime overhead), and generates an in-app QR code for smartphone uploads.
 
 ---
 
@@ -80,6 +80,7 @@ src/
 ├── burroQueue.Domain/          # Pure core business models, events, and exceptions (0 external dependencies)
 ├── burroQueue.Infrastructure/  # Audio, YouTube InnerTube/yt-dlp, P2P sockets, VoIP (STARFACE/Swyx/CoreAudio), EcoQoS
 ├── burroQueue.Presentation/    # WPF Fluent UI (Mica/Tabbed/Acrylic), ViewModels (CommunityToolkit.Mvvm), Systray
+├── burroQueue.WebDrop/         # Build-time UnoCSS 66.12.0 atomic Fluent CSS compiler (zero Bootstrap, 0 runtime RAM)
 └── burroQueue.Tests/           # Comprehensive xUnit, FluentAssertions, and NSubstitute test suite
 ```
 
@@ -102,7 +103,8 @@ Verify architecture compliance at any time:
 
 ### Prerequisites
 - Windows 11 (22H2 or newer recommended)
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+- [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0)
+- Optional (only when modifying WebDrop CSS): Node.js 24+ (`npm ci && npm run build:css` in `src/burroQueue.WebDrop`)
 - Optional: `yt-dlp` (`winget install yt-dlp.yt-dlp`) for local progressive MP4 audio caching
 
 ### Build and Test
@@ -128,10 +130,10 @@ dotnet run --project src/burroQueue.Presentation/burroQueue.Presentation.csproj
 
 ---
 
-## CI/CD Workflows
+## CI/CD Workflows & Code Signing
 
-- **Continuous Integration:** [`.github/workflows/ci.yml`](.github/workflows/ci.yml) executes architecture validation, formatting verification (`dotnet format --verify-no-changes`), release compilation with `-warnaserror`, and code coverage tests on Windows runners.
-- **Release Automation:** [`.github/workflows/release.yml`](.github/workflows/release.yml) publishes self-contained Windows 11 x64 binaries on Git version tags.
+- **Continuous Integration:** [`.github/workflows/ci.yml`](.github/workflows/ci.yml) executes UnoCSS 66.12.0 stylesheet compilation, architecture validation, formatting verification (`dotnet format --verify-no-changes`), `.NET 11` release compilation with `-warnaserror`, and code coverage tests on Windows runners.
+- **Release Automation & Authenticode Signing:** [`.github/workflows/release.yml`](.github/workflows/release.yml) publishes self-contained `.NET 11` Windows 11 x64 binaries, signs both `burroQueue.exe` and `burroQueue-Setup-x64.exe` via [SignPath.io](https://about.signpath.io/) (certificate by [SignPath Foundation](https://signpath.org/); see [`SECURITY.md`](SECURITY.md)), and publishes `SHA256SUMS.txt` on Git version tags.
 - **Self-Hosted Runner:** Setup script available at [`scripts/runner/setup-runner.ps1`](scripts/runner/setup-runner.ps1) for automated local deployment testing.
 
 ---

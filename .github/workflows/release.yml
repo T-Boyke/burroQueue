@@ -1,4 +1,4 @@
-name: burroQueue Release & Installer
+name: burroQueue Release, Code Signing & Installer
 
 on:
   push:
@@ -10,23 +10,42 @@ permissions:
   contents: write
 
 env:
-  DOTNET_VERSION: '10.0.x'
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
-  build-and-package:
-    name: Build Self-Contained Win11 Exe & Inno Setup Installer
+  build-sign-and-package:
+    name: Build .NET 11 Win11 Exe, SignPath Authenticode & Inno Setup Installer
     runs-on: windows-latest
+    env:
+      SIGNPATH_ENABLED: ${{ secrets.SIGNPATH_API_TOKEN != '' && (vars.SIGNPATH_ORGANIZATION_ID != '' || secrets.SIGNPATH_ORGANIZATION_ID != '') }}
+      SIGNPATH_ORG_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID || secrets.SIGNPATH_ORGANIZATION_ID }}
+      SIGNPATH_PROJECT: ${{ vars.SIGNPATH_PROJECT_SLUG || 'burroqueue' }}
+      SIGNPATH_POLICY: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG || 'release-signing' }}
+      SIGNPATH_EXE_CONFIG: ${{ vars.SIGNPATH_EXE_ARTIFACT_CONFIG_SLUG || '' }}
+      SIGNPATH_INSTALLER_CONFIG: ${{ vars.SIGNPATH_INSTALLER_ARTIFACT_CONFIG_SLUG || '' }}
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
 
-      - name: Setup .NET 10 SDK
+      - name: Setup Node.js 24 for UnoCSS 66.12.0 Build
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: 'src/burroQueue.WebDrop/package-lock.json'
+
+      - name: Compile UnoCSS 66.12.0 WebDrop Stylesheet
+        working-directory: src/burroQueue.WebDrop
+        run: |
+          npm ci
+          npm run build:css
+
+      - name: Setup .NET 11 SDK (global.json)
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          global-json-file: global.json
 
       - name: Run Architecture & 1CPF Verification
         shell: pwsh
@@ -35,39 +54,119 @@ jobs:
       - name: Run Unit & Integration Tests
         run: dotnet test burroQueue.sln --configuration Release
 
-      - name: Publish Self-Contained Single-File Executable
-        run: >
-          dotnet publish src/burroQueue.Presentation/burroQueue.Presentation.csproj
-          --configuration Release
-          --runtime win-x64
-          --self-contained true
-          -p:PublishSingleFile=true
-          -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:EnableCompressionInSingleFile=true
-          -p:DebugType=none
-          --output ./publish/burroQueue-win-x64
+      - name: Publish Self-Contained Single-File Executable (.NET 11 win-x64)
+        shell: pwsh
+        run: |
+          dotnet publish src/burroQueue.Presentation/burroQueue.Presentation.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:DebugType=none `
+            --output ./publish/burroQueue-win-x64
+          New-Item -ItemType Directory -Force -Path ./publish/burroQueue-win-x64/Assets | Out-Null
+          Copy-Item ./assets/app.ico, ./assets/logo.png -Destination ./publish/burroQueue-win-x64/Assets/ -Force
+          Copy-Item ./LICENSE, ./README.md -Destination ./publish/burroQueue-win-x64/ -Force
+          New-Item -ItemType Directory -Force -Path ./publish-installer | Out-Null
+
+      - name: Upload Unsigned Application Binary for SignPath Attestation
+        id: upload-unsigned-exe
+        if: env.SIGNPATH_ENABLED == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-burroQueue-exe
+          path: ./publish/burroQueue-win-x64/burroQueue.exe
+
+      - name: Sign Application Binary (burroQueue.exe) via SignPath.io
+        if: env.SIGNPATH_ENABLED == 'true'
+        uses: SignPath/github-action-submit-signing-request@v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ env.SIGNPATH_ORG_ID }}
+          project-slug: ${{ env.SIGNPATH_PROJECT }}
+          signing-policy-slug: ${{ env.SIGNPATH_POLICY }}
+          artifact-configuration-slug: ${{ env.SIGNPATH_EXE_CONFIG }}
+          github-artifact-id: ${{ steps.upload-unsigned-exe.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: './publish/burroQueue-win-x64'
+
+      - name: Verify Authenticode Signature on burroQueue.exe
+        if: env.SIGNPATH_ENABLED == 'true'
+        shell: pwsh
+        run: |
+          $sig = Get-AuthenticodeSignature "./publish/burroQueue-win-x64/burroQueue.exe"
+          Write-Host "burroQueue.exe Authenticode Status: $($sig.Status) | Subject: $($sig.SignerCertificate.Subject)"
+          if ($sig.Status -ne 'Valid') {
+            throw "Authenticode signature verification failed for burroQueue.exe: $($sig.StatusMessage)"
+          }
+
+      - name: Notice When SignPath Secrets Are Not Yet Configured
+        if: env.SIGNPATH_ENABLED != 'true'
+        shell: pwsh
+        run: |
+          Write-Host "::notice title=SignPath Code Signing nicht aktiv::SIGNPATH_API_TOKEN / SIGNPATH_ORGANIZATION_ID sind noch nicht in GitHub Secrets/Variables hinterlegt. Siehe SECURITY.md zur Aktivierung der kostenlosen SignPath Foundation Signatur gegen Windows SmartScreen."
 
       - name: Build Inno Setup Installer (.exe)
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
         with:
           path: scripts/installer/burroQueue.iss
 
-      - name: Package Portable ZIP (Standalone Exe)
+      - name: Upload Unsigned Inno Setup Installer for SignPath Attestation
+        id: upload-unsigned-installer
+        if: env.SIGNPATH_ENABLED == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-burroQueue-installer
+          path: ./publish-installer/burroQueue-Setup-x64.exe
+
+      - name: Sign Inno Setup Installer (burroQueue-Setup-x64.exe) via SignPath.io
+        if: env.SIGNPATH_ENABLED == 'true'
+        uses: SignPath/github-action-submit-signing-request@v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ env.SIGNPATH_ORG_ID }}
+          project-slug: ${{ env.SIGNPATH_PROJECT }}
+          signing-policy-slug: ${{ env.SIGNPATH_POLICY }}
+          artifact-configuration-slug: ${{ env.SIGNPATH_INSTALLER_CONFIG }}
+          github-artifact-id: ${{ steps.upload-unsigned-installer.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: './publish-installer'
+
+      - name: Verify Authenticode Signature on burroQueue-Setup-x64.exe
+        if: env.SIGNPATH_ENABLED == 'true'
+        shell: pwsh
+        run: |
+          $sig = Get-AuthenticodeSignature "./publish-installer/burroQueue-Setup-x64.exe"
+          Write-Host "burroQueue-Setup-x64.exe Authenticode Status: $($sig.Status) | Subject: $($sig.SignerCertificate.Subject)"
+          if ($sig.Status -ne 'Valid') {
+            throw "Authenticode signature verification failed for burroQueue-Setup-x64.exe: $($sig.StatusMessage)"
+          }
+
+      - name: Package Portable ZIP & Generate SHA-256 Checksums
         shell: pwsh
         run: |
           Compress-Archive -Path ./publish/burroQueue-win-x64/* -DestinationPath ./publish-installer/burroQueue-portable-win-x64.zip -Force
+          $hashLines = Get-ChildItem ./publish-installer -File -Include *.exe, *.zip | ForEach-Object {
+            $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$h  $($_.Name)"
+          }
+          $hashLines | Set-Content -Path ./publish-installer/SHA256SUMS.txt -Encoding utf8NoBOM
+          Get-Content ./publish-installer/SHA256SUMS.txt
 
-      - name: Upload Build Artifacts (Installer & Portable)
+      - name: Upload Build Artifacts (Installer, Portable ZIP & Checksums)
         uses: actions/upload-artifact@v7
         with:
           name: burroQueue-windows-binaries
           path: ./publish-installer/*
 
-      - name: Create GitHub Release with Installer & Exe Assets
+      - name: Create GitHub Release with Signed Installer, Portable ZIP & SHA256SUMS
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
         with:
           files: |
             ./publish-installer/burroQueue-Setup-x64.exe
             ./publish-installer/burroQueue-portable-win-x64.zip
+            ./publish-installer/SHA256SUMS.txt
           generate_release_notes: true

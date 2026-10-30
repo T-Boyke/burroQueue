@@ -20,13 +20,12 @@ permissions:
   contents: read
 
 env:
-  DOTNET_VERSION: '10.0.x'
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
   verify-and-test:
-    name: Architecture Audit, Build & TDD Suite
+    name: Architecture Audit, UnoCSS 66.12, .NET 11 Build & TDD Suite
     # Nutzt standardmäßig windows-latest, kann aber über Repository-Variable USE_SELF_HOSTED_RUNNER=='true'
     # oder per workflow_dispatch direkt auf dem lokalen Self-Hosted Runner laufen.
     runs-on: ${{ (github.event.inputs.runner_target == 'self-hosted' || vars.USE_SELF_HOSTED_RUNNER == 'true') && 'self-hosted' || 'windows-latest' }}
@@ -35,11 +34,23 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v7
 
-      - name: Setup .NET 10 SDK
+      - name: Setup Node.js 24 for UnoCSS 66.12.0 Build
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: 'src/burroQueue.WebDrop/package-lock.json'
+
+      - name: Compile UnoCSS 66.12.0 WebDrop Stylesheet (Zero Bootstrap)
+        working-directory: src/burroQueue.WebDrop
+        run: |
+          npm ci
+          npm run build:css
+
+      - name: Setup .NET 11 SDK (global.json)
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-          dotnet-quality: 'ga'
+          global-json-file: global.json
 
       - name: Verify DDD Boundaries & SFC / 1CPF Rule
         shell: pwsh
@@ -51,7 +62,7 @@ jobs:
       - name: Verify Code Formatting (.editorconfig)
         run: dotnet format burroQueue.sln --no-restore --verify-no-changes
 
-      - name: Build Solution (Release, Warnings as Errors)
+      - name: Build Solution (.NET 11 Release, Warnings as Errors)
         run: dotnet build burroQueue.sln --configuration Release --no-restore -warnaserror
 
       - name: Run TDD Unit & Integration Tests
@@ -64,4 +75,3 @@ jobs:
           name: test-coverage-report
           path: ./TestResults/**/coverage.cobertura.xml
           if-no-files-found: ignore
-
