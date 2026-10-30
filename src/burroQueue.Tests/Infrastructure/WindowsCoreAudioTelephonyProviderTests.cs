@@ -30,4 +30,27 @@ public sealed class WindowsCoreAudioTelephonyProviderTests
         await provider.StopAsync();
         await provider.DisposeAsync();
     }
+
+    [Fact]
+    public void EvaluateCaptureState_WhenConferenceMicrophoneBecomesActiveAndInactive_ShouldTransitionCallState()
+    {
+        bool micActive = false;
+        WindowsCoreAudioTelephonyProvider provider = new(() => micActive);
+        List<TelephonyState> states = [];
+        provider.CallStateChanged += (_, e) => states.Add(e.State);
+
+        micActive = true;
+        provider.EvaluateCaptureStateOnce();
+        provider.CurrentState.Should().Be(TelephonyState.ActiveCall);
+        states.Should().ContainSingle().Which.Should().Be(TelephonyState.ActiveCall);
+
+        // Repeated active poll does not duplicate event
+        provider.EvaluateCaptureStateOnce();
+        states.Should().HaveCount(1);
+
+        micActive = false;
+        provider.EvaluateCaptureStateOnce();
+        provider.CurrentState.Should().Be(TelephonyState.Idle);
+        states.Should().Equal(TelephonyState.ActiveCall, TelephonyState.Idle);
+    }
 }
