@@ -282,6 +282,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<ITelephonyManager, TelephonyManager>();
 
         // Presentation Services & Views
+        services.AddSingleton<IAvatarBitmapCacheService>(_ => AvatarBitmapCacheService.Shared);
         services.AddSingleton<ISingleInstanceManager, SingleInstanceManager>();
         services.AddSingleton<ISystrayNotificationService, SystrayNotificationService>();
         services.AddSingleton<IGlobalHotkeyService, GlobalHotkeyService>();

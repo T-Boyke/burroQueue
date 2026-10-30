@@ -143,6 +143,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private string _currentTrackArtist = string.Empty;
 
     [ObservableProperty]
+    private string _currentTrackSubmittedBy = string.Empty;
+
+    [ObservableProperty]
+    private Uri? _currentTrackSubmitterAvatarUrl;
+
+    [ObservableProperty]
     private string? _currentTrackThumbnailUrl;
 
     [ObservableProperty]
@@ -288,7 +294,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         if (_group.Playlist.CurrentTrack is { } initialTrack)
         {
             _currentTrackTitle = initialTrack.Title;
-            _currentTrackArtist = initialTrack.SubmittedBy;
+            _currentTrackArtist = initialTrack.ArtistName ?? initialTrack.SubmittedBy;
+            _currentTrackSubmittedBy = initialTrack.SubmittedBy;
+            _currentTrackSubmitterAvatarUrl = initialTrack.SubmitterAvatarUrl;
             _currentTrackThumbnailUrl = initialTrack.ThumbnailUrl;
         }
 
@@ -723,7 +731,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
              CurrentTrackTitle == "No song playing"))
         {
             CurrentTrackTitle = current.Title;
-            CurrentTrackArtist = current.SubmittedBy;
+            CurrentTrackArtist = current.ArtistName ?? current.SubmittedBy;
+            CurrentTrackSubmittedBy = current.SubmittedBy;
+            CurrentTrackSubmitterAvatarUrl = current.SubmitterAvatarUrl;
             CurrentTrackThumbnailUrl = current.ThumbnailUrl;
         }
     }
@@ -731,6 +741,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private async Task LoadTrackMetadataAsync(Track track)
     {
         TrackMetadata? meta = await _metadataFetcher.FetchMetadataAsync(track.VideoId).ConfigureAwait(true);
+        CurrentTrackSubmittedBy = track.SubmittedBy;
+        CurrentTrackSubmitterAvatarUrl = track.SubmitterAvatarUrl;
+
         if (meta is not null)
         {
             CurrentTrackTitle = meta.Title;
@@ -740,15 +753,28 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         else
         {
             CurrentTrackTitle = track.Title;
-            CurrentTrackArtist = track.SubmittedBy;
+            CurrentTrackArtist = track.ArtistName ?? track.SubmittedBy;
             CurrentTrackThumbnailUrl = null;
         }
 
         _systrayService?.UpdateTooltip($"burroQueue: {CurrentTrackTitle}");
-        _systrayService?.ShowNotification(
-            "burroQueue – Jetzt läuft",
-            $"{CurrentTrackTitle} ({CurrentTrackArtist})",
-            CurrentTrackThumbnailUrl ?? track.ThumbnailUrl);
+        string toastThumb = CurrentTrackThumbnailUrl ?? track.ThumbnailUrl;
+        if (track.SubmitterAvatarUrl is not null || track.IsSyncedFromPlaylist)
+        {
+            _systrayService?.ShowNotification(
+                "burroQueue – Jetzt läuft",
+                $"{CurrentTrackTitle} ({CurrentTrackArtist})",
+                toastThumb,
+                $"von {track.SubmittedBy}",
+                track.SubmitterAvatarUrl);
+        }
+        else
+        {
+            _systrayService?.ShowNotification(
+                "burroQueue – Jetzt läuft",
+                $"{CurrentTrackTitle} ({CurrentTrackArtist})",
+                toastThumb);
+        }
 
         _skipVotePool = new SkipVotePool(track.Id, requiredVotes: 3);
         UpdateSkipVoteStatus();

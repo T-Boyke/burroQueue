@@ -14,6 +14,7 @@
 
       <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
       <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+      <converters:AvatarUriToImageSourceConverter x:Key="AvatarUriToImageSourceConverter" />
     </ResourceDictionary>
   </Application.Resources>
 </Application>

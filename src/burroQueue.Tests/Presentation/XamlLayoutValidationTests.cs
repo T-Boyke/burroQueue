@@ -33,4 +33,34 @@ public sealed class XamlLayoutValidationTests
         innerContentGrid.Should().NotBeNull($"{fileName} must wrap body content in an inner Grid at Grid.Row=1 with content margin");
         innerContentGrid!.Attribute("Margin")?.Value.Should().NotBeNullOrWhiteSpace();
     }
+
+    [Fact]
+    public void TrackToastWindow_ShouldUseCompactWin11DimensionsSingleLineEllipsisAndCircularAvatarBadge()
+    {
+        string path = Path.Combine(XamlSymbolValidationTests.FindSolutionRoot(), "src", "burroQueue.Presentation", "Views", "TrackToastWindow.xaml");
+        XDocument doc = XDocument.Load(path);
+        XElement root = doc.Root!;
+        XNamespace xNs = "http://schemas.microsoft.com/winfx/2006/xaml";
+
+        root.Attribute("Width")?.Value.Should().Be("320");
+        root.Attribute("Height")?.Value.Should().Be("68");
+        root.Attribute("MinWidth")?.Value.Should().Be("0");
+        root.Attribute("MinHeight")?.Value.Should().Be("0");
+        root.Attribute("SizeToContent")?.Value.Should().Be("Manual");
+        root.Attribute("Focusable")?.Value.Should().Be("False");
+        root.Attribute("ShowActivated")?.Value.Should().Be("False");
+
+        XElement? msgText = root.Descendants(_wpfNs + "TextBlock")
+            .FirstOrDefault(e => e.Attribute(xNs + "Name")?.Value == "MessageText");
+        msgText.Should().NotBeNull();
+        msgText!.Attribute("TextWrapping")?.Value.Should().Be("NoWrap");
+        msgText.Attribute("TextTrimming")?.Value.Should().Be("CharacterEllipsis");
+
+        XElement? badge = root.Descendants(_wpfNs + "Border")
+            .FirstOrDefault(e => e.Attribute(xNs + "Name")?.Value == "CollaboratorAvatarBadge");
+        badge.Should().NotBeNull("TrackToastWindow must include the circular 20x20 CollaboratorAvatarBadge on the cover corner");
+        badge!.Attribute("Width")?.Value.Should().Be("20");
+        badge.Attribute("Height")?.Value.Should().Be("20");
+        badge.Attribute("CornerRadius")?.Value.Should().Be("10");
+    }
 }

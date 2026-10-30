@@ -13,6 +13,7 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
 
     internal static Action<MainWindow> WindowRestorer { get; set; } = RestoreMainWindow;
     internal static Action<string, string, string>? CoverToastPresenter { get; set; } = PresentCoverToast;
+    internal static Action<string, string, string, string?, Uri?>? RichCoverToastPresenter { get; set; } = PresentRichCoverToast;
 
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal static void RestoreMainWindow(MainWindow window)
@@ -25,6 +26,17 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal static void PresentCoverToast(string title, string message, string thumbnailUrl)
     {
+        PresentRichCoverToast(title, message, thumbnailUrl, null, null);
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal static void PresentRichCoverToast(
+        string title,
+        string message,
+        string thumbnailUrl,
+        string? submitterName,
+        Uri? submitterAvatarUrl)
+    {
         if (System.Windows.Application.Current?.Dispatcher is not { HasShutdownStarted: false } dispatcher)
         {
             return;
@@ -34,7 +46,7 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
         {
             try
             {
-                TrackToastWindow toast = new(title, message, thumbnailUrl);
+                TrackToastWindow toast = new(title, message, thumbnailUrl, submitterName, submitterAvatarUrl);
                 toast.Show();
                 await Task.Delay(4000).ConfigureAwait(true);
                 toast.Close();
@@ -153,10 +165,29 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
 
     public void ShowNotification(string title, string message, string? thumbnailUrl = null)
     {
-        if (!string.IsNullOrWhiteSpace(thumbnailUrl) && CoverToastPresenter is not null)
+        ShowNotification(title, message, thumbnailUrl, submitterName: null, submitterAvatarUrl: null);
+    }
+
+    public void ShowNotification(
+        string title,
+        string message,
+        string? thumbnailUrl,
+        string? submitterName,
+        Uri? submitterAvatarUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(thumbnailUrl))
         {
-            CoverToastPresenter(title, message, thumbnailUrl);
-            return;
+            if (CoverToastPresenter is not null && CoverToastPresenter != PresentCoverToast)
+            {
+                CoverToastPresenter(title, message, thumbnailUrl);
+                return;
+            }
+
+            if (RichCoverToastPresenter is not null)
+            {
+                RichCoverToastPresenter(title, message, thumbnailUrl, submitterName, submitterAvatarUrl);
+                return;
+            }
         }
 
         _notifyIcon?.ShowBalloonTip(3000, title, message, ToolTipIcon.Info);

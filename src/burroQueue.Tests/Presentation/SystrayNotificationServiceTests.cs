@@ -228,4 +228,37 @@ public sealed class SystrayNotificationServiceTests
 
         act.Should().NotThrow();
     }
+
+    [Fact]
+    public void ShowNotification_WhenCollaboratorAndAvatarProvided_ShouldForwardToRichCoverToastPresenter()
+    {
+        SystrayNotificationService service = new();
+        string? capturedSubmitter = null;
+        Uri? capturedAvatar = null;
+        var originalRich = SystrayNotificationService.RichCoverToastPresenter;
+        try
+        {
+            SystrayNotificationService.RichCoverToastPresenter = (_, _, _, sub, av) =>
+            {
+                capturedSubmitter = sub;
+                capturedAvatar = av;
+            };
+
+            Uri avatarUri = new("https://yt3.ggpht.com/ytc/tobias=s88");
+            service.ShowNotification(
+                "burroQueue – Jetzt läuft",
+                "Numb",
+                "https://img.youtube.com/vi/kXYiU_JCYtU/mqdefault.jpg",
+                submitterName: "Linkin Park · von Tobias",
+                submitterAvatarUrl: avatarUri);
+
+            capturedSubmitter.Should().Be("Linkin Park · von Tobias");
+            capturedAvatar.Should().Be(avatarUri);
+        }
+        finally
+        {
+            SystrayNotificationService.RichCoverToastPresenter = originalRich;
+            service.Dispose();
+        }
+    }
 }

@@ -15,5 +15,12 @@ public interface ISystrayNotificationService : IDisposable
 
     void ShowNotification(string title, string message, string? thumbnailUrl = null);
 
+    void ShowNotification(
+        string title,
+        string message,
+        string? thumbnailUrl,
+        string? submitterName,
+        Uri? submitterAvatarUrl);
+
     void UpdateTooltip(string tooltipText);
 }

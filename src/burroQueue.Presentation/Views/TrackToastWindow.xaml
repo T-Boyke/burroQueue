@@ -4,8 +4,12 @@
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
   Title="burroQueue – Jetzt läuft"
-  Width="340"
-  Height="88"
+  Width="320"
+  Height="68"
+  MinWidth="0"
+  MinHeight="0"
+  SizeToContent="Manual"
+  Focusable="False"
   WindowStyle="None"
   ResizeMode="NoResize"
   ShowInTaskbar="False"
@@ -16,7 +20,7 @@
   WindowCornerPreference="Round"
   FontFamily="Segoe UI Variable Text, Segoe UI, sans-serif">
   <Border
-    Padding="10"
+    Padding="8,7"
     CornerRadius="8"
     Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
     BorderBrush="{DynamicResource SystemAccentColorSecondaryBrush}"
@@ -27,41 +31,80 @@
         <ColumnDefinition Width="*" />
       </Grid.ColumnDefinitions>
 
-      <!-- Song Cover (gleiche Größe wie Now-Playing Card: 64x48) -->
-      <Border
+      <!-- Song Cover (58x44) + Optional Circular 20x20 Collaborator Avatar PiP Badge -->
+      <Grid
         Grid.Column="0"
-        Width="64"
-        Height="48"
-        Margin="0,0,12,0"
-        CornerRadius="4"
-        ClipToBounds="True"
-        VerticalAlignment="Center"
-        BorderBrush="{DynamicResource SystemAccentColorTertiaryBrush}"
-        BorderThickness="1"
-        Background="{DynamicResource SubtleFillColorSecondaryBrush}">
-        <Image
-          x:Name="CoverImage"
-          Stretch="UniformToFill"
-          RenderOptions.BitmapScalingMode="LowQuality" />
-      </Border>
+        Width="60"
+        Height="46"
+        Margin="0,0,10,0"
+        VerticalAlignment="Center">
+        <Border
+          Width="58"
+          Height="44"
+          HorizontalAlignment="Left"
+          VerticalAlignment="Top"
+          CornerRadius="4"
+          ClipToBounds="True"
+          BorderBrush="{DynamicResource SystemAccentColorTertiaryBrush}"
+          BorderThickness="1"
+          Background="{DynamicResource SubtleFillColorSecondaryBrush}">
+          <Image
+            x:Name="CoverImage"
+            Stretch="UniformToFill"
+            RenderOptions.BitmapScalingMode="HighQuality" />
+        </Border>
+
+        <Border
+          x:Name="CollaboratorAvatarBadge"
+          Width="20"
+          Height="20"
+          CornerRadius="10"
+          Padding="1.5"
+          HorizontalAlignment="Right"
+          VerticalAlignment="Bottom"
+          Margin="0,0,-2,-2"
+          Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+          BorderBrush="{DynamicResource SystemAccentColorSecondaryBrush}"
+          BorderThickness="1"
+          Visibility="Collapsed">
+          <Ellipse>
+            <Ellipse.Fill>
+              <ImageBrush
+                x:Name="CollaboratorAvatarBrush"
+                Stretch="UniformToFill"
+                RenderOptions.BitmapScalingMode="HighQuality" />
+            </Ellipse.Fill>
+          </Ellipse>
+        </Border>
+      </Grid>
 
       <StackPanel Grid.Column="1" VerticalAlignment="Center">
         <TextBlock
           x:Name="HeaderText"
-          FontSize="10"
+          FontSize="9.5"
           FontWeight="SemiBold"
-          Opacity="0.7"
+          Opacity="0.72"
+          TextWrapping="NoWrap"
+          TextTrimming="CharacterEllipsis"
           Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
           Text="burroQueue – Jetzt läuft" />
         <TextBlock
           x:Name="MessageText"
-          Margin="0,2,0,0"
+          Margin="0,1,0,0"
           FontSize="12"
           FontWeight="SemiBold"
+          TextWrapping="NoWrap"
           TextTrimming="CharacterEllipsis"
-          TextWrapping="Wrap"
-          MaxHeight="34"
           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+        <TextBlock
+          x:Name="SubmitterText"
+          Margin="0,1,0,0"
+          FontSize="10.5"
+          Opacity="0.82"
+          TextWrapping="NoWrap"
+          TextTrimming="CharacterEllipsis"
+          Visibility="Collapsed"
+          Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
       </StackPanel>
     </Grid>
   </Border>
