@@ -33,4 +33,8 @@ public sealed class AppSettingsData
     public string ClipboardDetectionMode { get; set; } = "AskToast";
 
     public int MaxMusicDurationMinutes { get; set; } = 12;
+
+    public bool EnableLoudnessNormalization { get; set; } = true;
+
+    public double TargetLoudnessLufs { get; set; } = -14.0;
 }

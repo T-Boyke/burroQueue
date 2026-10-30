@@ -80,7 +80,9 @@ public sealed class AppSettingsService : IAppSettingsService
                 SelectedTelephonyProviderId = TomlDocumentSerializer.ParseString(voip, "provider_id", "SwyxIt"),
                 SelectedAudioDeviceId = TomlDocumentSerializer.ParseString(voip, "audio_device_id", string.Empty),
                 DuckingReleaseDelaySeconds = TomlDocumentSerializer.ParseInt(voip, "ducking_release_delay_seconds", 3),
-                MasterVolume = TomlDocumentSerializer.ParseDouble(voip, "master_volume", 0.8)
+                MasterVolume = TomlDocumentSerializer.ParseDouble(voip, "master_volume", 0.8),
+                EnableLoudnessNormalization = TomlDocumentSerializer.ParseBool(voip, "loudness_normalization_enabled", true),
+                TargetLoudnessLufs = Math.Clamp(TomlDocumentSerializer.ParseDouble(voip, "target_loudness_lufs", -14.0), -24.0, -6.0)
             };
         }
         catch
@@ -132,6 +134,8 @@ public sealed class AppSettingsService : IAppSettingsService
         sb.AppendLine(CultureInfo.InvariantCulture, $"audio_device_id = {TomlDocumentSerializer.EscapeString(settings.SelectedAudioDeviceId)}");
         sb.AppendLine(CultureInfo.InvariantCulture, $"ducking_release_delay_seconds = {settings.DuckingReleaseDelaySeconds}");
         sb.AppendLine(CultureInfo.InvariantCulture, $"master_volume = {settings.MasterVolume}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"loudness_normalization_enabled = {(settings.EnableLoudnessNormalization ? "true" : "false")}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"target_loudness_lufs = {Math.Clamp(settings.TargetLoudnessLufs, -24.0, -6.0)}");
 
         await TomlDocumentSerializer.WriteAtomicallyAsync(_configFilePath, sb.ToString(), cancellationToken).ConfigureAwait(false);
     }

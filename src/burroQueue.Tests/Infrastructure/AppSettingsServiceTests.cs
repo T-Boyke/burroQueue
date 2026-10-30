@@ -47,6 +47,30 @@ public sealed class AppSettingsServiceTests : IDisposable
         service.CurrentSettings.AutoSyncPlaylistIntervalSeconds.Should().Be(60);
         service.CurrentSettings.WindowBackdrop.Should().Be("Mica");
         service.CurrentSettings.UseSystemAccentColor.Should().BeTrue();
+        service.CurrentSettings.EnableLoudnessNormalization.Should().BeTrue();
+        service.CurrentSettings.TargetLoudnessLufs.Should().Be(-14.0);
+    }
+
+    [Fact]
+    public async Task SaveAsync_ThenLoadAsync_InTomlMode_ShouldPersistLoudnessNormalizationSettings()
+    {
+        string tomlFile = Path.Combine(_tempDir, "settings.toml");
+        AppSettingsService service = new(tomlFile);
+        AppSettingsData newSettings = new()
+        {
+            EnableLoudnessNormalization = true,
+            TargetLoudnessLufs = -16.5,
+            MasterVolume = 0.75
+        };
+
+        await service.SaveAsync(newSettings);
+
+        AppSettingsService loader = new(tomlFile);
+        await loader.LoadAsync();
+
+        loader.CurrentSettings.EnableLoudnessNormalization.Should().BeTrue();
+        loader.CurrentSettings.TargetLoudnessLufs.Should().Be(-16.5);
+        loader.CurrentSettings.MasterVolume.Should().Be(0.75);
     }
 
     [Fact]

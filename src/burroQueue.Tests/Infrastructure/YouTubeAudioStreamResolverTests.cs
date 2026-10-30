@@ -112,19 +112,19 @@ public sealed class YouTubeAudioStreamResolverTests
     }
 
     [Fact]
-    public async Task ResolveAudioStreamUriAsync_WhenYtDlpDownloadsLocalMp4File_ShouldReturnLocalFileUri()
+    public async Task ResolveAudioStreamUriAsync_WhenYtDlpDownloadsLocalM4aFile_ShouldReturnLocalFileUri()
     {
         Func<string, string, CancellationToken, Task<string?>> original = YouTubeAudioStreamResolver.ProcessRunner;
         string testVideoId = $"test_local_{Guid.NewGuid():N}";
         string cacheDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "burroQueue", "cache");
-        string expectedFile = Path.Combine(cacheDir, $"{testVideoId}.mp4");
+        string expectedFile = Path.Combine(cacheDir, $"{testVideoId}.m4a");
 
         try
         {
             YouTubeAudioStreamResolver.ProcessRunner = (_, args, _) =>
             {
                 args.Should().Contain("player_client=android");
-                args.Should().Contain("18/b");
+                args.Should().Contain("140/bestaudio[ext=m4a]/bestaudio/18");
                 Directory.CreateDirectory(cacheDir);
                 File.WriteAllBytes(expectedFile, [1, 2, 3, 4]);
                 return Task.FromResult<string?>("[download] 100%");
@@ -145,6 +145,28 @@ public sealed class YouTubeAudioStreamResolverTests
                 File.Delete(expectedFile);
             }
         }
+    }
+
+    [Fact]
+    public async Task ResolveTrackLoudnessLufsAsync_WhenInnerTubeReturnsLoudnessDb_ShouldComputeEbuR128Lufs()
+    {
+        string json = """
+        {
+            "playerConfig": {
+                "audioConfig": {
+                    "loudnessDb": 4.5,
+                    "perceptualLoudnessDb": -9.5
+                }
+            }
+        }
+        """;
+
+        using HttpClient client = new(MockHttpMessageHandler.WithJsonResponse(json));
+        YouTubeAudioStreamResolver resolver = new(httpClient: client, ytDlpPath: string.Empty);
+
+        double lufs = await resolver.ResolveTrackLoudnessLufsAsync("loudVideo12");
+
+        lufs.Should().BeApproximately(-9.5, 0.01);
     }
 }
 

@@ -29,6 +29,13 @@ public interface IAudioPlayerBackend : IAsyncDisposable
     Task PreparePausedAtPositionAsync(Track track, TimeSpan position, CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
 
+    Task PrefetchTrackAsync(Track track, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+
+    void ConfigureLoudnessNormalization(bool enabled, double targetLufs = -14.0)
+    {
+    }
+
     void Seek(TimeSpan position)
     {
     }

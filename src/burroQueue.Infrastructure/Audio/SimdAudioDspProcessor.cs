@@ -84,5 +84,31 @@ public sealed class SimdAudioDspProcessor : ISimdAudioDspProcessor
             samples[i] = Math.Clamp(samples[i] * clampedGain, -1.0f, 1.0f);
         }
     }
+
+    public double ComputeEbuR128LinearGain(double measuredLufs, double targetLufs = -14.0)
+    {
+        if (double.IsNaN(measuredLufs) || double.IsInfinity(measuredLufs) ||
+            double.IsNaN(targetLufs) || double.IsInfinity(targetLufs))
+        {
+            return 1.0;
+        }
+
+        double clampedTarget = Math.Clamp(targetLufs, -24.0, -6.0);
+        double deltaLu = clampedTarget - measuredLufs;
+        double linearGain = Math.Pow(10.0, deltaLu / 20.0);
+        return Math.Clamp(linearGain, 0.15, 2.0);
+    }
+
+    public double ApplyLoudnessNormalizationToVolume(double masterVolume, bool enabled, double measuredLufs, double targetLufs = -14.0)
+    {
+        double clampedMaster = Math.Clamp(masterVolume, 0.0, 1.0);
+        if (!enabled)
+        {
+            return clampedMaster;
+        }
+
+        double gain = ComputeEbuR128LinearGain(measuredLufs, targetLufs);
+        return Math.Clamp(clampedMaster * gain, 0.0, 1.0);
+    }
 }
 

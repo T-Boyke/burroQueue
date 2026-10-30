@@ -1,13 +1,18 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 
 namespace burroQueue.Infrastructure.Playback;
 
 public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
 {
+    private const double DefaultReferenceLoudnessLufs = -14.0;
     private readonly HttpClient _httpClient;
     private readonly bool _explicitlyDisabledYtDlp;
+    private readonly ConcurrentDictionary<string, double> _loudnessCache = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, Task<Uri?>> _inflightResolves = new(StringComparer.Ordinal);
     private string? _ytDlpPath;
 
     public bool IsYtDlpAvailable => !string.IsNullOrEmpty(_ytDlpPath);
@@ -37,6 +42,34 @@ public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
         _httpClient = httpClient ?? new HttpClient();
         _explicitlyDisabledYtDlp = ytDlpPath is not null && ytDlpPath.Length == 0;
         _ytDlpPath = ytDlpPath ?? FindYtDlp();
+        PurgeLegacyMp4CacheFiles();
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    private static void PurgeLegacyMp4CacheFiles()
+    {
+        try
+        {
+            string cacheDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "burroQueue", "cache");
+            if (!Directory.Exists(cacheDir))
+            {
+                return;
+            }
+
+            foreach (FileInfo legacyMp4 in new DirectoryInfo(cacheDir).GetFiles("*.mp4"))
+            {
+                try
+                {
+                    legacyMp4.Delete();
+                }
+                catch
+                {
+                }
+            }
+        }
+        catch
+        {
+        }
     }
 
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
@@ -118,7 +151,22 @@ public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
         }
 
         string cleanId = videoId.Trim();
+        Task<Uri?> inflightTask = _inflightResolves.GetOrAdd(
+            cleanId,
+            id => ResolveAudioStreamUriCoreAsync(id, cancellationToken));
 
+        try
+        {
+            return await inflightTask.ConfigureAwait(false);
+        }
+        finally
+        {
+            _inflightResolves.TryRemove(cleanId, out _);
+        }
+    }
+
+    private async Task<Uri?> ResolveAudioStreamUriCoreAsync(string cleanId, CancellationToken cancellationToken)
+    {
         if (!_explicitlyDisabledYtDlp && string.IsNullOrEmpty(_ytDlpPath))
         {
             _ytDlpPath = FindYtDlp() ?? await EnsureYtDlpAsync(cancellationToken).ConfigureAwait(false);
@@ -130,14 +178,14 @@ public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
             {
                 string cacheDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "burroQueue", "cache");
                 Directory.CreateDirectory(cacheDir);
-                string cachedFilePath = Path.Combine(cacheDir, $"{cleanId}.mp4");
+                string cachedFilePath = Path.Combine(cacheDir, $"{cleanId}.m4a");
 
                 if (ProcessRunner == DefaultRunProcessAsync && File.Exists(cachedFilePath) && new FileInfo(cachedFilePath).Length > 0)
                 {
                     return new Uri(cachedFilePath);
                 }
 
-                string args = $"--extractor-args \"youtube:player_client=android\" -f \"18/b\" --no-playlist -o \"{cachedFilePath}\" \"https://www.youtube.com/watch?v={cleanId}\"";
+                string args = $"--extractor-args \"youtube:player_client=android\" -f \"140/bestaudio[ext=m4a]/bestaudio/18\" --no-playlist -o \"{cachedFilePath}\" \"https://www.youtube.com/watch?v={cleanId}\"";
                 string? output = await ProcessRunner(_ytDlpPath, args, cancellationToken).ConfigureAwait(false);
 
                 if (File.Exists(cachedFilePath) && new FileInfo(cachedFilePath).Length > 0)
@@ -191,6 +239,63 @@ public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
         return new Uri($"https://www.youtube.com/watch?v={cleanId}");
     }
 
+    public async Task<double> ResolveTrackLoudnessLufsAsync(string videoId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(videoId))
+        {
+            return DefaultReferenceLoudnessLufs;
+        }
+
+        string cleanId = videoId.Trim();
+        if (_loudnessCache.TryGetValue(cleanId, out double cachedLufs))
+        {
+            return cachedLufs;
+        }
+
+        try
+        {
+            string payload = $$"""
+            {
+                "videoId": "{{cleanId}}",
+                "context": {
+                    "client": {
+                        "clientName": "WEB",
+                        "clientVersion": "2.20250101.00.00"
+                    }
+                }
+            }
+            """;
+
+            using StringContent content = new(payload, Encoding.UTF8, "application/json");
+            using HttpResponseMessage res = await _httpClient.PostAsync(
+                "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
+                content,
+                cancellationToken).ConfigureAwait(false);
+
+            if (res.IsSuccessStatusCode)
+            {
+                string json = await res.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                using JsonDocument doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("playerConfig", out JsonElement playerConfig) &&
+                    playerConfig.TryGetProperty("audioConfig", out JsonElement audioConfig) &&
+                    audioConfig.TryGetProperty("loudnessDb", out JsonElement loudnessDbEl) &&
+                    loudnessDbEl.TryGetDouble(out double loudnessDb))
+                {
+                    double measuredLufs = Math.Clamp(DefaultReferenceLoudnessLufs + loudnessDb, -36.0, 0.0);
+                    _loudnessCache[cleanId] = measuredLufs;
+                    return measuredLufs;
+                }
+            }
+        }
+        catch
+        {
+            // Fallback to neutral -14.0 LUFS
+        }
+
+        _loudnessCache[cleanId] = DefaultReferenceLoudnessLufs;
+        return DefaultReferenceLoudnessLufs;
+    }
+
     public void RemoveCachedAudioFile(string videoId)
     {
         if (string.IsNullOrWhiteSpace(videoId))
@@ -201,15 +306,18 @@ public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
         try
         {
             string cleanId = Path.GetFileName(videoId.Trim());
-            string cacheFile = Path.Combine(
+            string cacheDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "burroQueue",
-                "cache",
-                $"{cleanId}.mp4");
+                "cache");
 
-            if (File.Exists(cacheFile))
+            foreach (string ext in new[] { ".m4a", ".mp4" })
             {
-                File.Delete(cacheFile);
+                string cacheFile = Path.Combine(cacheDir, $"{cleanId}{ext}");
+                if (File.Exists(cacheFile))
+                {
+                    File.Delete(cacheFile);
+                }
             }
         }
         catch
@@ -223,7 +331,19 @@ public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
     {
         try
         {
-            FileInfo[] files = new DirectoryInfo(cacheDir).GetFiles("*.mp4");
+            DirectoryInfo dirInfo = new(cacheDir);
+            foreach (FileInfo legacyMp4 in dirInfo.GetFiles("*.mp4"))
+            {
+                try
+                {
+                    legacyMp4.Delete();
+                }
+                catch
+                {
+                }
+            }
+
+            FileInfo[] files = dirInfo.GetFiles("*.m4a");
             if (files.Length <= maxFiles)
             {
                 return;

@@ -155,5 +155,44 @@ public sealed class AudioPlayerBackendTests : IAsyncLifetime, IDisposable
         backendWithPlayer.CurrentState.Should().Be(PlaybackState.Stopped);
         backendWithPlayer.ActiveTrack.Should().BeNull();
     }
+
+    [Fact]
+    public async Task PlayTrackAsync_WhenLoudnessNormalizationEnabled_ShouldScalePlayerVolumeUsingResolvedTrackLoudness()
+    {
+        IMediaStreamPlayer player = Substitute.For<IMediaStreamPlayer>();
+        await using AudioPlayerBackend backendWithPlayer = new(_audioOutput, _streamResolver, player);
+
+        Track track = new("loud-1", new Uri("https://www.youtube.com/watch?v=loud-1"), "Loud Song", "Alice", DateTimeOffset.UtcNow);
+        Uri streamUri = new("https://direct.audio/loud.m4a");
+        _streamResolver.ResolveAudioStreamUriAsync("loud-1", Arg.Any<CancellationToken>()).Returns(streamUri);
+        _streamResolver.ResolveTrackLoudnessLufsAsync("loud-1", Arg.Any<CancellationToken>()).Returns(-8.0);
+
+        backendWithPlayer.ConfigureLoudnessNormalization(enabled: true, targetLufs: -14.0);
+        await backendWithPlayer.PlayTrackAsync(track);
+
+        // -8.0 LUFS vs -14.0 LUFS target => -6 dB => linear gain ~0.501187 * 0.8 master volume
+        player.Volume.Should().BeApproximately(0.8 * 0.501187, 0.002);
+
+        // Toggling normalization off in settings should restore raw master volume immediately
+        backendWithPlayer.ConfigureLoudnessNormalization(enabled: false, targetLufs: -14.0);
+        player.Volume.Should().Be(0.8);
+    }
+
+    [Fact]
+    public async Task PrefetchTrackAsync_ShouldResolveStreamAndLoudnessWithoutChangingActiveTrack()
+    {
+        Track upcoming = new("next-1", new Uri("https://www.youtube.com/watch?v=next-1"), "Upcoming Song", "Bob", DateTimeOffset.UtcNow);
+        _streamResolver.ResolveAudioStreamUriAsync("next-1", Arg.Any<CancellationToken>())
+            .Returns(new Uri("https://direct.audio/next.m4a"));
+        _streamResolver.ResolveTrackLoudnessLufsAsync("next-1", Arg.Any<CancellationToken>())
+            .Returns(-12.5);
+
+        await _backend.PrefetchTrackAsync(upcoming);
+
+        _backend.ActiveTrack.Should().BeNull();
+        _backend.CurrentState.Should().Be(PlaybackState.Stopped);
+        await _streamResolver.Received(1).ResolveAudioStreamUriAsync("next-1", Arg.Any<CancellationToken>());
+        await _streamResolver.Received(1).ResolveTrackLoudnessLufsAsync("next-1", Arg.Any<CancellationToken>());
+    }
 }
 
