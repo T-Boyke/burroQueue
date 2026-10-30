@@ -1,13 +1,26 @@
 name: burroQueue Release, Code Signing & Installer
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  workflow_run:
+    workflows: ["burroQueue CI"]
+    types:
+      - completed
+    branches:
+      - main
   workflow_dispatch:
+    inputs:
+      override_version:
+        description: 'Optional SemVer override (e.g. 2.2.0). Leave empty for automatic SemVer increment.'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: write
+
+concurrency:
+  group: burroQueue-release-main
+  cancel-in-progress: false
 
 env:
   DOTNET_NOLOGO: true
@@ -15,8 +28,16 @@ env:
 
 jobs:
   build-sign-and-package:
-    name: Build .NET 11 Win11 Exe, SignPath Authenticode & Inno Setup Installer
+    name: Auto-Version, Build .NET 11 Win11 Exe, Inno Setup Installer & GitHub Release
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event != 'pull_request')
     runs-on: windows-latest
+    outputs:
+      next_tag: ${{ steps.calc-version.outputs.next_tag }}
+      next_version: ${{ steps.calc-version.outputs.next_version }}
     env:
       SIGNPATH_ENABLED: ${{ secrets.SIGNPATH_API_TOKEN != '' && (vars.SIGNPATH_ORGANIZATION_ID != '' || secrets.SIGNPATH_ORGANIZATION_ID != '') }}
       SIGNPATH_ORG_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID || secrets.SIGNPATH_ORGANIZATION_ID }}
@@ -26,8 +47,20 @@ jobs:
       SIGNPATH_INSTALLER_CONFIG: ${{ vars.SIGNPATH_INSTALLER_ARTIFACT_CONFIG_SLUG || '' }}
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout Repository (Full History & Tags)
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Calculate Next Auto-Incrementing Version
+        id: calc-version
+        shell: pwsh
+        run: |
+          git fetch --tags --force
+          ./scripts/generate-release-notes.ps1 `
+            -OutputPath "./publish-installer/RELEASE_NOTES.md" `
+            -OverrideVersion "${{ github.event.inputs.override_version }}"
 
       - name: Setup Node.js 24 for UnoCSS 66.12.0 Build
         uses: actions/setup-node@v7
@@ -52,16 +85,18 @@ jobs:
         shell: pwsh
         run: ./scripts/verify-architecture.ps1
 
-      - name: Run Unit & Integration Tests
-        run: dotnet test burroQueue.sln --configuration Release
-
       - name: Publish Self-Contained Single-File Executable (.NET 11 win-x64)
         shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.calc-version.outputs.next_version }}
         run: |
           dotnet publish src/burroQueue.Presentation/burroQueue.Presentation.csproj `
             --configuration Release `
             --runtime win-x64 `
             --self-contained true `
+            -p:Version=$env:RELEASE_VERSION `
+            -p:FileVersion="$env:RELEASE_VERSION.0" `
+            -p:InformationalVersion="$env:RELEASE_VERSION" `
             -p:PublishSingleFile=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:EnableCompressionInSingleFile=true `
@@ -82,7 +117,7 @@ jobs:
 
       - name: Sign Application Binary (burroQueue.exe) via SignPath.io
         if: env.SIGNPATH_ENABLED == 'true'
-        uses: SignPath/github-action-submit-signing-request@v2
+        uses: SignPath/github-action-submit-signing-request@v3
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ env.SIGNPATH_ORG_ID }}
@@ -110,9 +145,18 @@ jobs:
           Write-Host "::notice title=SignPath Code Signing nicht aktiv::SIGNPATH_API_TOKEN / SIGNPATH_ORGANIZATION_ID sind noch nicht in GitHub Secrets/Variables hinterlegt. Siehe SECURITY.md zur Aktivierung der kostenlosen SignPath Foundation Signatur gegen Windows SmartScreen."
 
       - name: Build Inno Setup Installer (.exe)
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
-        with:
-          path: scripts/installer/burroQueue.iss
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.calc-version.outputs.next_version }}
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+          }
+          & $iscc "/DMyAppVersion=$env:RELEASE_VERSION" "scripts/installer/burroQueue.iss"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Inno Setup compilation failed with exit code $LASTEXITCODE"
+          }
 
       - name: Upload Unsigned Inno Setup Installer for SignPath Attestation
         id: upload-unsigned-installer
@@ -124,7 +168,7 @@ jobs:
 
       - name: Sign Inno Setup Installer (burroQueue-Setup-x64.exe) via SignPath.io
         if: env.SIGNPATH_ENABLED == 'true'
-        uses: SignPath/github-action-submit-signing-request@v2
+        uses: SignPath/github-action-submit-signing-request@v3
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ env.SIGNPATH_ORG_ID }}
@@ -145,8 +189,10 @@ jobs:
             throw "Authenticode signature verification failed for burroQueue-Setup-x64.exe: $($sig.StatusMessage)"
           }
 
-      - name: Package Portable ZIP & Generate SHA-256 Checksums
+      - name: Package Portable ZIP, Generate SHA-256 Checksums & Detailed Release Notes
         shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.calc-version.outputs.next_version }}
         run: |
           Compress-Archive -Path ./publish/burroQueue-win-x64/* -DestinationPath ./publish-installer/burroQueue-portable-win-x64.zip -Force
           $hashLines = Get-ChildItem ./publish-installer -File -Include *.exe, *.zip | ForEach-Object {
@@ -156,31 +202,51 @@ jobs:
           $hashLines | Set-Content -Path ./publish-installer/SHA256SUMS.txt -Encoding utf8NoBOM
           Get-Content ./publish-installer/SHA256SUMS.txt
 
-      - name: Upload Build Artifacts (Installer, Portable ZIP & Checksums)
+          ./scripts/generate-release-notes.ps1 `
+            -OutputPath "./publish-installer/RELEASE_NOTES.md" `
+            -ChecksumsPath "./publish-installer/SHA256SUMS.txt" `
+            -OverrideVersion "$env:RELEASE_VERSION"
+
+      - name: Upload Build Artifacts (Installer, Portable ZIP, Checksums & Changelog)
         uses: actions/upload-artifact@v7
         with:
           name: burroQueue-windows-binaries
           path: ./publish-installer/*
 
-      - name: Create GitHub Release with Signed Installer, Portable ZIP & SHA256SUMS
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v3
-        with:
-          files: |
-            ./publish-installer/burroQueue-Setup-x64.exe
-            ./publish-installer/burroQueue-portable-win-x64.zip
-            ./publish-installer/SHA256SUMS.txt
-          generate_release_notes: true
+      - name: Create Auto-Incrementing Git Tag & Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEXT_TAG: ${{ steps.calc-version.outputs.next_tag }}
+          TARGET_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$env:NEXT_TAG" "$env:TARGET_SHA" -m "Release $env:NEXT_TAG" -f
+          git push origin "$env:NEXT_TAG" --force
+
+          gh release create "$env:NEXT_TAG" `
+            ./publish-installer/burroQueue-Setup-x64.exe `
+            ./publish-installer/burroQueue-portable-win-x64.zip `
+            ./publish-installer/SHA256SUMS.txt `
+            --title "🫏 burroQueue $env:NEXT_TAG" `
+            --notes-file ./publish-installer/RELEASE_NOTES.md `
+            --target "$env:TARGET_SHA" `
+            --latest
 
   publish-winget:
     name: Publish T-Boyke.burroQueue to winget-pkgs
     needs: build-sign-and-package
-    if: startsWith(github.ref, 'refs/tags/v') && secrets.WINGET_GITHUB_TOKEN != ''
+    if: needs.build-sign-and-package.result == 'success'
     runs-on: windows-latest
+    env:
+      HAS_WINGET_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN != '' }}
     steps:
       - name: Submit Package to microsoft/winget-pkgs via Komac
+        if: env.HAS_WINGET_TOKEN == 'true'
         uses: vedantmgoyal9/winget-releaser@v2
         with:
           identifier: T-Boyke.burroQueue
+          version: ${{ needs.build-sign-and-package.outputs.next_version }}
           installers-regex: 'burroQueue-Setup-x64\.exe$'
           token: ${{ secrets.WINGET_GITHUB_TOKEN }}
