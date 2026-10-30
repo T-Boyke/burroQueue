@@ -359,6 +359,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _lanGroupService.TelephonyStateReceived += OnPeerTelephonyStateReceived;
         _lanGroupService.QueueOrderSyncReceived += OnQueueOrderSyncReceived;
         _lanGroupService.TrackUpvoteReceived += OnTrackUpvoteReceived;
+        _lanGroupService.HostHandoffReceived += OnHostHandoffReceived;
         _lanGroupService.SetBeaconResponder(() => new DiscoveryBeaconMessage(
             _group.Id.Value,
             _group.Name,
@@ -466,6 +467,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             _group.Playlist.CurrentTrackIndex,
             _audioPlayerBackend.Position,
             PlaybackState == PlaybackState.Playing);
+
+    public Task BroadcastHostHandoffAsync(CancellationToken cancellationToken = default) =>
+        _lanGroupService.SendHostHandoffAsync(_group.Id, _localClientId, CapturePlaybackCursor(), cancellationToken);
 
     private void AutoSavePlaylist()
     {
@@ -1619,6 +1623,43 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
             _ = SaveGroupFavoritesSafeAsync();
         });
+    }
+
+    private async void OnHostHandoffReceived(object? sender, HostHandoffMessage message)
+    {
+        if (message.GroupId != _group.Id.Value || message.PreviousHostClientId == _localClientId.Value)
+        {
+            return;
+        }
+
+        Track? target = null;
+        RunOnUi(() =>
+        {
+            if (message.CurrentTrackIndex >= 0 && message.CurrentTrackIndex < _group.Playlist.AllTracks.Count)
+            {
+                target = _group.Playlist.JumpToIndex(message.CurrentTrackIndex);
+            }
+            else if (!string.IsNullOrWhiteSpace(message.ActiveVideoId))
+            {
+                Track? byVid = _group.Playlist.AllTracks.FirstOrDefault(t => t.VideoId == message.ActiveVideoId);
+                if (byVid is not null)
+                {
+                    target = _group.Playlist.JumpToTrack(byVid.Id);
+                }
+            }
+
+            if (target is not null)
+            {
+                SyncQueuedItems();
+                StatusMessage = $"Host-Handoff übernommen: {target.Title}";
+            }
+        });
+
+        if (target is not null)
+        {
+            TimeSpan seekPos = TimeSpan.FromSeconds(Math.Max(0, message.PlaybackPositionSeconds));
+            await _audioPlayerBackend.PreparePausedAtPositionAsync(target, seekPos).ConfigureAwait(false);
+        }
     }
 
     private void OnQueueSyncReceived(object? sender, QueueSyncMessage message)

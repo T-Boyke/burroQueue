@@ -23,6 +23,8 @@ public interface ILanGroupService : IAsyncDisposable
 
     event EventHandler<TrackUpvoteMessage>? TrackUpvoteReceived;
 
+    event EventHandler<HostHandoffMessage>? HostHandoffReceived;
+
     void SetBeaconResponder(Func<DiscoveryBeaconMessage?>? responder)
     {
     }
@@ -53,6 +55,9 @@ public interface ILanGroupService : IAsyncDisposable
         Task.CompletedTask;
 
     Task SendTrackUpvoteAsync(GroupId groupId, string videoId, string trackUrl, string title, string voterUsername, bool isUpvoted, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+
+    Task SendHostHandoffAsync(GroupId groupId, ClientId previousHostId, QueuePlaybackCursor cursor, CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
 }
 

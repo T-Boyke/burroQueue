@@ -60,6 +60,7 @@ public partial class App : System.Windows.Application
             LogStartup($"UNOBSERVED TASK EXCEPTION: {args.Exception}");
         };
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        SessionEnding += async (_, _) => await ShutdownApplicationAsync(_serviceProvider, _systrayService).ConfigureAwait(false);
         LogStartup("OnStartup started (ShutdownMode=OnExplicitShutdown)");
 
         try
@@ -240,13 +241,21 @@ public partial class App : System.Windows.Application
                 IPlaylistStorageService storage = serviceProvider.GetRequiredService<IPlaylistStorageService>();
                 BurroGroup group = serviceProvider.GetRequiredService<BurroGroup>();
                 IAudioPlayerBackend? backend = serviceProvider.GetService<IAudioPlayerBackend>();
+                ILanGroupService? lan = serviceProvider.GetService<ILanGroupService>();
+                QueuePlaybackCursor cursor = new(
+                    group.Playlist.CurrentTrack?.VideoId ?? string.Empty,
+                    group.Playlist.CurrentTrackIndex,
+                    backend?.Position ?? TimeSpan.Zero,
+                    group.PlaybackState == PlaybackState.Playing);
+
                 if (backend is not null)
                 {
-                    storage.UpdatePlaybackCursor(new QueuePlaybackCursor(
-                        group.Playlist.CurrentTrack?.VideoId ?? string.Empty,
-                        group.Playlist.CurrentTrackIndex,
-                        backend.Position,
-                        group.PlaybackState == PlaybackState.Playing));
+                    storage.UpdatePlaybackCursor(cursor);
+                }
+
+                if (lan is not null && !string.IsNullOrEmpty(cursor.ActiveVideoId))
+                {
+                    await lan.SendHostHandoffAsync(group.Id, ClientId.New(), cursor).ConfigureAwait(false);
                 }
 
                 await storage.SavePlaylistAsync(group.Playlist).ConfigureAwait(false);

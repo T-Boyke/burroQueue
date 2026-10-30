@@ -1420,4 +1420,32 @@ public sealed class MainWindowViewModelPlaybackTests
         acceptedTalk.Should().BeFalse();
         _group.Playlist.AllTracks.Should().NotContain(t => t.VideoId == "talk9999999");
     }
+
+    [Fact]
+    public async Task HostHandoff_WhenRemoteHostBroadcastsHandoff_ShouldRestoreCursorAndSeekPosition()
+    {
+        Track t1 = new("h1", new Uri("https://www.youtube.com/watch?v=h1"), "Song 1", "Alice", DateTimeOffset.UtcNow);
+        Track t2 = new("h2", new Uri("https://www.youtube.com/watch?v=h2"), "Song 2", "Bob", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(t1);
+        _group.Playlist.Enqueue(t2);
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        _lanGroupService.HostHandoffReceived += Raise.Event<EventHandler<burroQueue.Infrastructure.Network.Messages.HostHandoffMessage>>(
+            _lanGroupService,
+            new burroQueue.Infrastructure.Network.Messages.HostHandoffMessage(
+                _group.Id.Value,
+                Guid.NewGuid(),
+                "h2",
+                1,
+                PlaybackPositionSeconds: 75.0,
+                WasPlaying: true,
+                DateTimeOffset.UtcNow));
+
+        await Task.Delay(30);
+
+        _group.Playlist.CurrentTrackIndex.Should().Be(1);
+        _group.Playlist.CurrentTrack.Should().BeSameAs(t2);
+        await _audioPlayerBackend.Received(1).PreparePausedAtPositionAsync(t2, TimeSpan.FromSeconds(75), Arg.Any<CancellationToken>());
+    }
 }

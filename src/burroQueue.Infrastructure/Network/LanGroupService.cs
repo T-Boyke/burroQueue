@@ -46,6 +46,8 @@ public sealed class LanGroupService : ILanGroupService
 
     public event EventHandler<TrackUpvoteMessage>? TrackUpvoteReceived;
 
+    public event EventHandler<HostHandoffMessage>? HostHandoffReceived;
+
     public LanGroupService(ILocalNetworkInfoService? networkInfo = null)
     {
         _networkInfo = networkInfo ?? new LocalNetworkInfoService();
@@ -313,6 +315,24 @@ public sealed class LanGroupService : ILanGroupService
         await SendMessageAsync("TRACK_UPVOTE", message, includeBroadcastFallback: false, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task SendHostHandoffAsync(
+        GroupId groupId,
+        ClientId previousHostId,
+        QueuePlaybackCursor cursor,
+        CancellationToken cancellationToken = default)
+    {
+        HostHandoffMessage message = new(
+            groupId.Value,
+            previousHostId.Value,
+            cursor.ActiveVideoId,
+            cursor.QueueIndex,
+            cursor.PlaybackPosition.TotalSeconds,
+            cursor.WasPlaying,
+            DateTimeOffset.UtcNow);
+
+        await SendMessageAsync("HOST_HANDOFF", message, includeBroadcastFallback: true, cancellationToken).ConfigureAwait(false);
+    }
+
     private async Task SendMessageAsync<T>(string type, T payload, bool includeBroadcastFallback, CancellationToken cancellationToken)
     {
         UdpClient? client = _udpClient;
@@ -496,6 +516,14 @@ public sealed class LanGroupService : ILanGroupService
                         if (upvoteMsg is not null)
                         {
                             TrackUpvoteReceived?.Invoke(this, upvoteMsg);
+                        }
+                        break;
+
+                    case "HOST_HANDOFF":
+                        HostHandoffMessage? handoff = JsonSerializer.Deserialize<HostHandoffMessage>(rawData);
+                        if (handoff is not null)
+                        {
+                            HostHandoffReceived?.Invoke(this, handoff);
                         }
                         break;
                 }
