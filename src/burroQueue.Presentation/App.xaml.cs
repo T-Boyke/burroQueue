@@ -304,6 +304,7 @@ public partial class App : System.Windows.Application
         // Presentation Services & Views
         services.AddSingleton<IAvatarBitmapCacheService>(_ => AvatarBitmapCacheService.Shared);
         services.AddSingleton<IClipboardMonitorService, Win32ClipboardMonitorService>();
+        services.AddSingleton<ISystemMediaControlsService, WindowsSmtcService>();
         services.AddSingleton<ISingleInstanceManager, SingleInstanceManager>();
         services.AddSingleton<ISystrayNotificationService, SystrayNotificationService>();
         services.AddSingleton<IGlobalHotkeyService, GlobalHotkeyService>();

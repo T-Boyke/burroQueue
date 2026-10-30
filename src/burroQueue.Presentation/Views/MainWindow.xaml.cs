@@ -151,6 +151,13 @@ public partial class MainWindow : FluentWindow
                 clipboardMonitor.ClipboardTextChanged += async (_, text) => await _viewModel.HandleClipboardTextAsync(text).ConfigureAwait(false);
                 clipboardMonitor.AttachToWindow(hwnd);
             }
+
+            ISystemMediaControlsService? smtc = _serviceProvider?.GetService<ISystemMediaControlsService>();
+            if (smtc is not null)
+            {
+                IntPtr hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+                smtc.InitializeForWindow(hwnd);
+            }
         }
         catch
         {

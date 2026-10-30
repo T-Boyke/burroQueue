@@ -42,6 +42,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private readonly QueueShuffleEngine _shuffleEngine;
     private readonly IFavoriteQueueRepository? _favoriteRepository;
     private readonly IYouTubeMusicValidator? _musicValidator;
+    private readonly ISystemMediaControlsService? _smtcService;
     private readonly Dictionary<string, FavoriteTrackEntry> _favoritesByVideoId = new(StringComparer.Ordinal);
     private string _lastHandledClipboardVideoId = string.Empty;
     private readonly ClientId _localClientId = ClientId.New();
@@ -96,6 +97,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsPlaying))]
     private PlaybackState _playbackState = PlaybackState.Stopped;
+
+    partial void OnPlaybackStateChanged(PlaybackState value)
+    {
+        _smtcService?.UpdatePlaybackState(value);
+    }
 
     public bool IsPlaying => PlaybackState == PlaybackState.Playing;
 
@@ -256,7 +262,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         IEntropySource? entropySource = null,
         QueueShuffleEngine? shuffleEngine = null,
         IFavoriteQueueRepository? favoriteRepository = null,
-        IYouTubeMusicValidator? musicValidator = null)
+        IYouTubeMusicValidator? musicValidator = null,
+        ISystemMediaControlsService? smtcService = null)
     {
         _group = group ?? throw new ArgumentNullException(nameof(group));
         _urlParser = urlParser ?? throw new ArgumentNullException(nameof(urlParser));
@@ -278,6 +285,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _shuffleEngine = shuffleEngine ?? new QueueShuffleEngine();
         _favoriteRepository = favoriteRepository;
         _musicValidator = musicValidator;
+        _smtcService = smtcService;
         _networkInfoService = networkInfoService ?? throw new ArgumentNullException(nameof(networkInfoService));
 
         _groupName = _group.Name;
@@ -381,6 +389,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _webDropServer.LinkDropped += (_, req) => EnqueueRawUrl(req.Url, req.Submitter);
         _webDropServer.SkipVoteRequested += async (_, _) => await VoteToSkipAsync().ConfigureAwait(false);
         _webDropServer.SkipVoteStatusProvider = () => SkipVoteStatus;
+
+        if (_smtcService is not null)
+        {
+            _smtcService.PlayPauseRequested += async (_, _) => await TogglePlayPauseAsync().ConfigureAwait(false);
+            _smtcService.NextTrackRequested += async (_, _) => await SkipAsync().ConfigureAwait(false);
+        }
     }
 
     public async Task InitializeAsync()
@@ -1060,6 +1074,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
         _systrayService?.UpdateTooltip($"burroQueue: {CurrentTrackTitle}");
         string toastThumb = CurrentTrackThumbnailUrl ?? track.ThumbnailUrl;
+        _smtcService?.UpdateTrackMetadata(CurrentTrackTitle, CurrentTrackArtist, toastThumb);
         if (track.SubmitterAvatarUrl is not null || track.IsSyncedFromPlaylist)
         {
             _systrayService?.ShowNotification(
