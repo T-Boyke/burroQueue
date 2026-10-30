@@ -17,5 +17,13 @@ public sealed class AudioOutputController : IAudioOutputController
         _isDucked = isDucked;
         VolumeChanged?.Invoke(this, _currentVolume);
     }
+
+    public double ComputeLogarithmicVolumeStep(double startVolume, double targetVolume, double progress)
+    {
+        double t = Math.Clamp(progress, 0.0, 1.0);
+        // Perceptually smooth logarithmic/exponential curve (human hearing dB response)
+        double curvedT = 1.0 - Math.Pow(1.0 - t, 2.2);
+        return Math.Clamp(startVolume + ((targetVolume - startVolume) * curvedT), 0.0, 1.0);
+    }
 }
 

@@ -290,6 +290,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IQrCodeSvgGenerator, QrCodeSvgGenerator>();
         services.AddSingleton<IEmbeddedWebDropServer, EmbeddedWebDropServer>();
         services.AddSingleton<IWindowsAutostartService, WindowsAutostartService>();
+        services.AddSingleton<IFocusAssistDetector, WindowsFocusAssistDetector>();
         services.AddSingleton<IProcessEfficiencyManager, ProcessEfficiencyManager>();
         services.AddSingleton<IGitHubRepoStatsClient, GitHubRepoStatsClient>();
 

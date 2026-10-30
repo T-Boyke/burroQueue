@@ -221,6 +221,11 @@ public partial class MainWindow : FluentWindow
         {
             await viewModel.SkipAsync();
         };
+
+        hotkeyService.BossKeyMutePressed += (_, _) =>
+        {
+            viewModel.ToggleMute();
+        };
     }
 
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]

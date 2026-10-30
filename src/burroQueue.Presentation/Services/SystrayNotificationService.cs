@@ -7,9 +7,15 @@ namespace burroQueue.Presentation.Services;
 
 public sealed class SystrayNotificationService : ISystrayNotificationService
 {
+    private readonly burroQueue.Infrastructure.Windows.IFocusAssistDetector? _focusAssistDetector;
     private NotifyIcon? _notifyIcon;
     private Icon? _customIcon;
     private bool _isDisposed;
+
+    public SystrayNotificationService(burroQueue.Infrastructure.Windows.IFocusAssistDetector? focusAssistDetector = null)
+    {
+        _focusAssistDetector = focusAssistDetector;
+    }
 
     internal static Action<MainWindow> WindowRestorer { get; set; } = RestoreMainWindow;
     internal static Action<string, string, string>? CoverToastPresenter { get; set; } = PresentCoverToast;
@@ -175,6 +181,11 @@ public sealed class SystrayNotificationService : ISystrayNotificationService
         string? submitterName,
         Uri? submitterAvatarUrl)
     {
+        if (_focusAssistDetector?.ShouldSuppressNotifications() == true)
+        {
+            return;
+        }
+
         if (!string.IsNullOrWhiteSpace(thumbnailUrl))
         {
             if (CoverToastPresenter is not null && CoverToastPresenter != PresentCoverToast)

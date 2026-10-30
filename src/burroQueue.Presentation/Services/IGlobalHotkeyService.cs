@@ -8,6 +8,8 @@ public interface IGlobalHotkeyService : IDisposable
 
     event EventHandler? NextTrackPressed;
 
+    event EventHandler? BossKeyMutePressed;
+
     void Register(Window window);
 }
 

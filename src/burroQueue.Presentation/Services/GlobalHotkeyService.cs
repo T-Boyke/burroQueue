@@ -11,9 +11,13 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
     private const int _wmHotkey = 0x0312;
     private const int _hotkeyPlayPauseId = 9001;
     private const int _hotkeyNextId = 9002;
+    private const int _hotkeyBossMuteId = 9003;
 
+    private const uint _modAlt = 0x0001;
+    private const uint _modControl = 0x0002;
     private const uint _vkMediaPlayPause = 0xB3;
     private const uint _vkMediaNextTrack = 0xB0;
+    private const uint _vkM = 0x4D;
 
     [DllImport("user32.dll")]
     private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
@@ -28,6 +32,8 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
     public event EventHandler? PlayPausePressed;
 
     public event EventHandler? NextTrackPressed;
+
+    public event EventHandler? BossKeyMutePressed;
 
     internal Func<Window, IntPtr> WindowHandleProvider { get; set; } = DefaultWindowHandleProvider;
 
@@ -52,6 +58,7 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
     {
         RegisterHotKey(hwnd, _hotkeyPlayPauseId, 0, _vkMediaPlayPause);
         RegisterHotKey(hwnd, _hotkeyNextId, 0, _vkMediaNextTrack);
+        RegisterHotKey(hwnd, _hotkeyBossMuteId, _modControl | _modAlt, _vkM);
     }
 
     internal Func<IntPtr, HwndSourceHook, HwndSource?> HwndHookAttacher { get; set; } = DefaultHwndHookAttacher;
@@ -80,6 +87,12 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
             if (id == _hotkeyNextId)
             {
                 NextTrackPressed?.Invoke(this, EventArgs.Empty);
+                return true;
+            }
+
+            if (id == _hotkeyBossMuteId)
+            {
+                BossKeyMutePressed?.Invoke(this, EventArgs.Empty);
                 return true;
             }
         }
@@ -115,6 +128,7 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
         {
             UnregisterHotKey(_windowHandle, _hotkeyPlayPauseId);
             UnregisterHotKey(_windowHandle, _hotkeyNextId);
+            UnregisterHotKey(_windowHandle, _hotkeyBossMuteId);
             _source?.RemoveHook(HwndHook);
             _windowHandle = IntPtr.Zero;
         }
