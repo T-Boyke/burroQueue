@@ -43,6 +43,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private readonly IFavoriteQueueRepository? _favoriteRepository;
     private readonly IYouTubeMusicValidator? _musicValidator;
     private readonly ISystemMediaControlsService? _smtcService;
+    private readonly ITrackVibeAnalyzer _vibeAnalyzer;
     private readonly Dictionary<string, FavoriteTrackEntry> _favoritesByVideoId = new(StringComparer.Ordinal);
     private string _lastHandledClipboardVideoId = string.Empty;
     private readonly ClientId _localClientId = ClientId.New();
@@ -263,7 +264,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         QueueShuffleEngine? shuffleEngine = null,
         IFavoriteQueueRepository? favoriteRepository = null,
         IYouTubeMusicValidator? musicValidator = null,
-        ISystemMediaControlsService? smtcService = null)
+        ISystemMediaControlsService? smtcService = null,
+        ITrackVibeAnalyzer? vibeAnalyzer = null)
     {
         _group = group ?? throw new ArgumentNullException(nameof(group));
         _urlParser = urlParser ?? throw new ArgumentNullException(nameof(urlParser));
@@ -286,6 +288,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _favoriteRepository = favoriteRepository;
         _musicValidator = musicValidator;
         _smtcService = smtcService;
+        _vibeAnalyzer = vibeAnalyzer ?? new SimdTrackVibeAnalyzer();
         _networkInfoService = networkInfoService ?? throw new ArgumentNullException(nameof(networkInfoService));
 
         _groupName = _group.Name;
@@ -1105,7 +1108,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 toastThumb);
         }
 
-        _skipVotePool = new SkipVotePool(track.Id, requiredVotes: 3);
+        TrackVibeProfile vibeProfile = _vibeAnalyzer.AnalyzeTrackMetadata(CurrentTrackTitle, CurrentTrackArtist);
+        int requiredSkipVotes = OfficeVibePolicy.CalculateRequiredSkipVotes(vibeProfile, defaultRequiredVotes: 3);
+        _skipVotePool = new SkipVotePool(track.Id, requiredVotes: requiredSkipVotes);
         UpdateSkipVoteStatus();
     }
 
