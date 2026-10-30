@@ -15,6 +15,7 @@
     <GarbageCollectionAdaptationMode>1</GarbageCollectionAdaptationMode>
     <TieredPGO>true</TieredPGO>
     <TieredCompilationQuickJitForLoops>true</TieredCompilationQuickJitForLoops>
+    <NoWarn>$(NoWarn);NETSDK1244</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

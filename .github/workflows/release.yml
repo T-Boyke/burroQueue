@@ -98,7 +98,7 @@ jobs:
             -p:FileVersion="$env:RELEASE_VERSION.0" `
             -p:InformationalVersion="$env:RELEASE_VERSION" `
             -p:PublishSingleFile=true `
-            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:IncludeAllContentForSelfExtract=true `
             -p:EnableCompressionInSingleFile=true `
             -p:DebugType=none `
             --output ./publish/burroQueue-win-x64
