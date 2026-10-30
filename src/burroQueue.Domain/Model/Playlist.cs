@@ -2,94 +2,209 @@ namespace burroQueue.Domain.Model;
 
 public sealed class Playlist
 {
-    private readonly List<Track> _items = [];
+    private readonly List<Track> _allTracks = [];
 
-    public Track? CurrentTrack { get; private set; }
+    public int CurrentTrackIndex { get; private set; } = -1;
 
-    public IReadOnlyList<Track> QueuedTracks => _items.AsReadOnly();
+    public bool IsRepeatAllEnabled { get; set; }
 
-    public int Count => _items.Count;
+    public Track? CurrentTrack =>
+        CurrentTrackIndex >= 0 && CurrentTrackIndex < _allTracks.Count
+            ? _allTracks[CurrentTrackIndex]
+            : null;
+
+    public IReadOnlyList<Track> AllTracks => _allTracks.AsReadOnly();
+
+    public int TotalCount => _allTracks.Count;
+
+    public IReadOnlyList<Track> QueuedTracks
+    {
+        get
+        {
+            if (_allTracks.Count == 0)
+            {
+                return [];
+            }
+
+            if (CurrentTrackIndex < 0)
+            {
+                return _allTracks.AsReadOnly();
+            }
+
+            int start = CurrentTrackIndex + 1;
+            return start < _allTracks.Count
+                ? _allTracks.GetRange(start, _allTracks.Count - start)
+                : [];
+        }
+    }
+
+    public int Count
+    {
+        get
+        {
+            if (_allTracks.Count == 0)
+            {
+                return 0;
+            }
+
+            if (CurrentTrackIndex < 0)
+            {
+                return _allTracks.Count;
+            }
+
+            int remaining = _allTracks.Count - 1 - CurrentTrackIndex;
+            return remaining > 0 ? remaining : 0;
+        }
+    }
 
     public void Enqueue(Track track)
     {
         ArgumentNullException.ThrowIfNull(track);
 
-        if (CurrentTrack is null && _items.Count == 0)
-        {
-            CurrentTrack = track;
-            return;
-        }
+        bool wasCurrentNull = CurrentTrack is null;
+        _allTracks.Add(track);
 
-        _items.Add(track);
+        if (wasCurrentNull)
+        {
+            CurrentTrackIndex = _allTracks.Count - 1;
+        }
     }
 
     public Track? AdvanceNext()
     {
-        if (_items.Count > 0)
+        if (_allTracks.Count == 0)
         {
-            CurrentTrack = _items[0];
-            _items.RemoveAt(0);
-        }
-        else
-        {
-            CurrentTrack = null;
+            CurrentTrackIndex = -1;
+            return null;
         }
 
-        return CurrentTrack;
+        if (CurrentTrackIndex < 0)
+        {
+            CurrentTrackIndex = 0;
+            return CurrentTrack;
+        }
+
+        if (CurrentTrackIndex + 1 < _allTracks.Count)
+        {
+            CurrentTrackIndex++;
+            return CurrentTrack;
+        }
+
+        if (IsRepeatAllEnabled)
+        {
+            CurrentTrackIndex = 0;
+            return CurrentTrack;
+        }
+
+        CurrentTrackIndex = _allTracks.Count;
+        return null;
+    }
+
+    public Track? JumpToIndex(int index)
+    {
+        if (index < 0 || index >= _allTracks.Count)
+        {
+            return null;
+        }
+
+        CurrentTrackIndex = index;
+        return _allTracks[index];
+    }
+
+    public Track? JumpToTrack(TrackId trackId)
+    {
+        int index = _allTracks.FindIndex(t => t.Id == trackId);
+        return JumpToIndex(index);
     }
 
     public bool Remove(TrackId trackId)
     {
-        int index = _items.FindIndex(t => t.Id == trackId);
-        if (index >= 0)
-        {
-            _items.RemoveAt(index);
-            return true;
-        }
-
-        return false;
-    }
-
-    public bool Move(int fromIndex, int toIndex)
-    {
-        if (fromIndex < 0 || fromIndex >= _items.Count || toIndex < 0 || toIndex >= _items.Count || fromIndex == toIndex)
+        int index = _allTracks.FindIndex(t => t.Id == trackId);
+        if (index < 0 || index == CurrentTrackIndex)
         {
             return false;
         }
 
-        Track item = _items[fromIndex];
-        _items.RemoveAt(fromIndex);
-        _items.Insert(toIndex, item);
+        _allTracks.RemoveAt(index);
+        if (index < CurrentTrackIndex)
+        {
+            CurrentTrackIndex--;
+        }
+
+        return true;
+    }
+
+    public bool Move(int fromIndex, int toIndex)
+    {
+        int upcomingCount = Count;
+        if (fromIndex < 0 || fromIndex >= upcomingCount || toIndex < 0 || toIndex >= upcomingCount || fromIndex == toIndex)
+        {
+            return false;
+        }
+
+        int baseOffset = CurrentTrackIndex < 0 ? 0 : CurrentTrackIndex + 1;
+        int actualFrom = baseOffset + fromIndex;
+        int actualTo = baseOffset + toIndex;
+
+        Track item = _allTracks[actualFrom];
+        _allTracks.RemoveAt(actualFrom);
+        _allTracks.Insert(actualTo, item);
         return true;
     }
 
     public bool MoveUp(TrackId trackId)
     {
-        int index = _items.FindIndex(t => t.Id == trackId);
-        if (index <= 0)
+        int index = _allTracks.FindIndex(t => t.Id == trackId);
+        if (index <= 0 || index == CurrentTrackIndex || index == CurrentTrackIndex + 1)
         {
             return false;
         }
 
-        return Move(index, index - 1);
+        (_allTracks[index - 1], _allTracks[index]) = (_allTracks[index], _allTracks[index - 1]);
+        return true;
     }
 
     public bool MoveDown(TrackId trackId)
     {
-        int index = _items.FindIndex(t => t.Id == trackId);
-        if (index < 0 || index >= _items.Count - 1)
+        int index = _allTracks.FindIndex(t => t.Id == trackId);
+        if (index < 0 || index >= _allTracks.Count - 1 || index == CurrentTrackIndex || index == CurrentTrackIndex - 1)
         {
             return false;
         }
 
-        return Move(index, index + 1);
+        (_allTracks[index + 1], _allTracks[index]) = (_allTracks[index], _allTracks[index + 1]);
+        return true;
     }
 
+    public void ReplaceOrderPreservingCursor(IReadOnlyList<Track> orderedTracks)
+    {
+        ArgumentNullException.ThrowIfNull(orderedTracks);
+
+        TrackId? activeId = CurrentTrack?.Id;
+        _allTracks.Clear();
+        _allTracks.AddRange(orderedTracks);
+
+        if (_allTracks.Count == 0)
+        {
+            CurrentTrackIndex = -1;
+            return;
+        }
+
+        if (activeId is { } id)
+        {
+            int idx = _allTracks.FindIndex(t => t.Id == id);
+            CurrentTrackIndex = idx >= 0 ? idx : 0;
+        }
+        else if (CurrentTrackIndex > _allTracks.Count)
+        {
+            CurrentTrackIndex = _allTracks.Count;
+        }
+    }
 
     public void Clear()
     {
-        _items.Clear();
-        CurrentTrack = null;
+        _allTracks.Clear();
+        CurrentTrackIndex = -1;
     }
 
     public PlaylistReconciliationResult ReconcileRemotePlaylist(IReadOnlyList<Track> remoteTracks)
@@ -105,23 +220,30 @@ public sealed class Playlist
         List<Track> removed = [];
         int updatedCount = 0;
 
-        if (CurrentTrack is not null && remoteById.TryGetValue(CurrentTrack.VideoId, out Track? remoteCurrent))
+        for (int i = _allTracks.Count - 1; i >= 0; i--)
         {
-            if (CurrentTrack.UpdateAttribution(remoteCurrent.SubmittedBy, remoteCurrent.SubmitterAvatarUrl, remoteCurrent.ArtistName))
+            Track existing = _allTracks[i];
+            if (i == CurrentTrackIndex)
             {
-                updatedCount++;
-            }
-        }
+                if (remoteById.TryGetValue(existing.VideoId, out Track? remoteCurrent) &&
+                    existing.UpdateAttribution(remoteCurrent.SubmittedBy, remoteCurrent.SubmitterAvatarUrl, remoteCurrent.ArtistName))
+                {
+                    updatedCount++;
+                }
 
-        for (int i = _items.Count - 1; i >= 0; i--)
-        {
-            Track existing = _items[i];
+                continue;
+            }
+
             if (!remoteById.TryGetValue(existing.VideoId, out Track? remoteMatch))
             {
                 if (existing.IsSyncedFromPlaylist)
                 {
                     removed.Add(existing);
-                    _items.RemoveAt(i);
+                    _allTracks.RemoveAt(i);
+                    if (i < CurrentTrackIndex)
+                    {
+                        CurrentTrackIndex--;
+                    }
                 }
 
                 continue;
@@ -136,12 +258,7 @@ public sealed class Playlist
         removed.Reverse();
 
         HashSet<string> presentIds = new(StringComparer.Ordinal);
-        if (CurrentTrack is not null)
-        {
-            presentIds.Add(CurrentTrack.VideoId);
-        }
-
-        foreach (Track item in _items)
+        foreach (Track item in _allTracks)
         {
             presentIds.Add(item.VideoId);
         }

@@ -580,11 +580,11 @@
             </ui:Button>
           </Grid>
 
-          <!-- Queued Items List -->
+          <!-- Queued Items List (Non-Destructive Cursor Queue with Active Highlight & History) -->
           <ListView
             Grid.Row="1"
             Visibility="{Binding IsQueueExpanded, Converter={StaticResource BooleanToVisibilityConverter}}"
-            ItemsSource="{Binding QueuedItems}"
+            ItemsSource="{Binding QueueViewItems}"
             HorizontalContentAlignment="Stretch"
             VirtualizingPanel.IsVirtualizing="True"
             VirtualizingPanel.VirtualizationMode="Recycling"
@@ -600,7 +600,7 @@
             <ListView.ItemContainerStyle>
               <Style TargetType="ListViewItem">
                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                <Setter Property="Padding" Value="4,2" />
+                <Setter Property="Padding" Value="2,1" />
                 <Setter Property="Margin" Value="0,1" />
                 <Setter Property="Background" Value="Transparent" />
                 <Setter Property="BorderThickness" Value="0" />
@@ -608,118 +608,149 @@
             </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
               <DataTemplate>
-                <DockPanel LastChildFill="True" Margin="0,2">
-                  <!-- Rechts angedockte Aktions-Icons (exakt untereinander ausgerichtet) -->
-                  <StackPanel
-                    DockPanel.Dock="Right"
-                    Orientation="Horizontal"
-                    VerticalAlignment="Center"
-                    HorizontalAlignment="Right"
-                    Margin="8,0,0,0">
-                    <ui:Button
-                      Width="26"
-                      Height="26"
-                      Appearance="Transparent"
-                      Padding="0"
-                      Margin="0,0,2,0"
-                      ToolTip="Sofort abspielen"
-                      Command="{Binding DataContext.PlayTrackNowCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
-                      CommandParameter="{Binding}">
-                      <ui:SymbolIcon
-                        Symbol="Play24"
-                        FontSize="12"
-                        Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
-                    </ui:Button>
-                    <ui:Button
-                      Width="26"
-                      Height="26"
-                      Appearance="Transparent"
-                      Padding="0"
-                      Margin="0,0,2,0"
-                      ToolTip="Nach oben verschieben"
-                      Command="{Binding DataContext.MoveTrackUpCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
-                      CommandParameter="{Binding}">
-                      <ui:SymbolIcon Symbol="ArrowUp24" FontSize="12" />
-                    </ui:Button>
-                    <ui:Button
-                      Width="26"
-                      Height="26"
-                      Appearance="Transparent"
-                      Padding="0"
-                      Margin="0,0,2,0"
-                      ToolTip="Nach unten verschieben"
-                      Command="{Binding DataContext.MoveTrackDownCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
-                      CommandParameter="{Binding}">
-                      <ui:SymbolIcon Symbol="ArrowDown24" FontSize="12" />
-                    </ui:Button>
-                    <ui:Button
-                      Width="26"
-                      Height="26"
-                      Appearance="Transparent"
-                      Padding="0"
-                      ToolTip="Aus Warteschlange entfernen"
-                      Command="{Binding DataContext.RemoveTrackCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
-                      CommandParameter="{Binding}">
-                      <ui:SymbolIcon Symbol="Delete24" FontSize="12" />
-                    </ui:Button>
-                  </StackPanel>
-
-                  <!-- Links: Thumbnail + Titel/Submitter (füllt restliche Breite bis zu den rechts angedockten Icons) -->
-                  <Grid VerticalAlignment="Center">
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="Auto" />
-                      <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <Border
-                      Grid.Column="0"
-                      Width="44"
-                      Height="33"
-                      CornerRadius="4"
-                      Margin="0,0,10,0"
-                      ClipToBounds="True"
-                      BorderBrush="{DynamicResource SystemAccentColorTertiaryBrush}"
-                      BorderThickness="1"
-                      Background="{DynamicResource SubtleFillColorSecondaryBrush}">
-                      <Image
-                        Source="{Binding ThumbnailUrl}"
-                        Stretch="UniformToFill"
-                        RenderOptions.BitmapScalingMode="LowQuality" />
-                    </Border>
-
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                      <TextBlock
-                        FontSize="12"
-                        FontWeight="Medium"
-                        TextTrimming="CharacterEllipsis"
-                        Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                        Text="{Binding Title}" />
-                      <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                        <Ellipse
-                          Width="14"
-                          Height="14"
-                          Margin="0,0,5,0"
-                          VerticalAlignment="Center"
-                          Stroke="{DynamicResource ControlStrokeColorDefaultBrush}"
-                          StrokeThickness="1"
-                          Visibility="{Binding SubmitterAvatarUrl, Converter={StaticResource NullToVisibilityConverter}}">
-                          <Ellipse.Fill>
-                            <ImageBrush
-                              ImageSource="{Binding SubmitterAvatarUrl, Converter={StaticResource AvatarUriToImageSourceConverter}}"
-                              Stretch="UniformToFill" />
-                          </Ellipse.Fill>
-                        </Ellipse>
-                        <TextBlock
-                          FontSize="10"
-                          Opacity="0.8"
-                          VerticalAlignment="Center"
-                          TextTrimming="CharacterEllipsis"
-                          Foreground="{DynamicResource AccentTextFillColorSecondaryBrush}"
-                          Text="{Binding SubmittedBy, StringFormat='von {0}'}" />
-                      </StackPanel>
+                <Border CornerRadius="6" Padding="6,3">
+                  <Border.Style>
+                    <Style TargetType="Border">
+                      <Setter Property="Background" Value="Transparent" />
+                      <Setter Property="BorderBrush" Value="Transparent" />
+                      <Setter Property="BorderThickness" Value="0" />
+                      <Setter Property="Opacity" Value="1.0" />
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding HasPlayed}" Value="True">
+                          <Setter Property="Opacity" Value="0.65" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsCurrentlyPlaying}" Value="True">
+                          <Setter Property="Opacity" Value="1.0" />
+                          <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                          <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColorSecondaryBrush}" />
+                          <Setter Property="BorderThickness" Value="3,1,1,1" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Border.Style>
+                  <DockPanel LastChildFill="True">
+                    <!-- Rechts angedockte Aktions-Icons (exakt untereinander ausgerichtet) -->
+                    <StackPanel
+                      DockPanel.Dock="Right"
+                      Orientation="Horizontal"
+                      VerticalAlignment="Center"
+                      HorizontalAlignment="Right"
+                      Margin="8,0,0,0">
+                      <ui:Button
+                        Width="26"
+                        Height="26"
+                        Appearance="Transparent"
+                        Padding="0"
+                        Margin="0,0,2,0"
+                        ToolTip="Sofort abspielen"
+                        Command="{Binding DataContext.PlayTrackNowCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                        CommandParameter="{Binding Track}">
+                        <ui:SymbolIcon
+                          Symbol="Play24"
+                          FontSize="12"
+                          Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                      </ui:Button>
+                      <ui:Button
+                        Width="26"
+                        Height="26"
+                        Appearance="Transparent"
+                        Padding="0"
+                        Margin="0,0,2,0"
+                        ToolTip="Nach oben verschieben"
+                        Command="{Binding DataContext.MoveTrackUpCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                        CommandParameter="{Binding Track}">
+                        <ui:SymbolIcon Symbol="ArrowUp24" FontSize="12" />
+                      </ui:Button>
+                      <ui:Button
+                        Width="26"
+                        Height="26"
+                        Appearance="Transparent"
+                        Padding="0"
+                        Margin="0,0,2,0"
+                        ToolTip="Nach unten verschieben"
+                        Command="{Binding DataContext.MoveTrackDownCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                        CommandParameter="{Binding Track}">
+                        <ui:SymbolIcon Symbol="ArrowDown24" FontSize="12" />
+                      </ui:Button>
+                      <ui:Button
+                        Width="26"
+                        Height="26"
+                        Appearance="Transparent"
+                        Padding="0"
+                        ToolTip="Aus Warteschlange entfernen"
+                        Command="{Binding DataContext.RemoveTrackCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                        CommandParameter="{Binding Track}">
+                        <ui:SymbolIcon Symbol="Delete24" FontSize="12" />
+                      </ui:Button>
                     </StackPanel>
-                  </Grid>
-                </DockPanel>
+
+                    <!-- Links: Thumbnail + Titel/Submitter (füllt restliche Breite bis zu den rechts angedockten Icons) -->
+                    <Grid VerticalAlignment="Center">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+
+                      <Border
+                        Grid.Column="0"
+                        Width="44"
+                        Height="33"
+                        CornerRadius="4"
+                        Margin="0,0,10,0"
+                        ClipToBounds="True"
+                        BorderBrush="{DynamicResource SystemAccentColorTertiaryBrush}"
+                        BorderThickness="1"
+                        Background="{DynamicResource SubtleFillColorSecondaryBrush}">
+                        <Image
+                          Source="{Binding ThumbnailUrl}"
+                          Stretch="UniformToFill"
+                          RenderOptions.BitmapScalingMode="LowQuality" />
+                      </Border>
+
+                      <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock
+                          FontSize="12"
+                          TextTrimming="CharacterEllipsis"
+                          Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                          Text="{Binding Title}">
+                          <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                              <Setter Property="FontWeight" Value="Medium" />
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsCurrentlyPlaying}" Value="True">
+                                  <Setter Property="FontWeight" Value="Bold" />
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </TextBlock.Style>
+                        </TextBlock>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                          <Ellipse
+                            Width="14"
+                            Height="14"
+                            Margin="0,0,5,0"
+                            VerticalAlignment="Center"
+                            Stroke="{DynamicResource ControlStrokeColorDefaultBrush}"
+                            StrokeThickness="1"
+                            Visibility="{Binding SubmitterAvatarUrl, Converter={StaticResource NullToVisibilityConverter}}">
+                            <Ellipse.Fill>
+                              <ImageBrush
+                                ImageSource="{Binding SubmitterAvatarUrl, Converter={StaticResource AvatarUriToImageSourceConverter}}"
+                                Stretch="UniformToFill" />
+                            </Ellipse.Fill>
+                          </Ellipse>
+                          <TextBlock
+                            FontSize="10"
+                            Opacity="0.8"
+                            VerticalAlignment="Center"
+                            TextTrimming="CharacterEllipsis"
+                            Foreground="{DynamicResource AccentTextFillColorSecondaryBrush}"
+                            Text="{Binding SubmittedBy, StringFormat='von {0}'}" />
+                        </StackPanel>
+                      </StackPanel>
+                    </Grid>
+                  </DockPanel>
+                </Border>
               </DataTemplate>
             </ListView.ItemTemplate>
 

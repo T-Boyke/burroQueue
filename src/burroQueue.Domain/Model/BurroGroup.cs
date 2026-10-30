@@ -135,6 +135,19 @@ public sealed class BurroGroup
         return next;
     }
 
+    public Track? JumpTo(TrackId trackId)
+    {
+        Track? target = Playlist.JumpToTrack(trackId);
+        if (target is not null)
+        {
+            PlaybackState previous = PlaybackState;
+            PlaybackState = PlaybackState.Playing;
+            _domainEvents.Add(new PlaybackStateChangedDomainEvent(Id, previous, PlaybackState, target, DateTimeOffset.UtcNow));
+        }
+
+        return target;
+    }
+
     public void ClearEvents() => _domainEvents.Clear();
 }
 

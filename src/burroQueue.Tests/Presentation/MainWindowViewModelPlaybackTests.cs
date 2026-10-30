@@ -1217,7 +1217,7 @@ public sealed class MainWindowViewModelPlaybackTests
     }
 
     [Fact]
-    public async Task PlayTrackNowAsync_WhenTrackInQueue_ShouldMoveToFrontAndPlayImmediately()
+    public async Task PlayTrackNowAsync_WhenTrackInQueue_ShouldJumpCursorNonDestructivelyAndContinueSequentially()
     {
         Track track1 = new("track-1", new Uri("https://www.youtube.com/watch?v=track-1"), "Song 1", "Alice", DateTimeOffset.UtcNow);
         Track track2 = new("track-2", new Uri("https://www.youtube.com/watch?v=track-2"), "Song 2", "Bob", DateTimeOffset.UtcNow);
@@ -1228,11 +1228,25 @@ public sealed class MainWindowViewModelPlaybackTests
 
         MainWindowViewModel vm = CreateViewModel();
 
-        await vm.PlayTrackNowAsync(track3);
+        // Jump directly to track2 (index 1)
+        await vm.PlayTrackNowAsync(track2);
 
+        _group.Playlist.CurrentTrack.Should().Be(track2);
+        _group.Playlist.CurrentTrackIndex.Should().Be(1);
+        await _audioPlayerBackend.Received(1).PlayTrackAsync(track2, Arg.Any<CancellationToken>());
+
+        // Non-destructive history: all 3 tracks remain in QueueViewItems with accurate state flags!
+        vm.QueueViewItems.Should().HaveCount(3);
+        vm.QueueViewItems[0].HasPlayed.Should().BeTrue();
+        vm.QueueViewItems[0].IsCurrentlyPlaying.Should().BeFalse();
+        vm.QueueViewItems[1].IsCurrentlyPlaying.Should().BeTrue();
+        vm.QueueViewItems[2].HasPlayed.Should().BeFalse();
+
+        // Upcoming QueuedItems contains track3, and SkipAsync plays track3 next sequentially!
+        vm.QueuedItems.Should().ContainSingle().Which.Should().Be(track3);
+        await vm.SkipAsync();
         _group.Playlist.CurrentTrack.Should().Be(track3);
-        await _audioPlayerBackend.Received(1).PlayTrackAsync(track3, Arg.Any<CancellationToken>());
-        vm.QueuedItems.Should().ContainSingle().Which.Should().Be(track2);
+        vm.QueueViewItems[2].IsCurrentlyPlaying.Should().BeTrue();
     }
 
     [Fact]

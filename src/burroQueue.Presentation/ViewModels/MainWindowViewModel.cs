@@ -199,6 +199,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<Track> QueuedItems { get; } = [];
 
+    public ObservableCollection<QueueTrackItemViewModel> QueueViewItems { get; } = [];
+
     internal Task AutoSaveTask { get; private set; } = Task.CompletedTask;
 
     internal Task AutoSaveSettingsTask { get; private set; } = Task.CompletedTask;
@@ -760,6 +762,19 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 QueuedItems.Add(item);
             }
 
+            QueueViewItems.Clear();
+            int currentIdx = _group.Playlist.CurrentTrackIndex;
+            IReadOnlyList<Track> allTracks = _group.Playlist.AllTracks;
+            for (int i = 0; i < allTracks.Count; i++)
+            {
+                bool isCurrent = i == currentIdx;
+                bool hasPlayed = currentIdx >= 0 && i < currentIdx;
+                QueueViewItems.Add(new QueueTrackItemViewModel(
+                    allTracks[i],
+                    isCurrentlyPlaying: isCurrent,
+                    hasPlayed: hasPlayed));
+            }
+
             QueuedCount = _group.Playlist.Count;
             SyncCurrentTrackDisplayIfEmpty();
         });
@@ -913,25 +928,25 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             return;
         }
 
-        int index = -1;
-        for (int i = 0; i < _group.Playlist.QueuedTracks.Count; i++)
+        Track? selected = _group.JumpTo(track.Id);
+        if (selected is null)
         {
-            if (_group.Playlist.QueuedTracks[i].Id == track.Id)
-            {
-                index = i;
-                break;
-            }
+            return;
         }
 
-        if (index > 0)
-        {
-            _group.Playlist.Move(index, 0);
-        }
+        PlaybackState = _group.PlaybackState;
+        SyncQueuedItems();
+        AutoSavePlaylist();
 
-        if (index >= 0)
+        StatusMessage = $"Playing: {selected.Title}";
+        RunOnUi(() =>
         {
-            await SkipAsync().ConfigureAwait(false);
-        }
+            PlaybackProgress = 0.0;
+            _playbackTimer?.Start();
+        });
+
+        await LoadTrackMetadataAsync(selected).ConfigureAwait(true);
+        await _audioPlayerBackend.PlayTrackAsync(selected).ConfigureAwait(false);
     }
 
     [RelayCommand]
@@ -1375,6 +1390,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                     {
                         SyncQueuedItems();
                     }
+
+                    QueueViewItems.FirstOrDefault(q => q.Id == track.Id)?.RefreshMetadata();
                 });
                 AutoSavePlaylist();
             }

@@ -76,6 +76,8 @@ public sealed class XamlLayoutValidationTests
         rawXaml.Should().Contain("IsQuickAddInputVisible", "Quick-Add row must bind visibility to IsQuickAddInputVisible (#11)");
         rawXaml.Should().Contain("QueueContainerBorder", "Outer queue Border must collapse/shrink cleanly without empty space (#8)");
         rawXaml.Should().Contain("AvatarUriToImageSourceConverter", "Queue and Now-Playing items must render the collaborator's circular YouTube avatar (#278)");
+        rawXaml.Should().Contain("QueueViewItems", "Queue ListView must bind to non-destructive cursor QueueViewItems (#9)");
+        rawXaml.Should().Contain("IsCurrentlyPlaying", "Active track row must highlight via IsCurrentlyPlaying (#9)");
     }
 
     [Fact]

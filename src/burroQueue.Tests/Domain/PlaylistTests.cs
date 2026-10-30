@@ -285,6 +285,71 @@ public sealed class PlaylistTests
         playlist.QueuedTracks.Select(t => t.VideoId).Should().Equal("kept3333333", "manual44444", "new55555555");
     }
 
+    [Fact]
+    public void AdvanceNext_ShouldPreservePlayedHistoryInAllTracksAndIncrementCurrentTrackIndex()
+    {
+        Playlist playlist = new();
+        Track t1 = CreateSampleTrack("11111111111", "Track 1");
+        Track t2 = CreateSampleTrack("22222222222", "Track 2");
+        Track t3 = CreateSampleTrack("33333333333", "Track 3");
+        playlist.Enqueue(t1);
+        playlist.Enqueue(t2);
+        playlist.Enqueue(t3);
+
+        playlist.CurrentTrackIndex.Should().Be(0);
+        playlist.AllTracks.Should().Equal(t1, t2, t3);
+
+        playlist.AdvanceNext().Should().BeSameAs(t2);
+        playlist.CurrentTrackIndex.Should().Be(1);
+        playlist.AllTracks.Should().Equal(t1, t2, t3);
+
+        playlist.AdvanceNext().Should().BeSameAs(t3);
+        playlist.CurrentTrackIndex.Should().Be(2);
+        playlist.AllTracks.Should().Equal(t1, t2, t3);
+    }
+
+    [Fact]
+    public void JumpToTrack_InMiddleOrHistory_ShouldSetCursorAndContinueSequentiallyOnAdvanceNext()
+    {
+        Playlist playlist = new();
+        Track[] tracks = Enumerable.Range(1, 6)
+            .Select(i => CreateSampleTrack($"vid0000000{i}", $"Track {i}"))
+            .ToArray();
+        foreach (Track t in tracks)
+        {
+            playlist.Enqueue(t);
+        }
+
+        // Jump to Track 5 (index 4)
+        Track? jumped = playlist.JumpToTrack(tracks[4].Id);
+        jumped.Should().BeSameAs(tracks[4]);
+        playlist.CurrentTrackIndex.Should().Be(4);
+        playlist.CurrentTrack.Should().BeSameAs(tracks[4]);
+
+        // Sequential continuity: AdvanceNext plays Track 6 (index 5)
+        playlist.AdvanceNext().Should().BeSameAs(tracks[5]);
+        playlist.CurrentTrackIndex.Should().Be(5);
+
+        // Replay from earlier history: Jump back to Track 2 (index 1)
+        playlist.JumpToTrack(tracks[1].Id).Should().BeSameAs(tracks[1]);
+        playlist.CurrentTrackIndex.Should().Be(1);
+        playlist.AdvanceNext().Should().BeSameAs(tracks[2]);
+    }
+
+    [Fact]
+    public void AdvanceNext_WhenRepeatAllEnabled_ShouldWrapAroundFromEndToIndexZero()
+    {
+        Playlist playlist = new() { IsRepeatAllEnabled = true };
+        Track t1 = CreateSampleTrack("11111111111", "Track 1");
+        Track t2 = CreateSampleTrack("22222222222", "Track 2");
+        playlist.Enqueue(t1);
+        playlist.Enqueue(t2);
+
+        playlist.AdvanceNext().Should().BeSameAs(t2);
+        playlist.AdvanceNext().Should().BeSameAs(t1);
+        playlist.CurrentTrackIndex.Should().Be(0);
+    }
+
     private static Track CreateSampleTrack(string videoId, string title) =>
         new(videoId, new Uri($"https://www.youtube.com/watch?v={videoId}"), title, "Tester", DateTimeOffset.UtcNow);
 }

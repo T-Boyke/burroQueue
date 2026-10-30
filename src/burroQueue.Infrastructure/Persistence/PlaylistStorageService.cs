@@ -27,15 +27,10 @@ public sealed class PlaylistStorageService : IPlaylistStorageService
             Directory.CreateDirectory(dir);
         }
 
-        List<StoredTrackDto> tracks = [];
-        if (playlist.CurrentTrack is not null)
+        List<StoredTrackDto> tracks = new(playlist.AllTracks.Count);
+        for (int i = 0; i < playlist.AllTracks.Count; i++)
         {
-            tracks.Add(StoredTrackDto.FromDomain(playlist.CurrentTrack, isCurrent: true));
-        }
-
-        foreach (Track item in playlist.QueuedTracks)
-        {
-            tracks.Add(StoredTrackDto.FromDomain(item, isCurrent: false));
+            tracks.Add(StoredTrackDto.FromDomain(playlist.AllTracks[i], isCurrent: i == playlist.CurrentTrackIndex));
         }
 
         await using FileStream stream = new(_storageFilePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
@@ -62,10 +57,21 @@ public sealed class PlaylistStorageService : IPlaylistStorageService
             }
 
             playlist.Clear();
-            foreach (StoredTrackDto dto in tracks)
+            int currentIdx = -1;
+            for (int i = 0; i < tracks.Count; i++)
             {
-                Track track = dto.ToDomain();
-                playlist.Enqueue(track);
+                StoredTrackDto dto = tracks[i];
+                if (dto.IsCurrent && currentIdx < 0)
+                {
+                    currentIdx = i;
+                }
+
+                playlist.Enqueue(dto.ToDomain());
+            }
+
+            if (currentIdx >= 0)
+            {
+                playlist.JumpToIndex(currentIdx);
             }
         }
         catch
@@ -74,4 +80,3 @@ public sealed class PlaylistStorageService : IPlaylistStorageService
         }
     }
 }
-
