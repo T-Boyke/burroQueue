@@ -82,7 +82,10 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private int _queuedCount;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsPlaying))]
     private PlaybackState _playbackState = PlaybackState.Stopped;
+
+    public bool IsPlaying => PlaybackState == PlaybackState.Playing;
 
     [ObservableProperty]
     private bool _isCallActive;
@@ -167,7 +170,10 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private string _quickAddUrl = string.Empty;
 
     [ObservableProperty]
-    private bool _isQueueExpanded;
+    private bool _isQueueExpanded = true;
+
+    [ObservableProperty]
+    private bool _isQuickAddInputVisible;
 
     [ObservableProperty]
     private bool _isAddFeedbackVisible;
@@ -603,15 +609,39 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    public void ShowQuickAddInput()
+    {
+        IsQuickAddInputVisible = true;
+    }
+
+    [RelayCommand]
+    public void HideQuickAddInputIfEmpty()
+    {
+        if (string.IsNullOrWhiteSpace(QuickAddUrl))
+        {
+            IsQuickAddInputVisible = false;
+        }
+    }
+
+    [RelayCommand]
+    public void CancelQuickAddInput()
+    {
+        QuickAddUrl = string.Empty;
+        IsQuickAddInputVisible = false;
+    }
+
+    [RelayCommand]
     public void SubmitQuickAdd()
     {
         if (string.IsNullOrWhiteSpace(QuickAddUrl))
         {
+            IsQuickAddInputVisible = false;
             return;
         }
 
         string url = QuickAddUrl.Trim();
         QuickAddUrl = string.Empty;
+        IsQuickAddInputVisible = false;
         EnqueueRawUrl(url);
     }
 
@@ -826,6 +856,10 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    public Task TogglePlayPauseAsync() =>
+        IsPlaying ? PauseAsync() : PlayAsync();
+
+    [RelayCommand]
     public async Task PlayAsync()
     {
         if (_group.Playlist.CurrentTrack is null && _group.Playlist.Count > 0)
@@ -937,6 +971,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             StatusMessage = "Queue empty";
             CurrentTrackTitle = "No song playing";
             CurrentTrackArtist = string.Empty;
+            CurrentTrackSubmittedBy = string.Empty;
+            CurrentTrackSubmitterAvatarUrl = null;
             CurrentTrackThumbnailUrl = null;
             RunOnUi(() =>
             {

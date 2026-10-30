@@ -8,7 +8,7 @@ namespace burroQueue.Tests.Presentation;
 
 public sealed class XamlSymbolValidationTests
 {
-    private static readonly Regex _symbolRegex = new(@"Symbol\s*=\s*""([^""]+)""", RegexOptions.Compiled);
+    private static readonly Regex _symbolRegex = new(@"(?:Symbol\s*=\s*|Property\s*=\s*""Symbol""\s+Value\s*=\s*)""([^""]+)""", RegexOptions.Compiled);
 
     [Fact]
     public void AllXamlSymbols_ShouldBeValidSymbolRegularValues()

@@ -75,6 +75,14 @@ public partial class MainWindow : FluentWindow
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal void OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
+        if (e.Key == System.Windows.Input.Key.Space &&
+            e.OriginalSource is not System.Windows.Controls.Primitives.TextBoxBase)
+        {
+            _viewModel.TogglePlayPauseCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
         bool isCtrl = (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) == System.Windows.Input.ModifierKeys.Control;
         HandleKeyDown(_viewModel, e.Key, isCtrl, () => System.Windows.Clipboard.ContainsText() ? System.Windows.Clipboard.GetText() : null, h => e.Handled = h);
     }
@@ -93,6 +101,22 @@ public partial class MainWindow : FluentWindow
     }
 
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal void OnDropZoneMouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (!_viewModel.IsQuickAddInputVisible)
+        {
+            _viewModel.ShowQuickAddInput();
+            Dispatcher.BeginInvoke(() => QuickAddTextBox.Focus(), System.Windows.Threading.DispatcherPriority.Input);
+        }
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal void OnQuickAddLostFocus(object sender, RoutedEventArgs e)
+    {
+        _viewModel.HideQuickAddInputIfEmpty();
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal void OnQuickAddKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         HandleQuickAddKeyDown(_viewModel, e.Key, h => e.Handled = h);
@@ -103,6 +127,11 @@ public partial class MainWindow : FluentWindow
         if (key == System.Windows.Input.Key.Enter)
         {
             viewModel.SubmitQuickAddCommand.Execute(null);
+            setHandled(true);
+        }
+        else if (key == System.Windows.Input.Key.Escape)
+        {
+            viewModel.CancelQuickAddInput();
             setHandled(true);
         }
     }

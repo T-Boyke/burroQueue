@@ -63,4 +63,17 @@ public sealed class XamlLayoutValidationTests
         badge.Attribute("Height")?.Value.Should().Be("20");
         badge.Attribute("CornerRadius")?.Value.Should().Be("10");
     }
+
+    [Fact]
+    public void MainWindow_ShouldConsolidatePlayPauseButtonCollapseQueueContainerAndRenderCollaboratorAvatarEllipse()
+    {
+        string path = Path.Combine(XamlSymbolValidationTests.FindSolutionRoot(), "src", "burroQueue.Presentation", "Views", "MainWindow.xaml");
+        string rawXaml = File.ReadAllText(path);
+
+        rawXaml.Should().Contain("TogglePlayPauseCommand", "Play and Pause must be consolidated into a single stateful TogglePlayPauseCommand button (#12)");
+        rawXaml.Should().NotContain("Command=\"{Binding PauseCommand}\"", "Separate Pause button must be removed (#12)");
+        rawXaml.Should().Contain("IsQuickAddInputVisible", "Quick-Add row must bind visibility to IsQuickAddInputVisible (#11)");
+        rawXaml.Should().Contain("QueueContainerBorder", "Outer queue Border must collapse/shrink cleanly without empty space (#8)");
+        rawXaml.Should().Contain("AvatarUriToImageSourceConverter", "Queue and Now-Playing items must render the collaborator's circular YouTube avatar (#278)");
+    }
 }

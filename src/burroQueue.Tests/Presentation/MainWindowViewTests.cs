@@ -294,6 +294,21 @@ public sealed class MainWindowViewTests
         vm.QuickAddUrl.Should().Be("https://youtube.com");
     }
 
+    [Fact]
+    public void HandleQuickAddKeyDown_WhenKeyIsEscape_ShouldClearAndHideQuickAddInput()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.ShowQuickAddInput();
+        vm.QuickAddUrl = "https://youtube.com/watch?v=partial";
+        bool handled = false;
+
+        MainWindow.HandleQuickAddKeyDown(vm, System.Windows.Input.Key.Escape, h => handled = h);
+
+        handled.Should().BeTrue();
+        vm.QuickAddUrl.Should().BeEmpty();
+        vm.IsQuickAddInputVisible.Should().BeFalse();
+    }
+
     [Theory]
     [InlineData("Auto", Wpf.Ui.Controls.WindowBackdropType.Auto)]
     [InlineData("Mica", Wpf.Ui.Controls.WindowBackdropType.Mica)]

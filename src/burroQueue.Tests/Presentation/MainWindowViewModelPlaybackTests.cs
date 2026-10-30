@@ -154,16 +154,64 @@ public sealed class MainWindowViewModelPlaybackTests
     }
 
     [Fact]
-    public void ToggleQueueExpanded_ShouldInvertIsQueueExpanded()
+    public void ToggleQueueExpanded_ShouldDefaultToTrueAndInvertIsQueueExpanded()
     {
         MainWindowViewModel vm = CreateViewModel();
-        vm.IsQueueExpanded.Should().BeFalse();
-
-        vm.ToggleQueueExpanded();
         vm.IsQueueExpanded.Should().BeTrue();
 
         vm.ToggleQueueExpanded();
         vm.IsQueueExpanded.Should().BeFalse();
+
+        vm.ToggleQueueExpanded();
+        vm.IsQueueExpanded.Should().BeTrue();
+    }
+
+    [Fact]
+    public void QuickAddInputVisibility_ShouldDefaultFalseRevealOnShowAndAutoHideOnSubmitOrEmptyBlur()
+    {
+        _urlParser.TryExtractVideoId("https://youtube.com/watch?v=quick99", out Arg.Any<string>(), out Arg.Any<Uri>())
+            .Returns(x =>
+            {
+                x[1] = "quick99";
+                x[2] = new Uri("https://youtube.com/watch?v=quick99");
+                return true;
+            });
+
+        MainWindowViewModel vm = CreateViewModel();
+        vm.IsQuickAddInputVisible.Should().BeFalse();
+
+        vm.ShowQuickAddInput();
+        vm.IsQuickAddInputVisible.Should().BeTrue();
+
+        vm.QuickAddUrl = "https://youtube.com/watch?v=quick99";
+        vm.HideQuickAddInputIfEmpty();
+        vm.IsQuickAddInputVisible.Should().BeTrue("non-empty input must stay visible on focus loss");
+
+        vm.SubmitQuickAdd();
+        vm.QuickAddUrl.Should().BeEmpty();
+        vm.IsQuickAddInputVisible.Should().BeFalse("submitting Quick-Add should collapse input back to compact drop zone");
+
+        vm.ShowQuickAddInput();
+        vm.HideQuickAddInputIfEmpty();
+        vm.IsQuickAddInputVisible.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task TogglePlayPauseAsync_ShouldPlayWhenStoppedAndPauseWhenPlaying()
+    {
+        Track track = new("track-1", new Uri("https://www.youtube.com/watch?v=track-1"), "Song 1", "Alice", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(track);
+        MainWindowViewModel vm = CreateViewModel();
+
+        vm.IsPlaying.Should().BeFalse();
+
+        await vm.TogglePlayPauseAsync();
+        vm.IsPlaying.Should().BeTrue();
+        await _audioPlayerBackend.Received(1).PlayTrackAsync(track, Arg.Any<CancellationToken>());
+
+        await vm.TogglePlayPauseAsync();
+        vm.IsPlaying.Should().BeFalse();
+        await _audioPlayerBackend.Received(1).PauseAsync(Arg.Any<CancellationToken>());
     }
 
     [Theory]

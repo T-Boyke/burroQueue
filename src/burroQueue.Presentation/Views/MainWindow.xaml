@@ -185,6 +185,32 @@
               TextTrimming="CharacterEllipsis"
               Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
               Text="{Binding CurrentTrackArtist}" />
+            <StackPanel
+              Orientation="Horizontal"
+              Margin="0,3,0,0"
+              Visibility="{Binding CurrentTrackSubmittedBy, Converter={StaticResource NullToVisibilityConverter}}">
+              <Ellipse
+                Width="15"
+                Height="15"
+                Margin="0,0,5,0"
+                VerticalAlignment="Center"
+                Stroke="{DynamicResource ControlStrokeColorDefaultBrush}"
+                StrokeThickness="1"
+                Visibility="{Binding CurrentTrackSubmitterAvatarUrl, Converter={StaticResource NullToVisibilityConverter}}">
+                <Ellipse.Fill>
+                  <ImageBrush
+                    ImageSource="{Binding CurrentTrackSubmitterAvatarUrl, Converter={StaticResource AvatarUriToImageSourceConverter}}"
+                    Stretch="UniformToFill" />
+                </Ellipse.Fill>
+              </Ellipse>
+              <TextBlock
+                FontSize="11"
+                Opacity="0.75"
+                VerticalAlignment="Center"
+                TextTrimming="CharacterEllipsis"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="{Binding CurrentTrackSubmittedBy, StringFormat='von {0}'}" />
+            </StackPanel>
           </StackPanel>
 
           <!-- Vote to Skip Action -->
@@ -241,15 +267,34 @@
         <ui:Button
           Margin="0,0,6,0"
           Appearance="Primary"
-          Icon="{ui:SymbolIcon Play24}"
-          Content="Play"
-          Command="{Binding PlayCommand}" />
-        <ui:Button
-          Margin="0,0,6,0"
-          Appearance="Secondary"
-          Icon="{ui:SymbolIcon Pause24}"
-          Content="Pause"
-          Command="{Binding PauseCommand}" />
+          Command="{Binding TogglePlayPauseCommand}">
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <ui:SymbolIcon Margin="0,0,6,0" FontSize="15">
+              <ui:SymbolIcon.Style>
+                <Style TargetType="ui:SymbolIcon">
+                  <Setter Property="Symbol" Value="Play24" />
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                      <Setter Property="Symbol" Value="Pause24" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </ui:SymbolIcon.Style>
+            </ui:SymbolIcon>
+            <TextBlock VerticalAlignment="Center">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                  <Setter Property="Text" Value="Play" />
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                      <Setter Property="Text" Value="Pause" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
+          </StackPanel>
+        </ui:Button>
         <ui:Button
           Margin="0,0,6,0"
           Appearance="Secondary"
@@ -372,6 +417,8 @@
         Margin="0,0,0,8"
         Padding="12,10"
         CornerRadius="8"
+        Cursor="Hand"
+        MouseLeftButtonUp="OnDropZoneMouseLeftButtonUp"
         Background="{DynamicResource SubtleFillColorSecondaryBrush}"
         BorderBrush="{DynamicResource SystemAccentColorSecondaryBrush}"
         BorderThickness="1">
@@ -387,7 +434,7 @@
               FontSize="12"
               FontWeight="SemiBold"
               Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-              Text="YouTube-Link hier hineinziehen oder per Ctrl+V einfügen" />
+              Text="YouTube-Link hier hineinziehen, klicken oder per Ctrl+V einfügen" />
             <TextBlock
               Margin="0,1,0,0"
               HorizontalAlignment="Center"
@@ -416,18 +463,22 @@
             </StackPanel>
           </Border>
 
-          <!-- Quick-Add Input Bar with Enter support -->
-          <Grid Margin="0,8,0,0">
+          <!-- Quick-Add Input Bar with Click-to-Reveal, Enter & Escape support -->
+          <Grid
+            Margin="0,8,0,0"
+            Visibility="{Binding IsQuickAddInputVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <ui:TextBox
+              x:Name="QuickAddTextBox"
               Grid.Column="0"
               Margin="0,0,6,0"
               Padding="8,5"
               PlaceholderText="YouTube-Link oder Video-ID hier eintippen..."
               Text="{Binding QuickAddUrl, UpdateSourceTrigger=PropertyChanged}"
+              LostFocus="OnQuickAddLostFocus"
               KeyDown="OnQuickAddKeyDown" />
             <ui:Button
               Grid.Column="1"
@@ -443,12 +494,23 @@
 
       <!-- Expandable Interactive Queue View -->
       <Border
+        x:Name="QueueContainerBorder"
         Grid.Row="1"
         CornerRadius="8"
         Padding="8"
         Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
         BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
         BorderThickness="1">
+        <Border.Style>
+          <Style TargetType="Border">
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding IsQueueExpanded}" Value="False">
+                <Setter Property="VerticalAlignment" Value="Top" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </Border.Style>
         <Grid>
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -503,7 +565,18 @@
               Appearance="Transparent"
               Padding="6,2"
               Command="{Binding ToggleQueueExpandedCommand}">
-              <ui:SymbolIcon Symbol="ChevronDown24" />
+              <ui:SymbolIcon>
+                <ui:SymbolIcon.Style>
+                  <Style TargetType="ui:SymbolIcon">
+                    <Setter Property="Symbol" Value="ChevronUp24" />
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding IsQueueExpanded}" Value="False">
+                        <Setter Property="Symbol" Value="ChevronDown24" />
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </ui:SymbolIcon.Style>
+              </ui:SymbolIcon>
             </ui:Button>
           </Grid>
 
@@ -621,12 +694,29 @@
                         TextTrimming="CharacterEllipsis"
                         Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                         Text="{Binding Title}" />
-                      <TextBlock
-                        FontSize="10"
-                        Opacity="0.8"
-                        TextTrimming="CharacterEllipsis"
-                        Foreground="{DynamicResource AccentTextFillColorSecondaryBrush}"
-                        Text="{Binding SubmittedBy, StringFormat='von {0}'}" />
+                      <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                        <Ellipse
+                          Width="14"
+                          Height="14"
+                          Margin="0,0,5,0"
+                          VerticalAlignment="Center"
+                          Stroke="{DynamicResource ControlStrokeColorDefaultBrush}"
+                          StrokeThickness="1"
+                          Visibility="{Binding SubmitterAvatarUrl, Converter={StaticResource NullToVisibilityConverter}}">
+                          <Ellipse.Fill>
+                            <ImageBrush
+                              ImageSource="{Binding SubmitterAvatarUrl, Converter={StaticResource AvatarUriToImageSourceConverter}}"
+                              Stretch="UniformToFill" />
+                          </Ellipse.Fill>
+                        </Ellipse>
+                        <TextBlock
+                          FontSize="10"
+                          Opacity="0.8"
+                          VerticalAlignment="Center"
+                          TextTrimming="CharacterEllipsis"
+                          Foreground="{DynamicResource AccentTextFillColorSecondaryBrush}"
+                          Text="{Binding SubmittedBy, StringFormat='von {0}'}" />
+                      </StackPanel>
                     </StackPanel>
                   </Grid>
                 </DockPanel>
