@@ -148,8 +148,8 @@ public sealed class MainWindowViewModelPlaybackTests
 
         _audioPlayerBackend.TrackPlaybackFinished += Raise.Event<EventHandler<Track>>(this, track1);
 
-        await Task.WhenAny(tcs.Task, Task.Delay(2000));
-        tcs.Task.IsCompletedSuccessfully.Should().BeTrue();
+        bool completed = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        completed.Should().BeTrue();
         _group.Playlist.CurrentTrack!.VideoId.Should().Be("track-2");
     }
 

@@ -59,7 +59,9 @@ public sealed class LanMulticastIntegrationTests : IAsyncLifetime, IDisposable
         ClientId hostId = ClientId.New();
         await _sender!.BroadcastBeaconAsync(group, hostId, "Alice");
 
-        Task completed = await Task.WhenAny(tcs.Task, Task.Delay(1500));
+        using CancellationTokenSource delayCts = new();
+        Task completed = await Task.WhenAny(tcs.Task, Task.Delay(1500, delayCts.Token));
+        await delayCts.CancelAsync();
         if (completed == tcs.Task)
         {
             DiscoveryBeaconMessage received = await tcs.Task;
@@ -86,7 +88,9 @@ public sealed class LanMulticastIntegrationTests : IAsyncLifetime, IDisposable
         Track track = new("syncVideo1", new Uri("https://www.youtube.com/watch?v=syncVideo1"), "Sync Song", "Bob", DateTimeOffset.UtcNow);
         await _sender!.SendQueueSyncAsync(groupId, "Enqueue", track);
 
-        Task completed = await Task.WhenAny(tcs.Task, Task.Delay(1500));
+        using CancellationTokenSource delayCts = new();
+        Task completed = await Task.WhenAny(tcs.Task, Task.Delay(1500, delayCts.Token));
+        await delayCts.CancelAsync();
         if (completed == tcs.Task)
         {
             QueueSyncMessage received = await tcs.Task;
@@ -112,7 +116,9 @@ public sealed class LanMulticastIntegrationTests : IAsyncLifetime, IDisposable
 
         await _sender!.ShareCollaborativePlaylistAsync(groupId, "https://youtube.com/playlist?list=123", "Alice");
 
-        Task completed = await Task.WhenAny(tcs.Task, Task.Delay(1500));
+        using CancellationTokenSource delayCts = new();
+        Task completed = await Task.WhenAny(tcs.Task, Task.Delay(1500, delayCts.Token));
+        await delayCts.CancelAsync();
         if (completed == tcs.Task)
         {
             SharedPlaylistSyncMessage received = await tcs.Task;
@@ -138,7 +144,9 @@ public sealed class LanMulticastIntegrationTests : IAsyncLifetime, IDisposable
 
         await _sender!.SendGroupActionAsync(groupId, actorId, "Rename", "Office Fun");
 
-        Task completed = await Task.WhenAny(tcs.Task, Task.Delay(1500));
+        using CancellationTokenSource delayCts = new();
+        Task completed = await Task.WhenAny(tcs.Task, Task.Delay(1500, delayCts.Token));
+        await delayCts.CancelAsync();
         if (completed == tcs.Task)
         {
             GroupActionMessage received = await tcs.Task;
