@@ -3,6 +3,7 @@ using System.Windows;
 using burroQueue.Domain.Model;
 using burroQueue.Infrastructure.Audio;
 using burroQueue.Infrastructure.Configuration;
+using burroQueue.Infrastructure.Diagnostics;
 using burroQueue.Infrastructure.Network;
 using burroQueue.Infrastructure.Performance;
 using burroQueue.Infrastructure.Persistence;
@@ -272,6 +273,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IEmbeddedWebDropServer, EmbeddedWebDropServer>();
         services.AddSingleton<IWindowsAutostartService, WindowsAutostartService>();
         services.AddSingleton<IProcessEfficiencyManager, ProcessEfficiencyManager>();
+        services.AddSingleton<IGitHubRepoStatsClient, GitHubRepoStatsClient>();
 
 
         // Modulare Telephony Providers

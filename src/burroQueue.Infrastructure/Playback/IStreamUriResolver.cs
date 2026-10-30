@@ -6,6 +6,9 @@ public interface IStreamUriResolver
 
     Task<Uri?> ResolveAudioStreamUriAsync(string videoId, CancellationToken cancellationToken = default);
 
+    Task<string?> GetYtDlpVersionAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<string?>(null);
+
     void RemoveCachedAudioFile(string videoId)
     {
     }

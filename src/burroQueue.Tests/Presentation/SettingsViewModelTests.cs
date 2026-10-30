@@ -316,4 +316,64 @@ public sealed class SettingsViewModelTests
 
         await webDrop.Received(1).StopAsync(Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task AboutSection_ShouldPopulateAuthorStatsYtDlpVersionAndLaunchExternalLinks()
+    {
+        burroQueue.Infrastructure.Playback.IStreamUriResolver streamResolver = Substitute.For<burroQueue.Infrastructure.Playback.IStreamUriResolver>();
+        streamResolver.IsYtDlpAvailable.Returns(true);
+        streamResolver.GetYtDlpVersionAsync(Arg.Any<CancellationToken>()).Returns("2026.10.01");
+
+        burroQueue.Infrastructure.Diagnostics.IGitHubRepoStatsClient statsClient = Substitute.For<burroQueue.Infrastructure.Diagnostics.IGitHubRepoStatsClient>();
+        statsClient.FetchSnapshotAsync(Arg.Any<CancellationToken>()).Returns(new burroQueue.Infrastructure.Diagnostics.GitHubAboutSnapshot(
+            "Tobias Boyke",
+            "@T-Boyke",
+            new Uri("https://github.com/T-Boyke"),
+            new Uri("https://avatars.githubusercontent.com/u/37149164?v=4&s=72"),
+            new Uri("https://github.com/T-Boyke/burroQueue"),
+            PublicRepos: 18,
+            Followers: 25,
+            Stars: 77,
+            LicenseSpdx: "AGPL-3.0",
+            AppVersion: "1.1.0",
+            IsLive: true));
+
+        List<string> openedUrls = [];
+        Action<System.Diagnostics.ProcessStartInfo> originalStarter = SettingsViewModel.ProcessStarter;
+        SettingsViewModel.ProcessStarter = psi => openedUrls.Add(psi.FileName);
+        try
+        {
+            SettingsViewModel vm = new(
+                _settingsService,
+                _telephonyManager,
+                _autostartService,
+                _audioDeviceEnumerator,
+                streamResolver: streamResolver,
+                gitHubStatsClient: statsClient);
+
+            await vm.AboutLoadTask;
+
+            vm.TechStackSummary.Should().Contain(".NET 11").And.Contain("UnoCSS 66.12.0");
+            vm.YtDlpVersionText.Should().Contain("2026.10.01");
+            vm.AuthorDisplayName.Should().Be("Tobias Boyke");
+            vm.AuthorHandle.Should().Be("@T-Boyke");
+            vm.AuthorStatsSummary.Should().Contain("18 Repos").And.Contain("25 Followers").And.Contain("77");
+
+            vm.OpenYtDlpRepositoryCommand.Execute(null);
+            vm.OpenAuthorProfileCommand.Execute(null);
+            vm.OpenProjectRepositoryCommand.Execute(null);
+            vm.ReportBugOnGitHubCommand.Execute(null);
+            vm.RequestFeatureOnGitHubCommand.Execute(null);
+
+            openedUrls.Should().Contain("https://github.com/yt-dlp/yt-dlp");
+            openedUrls.Should().Contain("https://github.com/T-Boyke");
+            openedUrls.Should().Contain("https://github.com/T-Boyke/burroQueue");
+            openedUrls.Should().Contain(u => u.Contains("issues/new?template=bug_report.yml", StringComparison.Ordinal));
+            openedUrls.Should().Contain(u => u.Contains("issues/new?template=feature_request.yml", StringComparison.Ordinal));
+        }
+        finally
+        {
+            SettingsViewModel.ProcessStarter = originalStarter;
+        }
+    }
 }

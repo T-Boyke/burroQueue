@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using burroQueue.Domain.Model;
 using burroQueue.Infrastructure.Audio;
 using burroQueue.Infrastructure.Configuration;
+using burroQueue.Infrastructure.Diagnostics;
 using burroQueue.Infrastructure.Network;
 using burroQueue.Infrastructure.Network.Messages;
 using burroQueue.Infrastructure.Playback;
@@ -15,10 +17,20 @@ namespace burroQueue.Presentation.ViewModels;
 
 public sealed partial class SettingsViewModel : ObservableObject
 {
+    private const string YtDlpRepoUrl = "https://github.com/yt-dlp/yt-dlp";
+    private const string AuthorProfileUrl = "https://github.com/T-Boyke";
+    private const string ProjectRepoUrl = "https://github.com/T-Boyke/burroQueue";
+    private const string BugReportUrl = "https://github.com/T-Boyke/burroQueue/issues/new?template=bug_report.yml";
+    private const string FeatureRequestUrl = "https://github.com/T-Boyke/burroQueue/issues/new?template=feature_request.yml";
+
+    internal static Action<ProcessStartInfo> ProcessStarter { get; set; } = psi => Process.Start(psi);
+
     private readonly IAppSettingsService _settingsService;
     private readonly ITelephonyManager _telephonyManager;
     private readonly IWindowsAutostartService _autostartService;
     private readonly IAudioDeviceEnumerator _audioDeviceEnumerator;
+    private readonly IStreamUriResolver? _streamResolver;
+    private readonly IGitHubRepoStatsClient? _gitHubStatsClient;
     private readonly ILocalNetworkInfoService? _networkInfo;
     private readonly BurroGroup? _group;
     private readonly ILanGroupService? _lanGroupService;
@@ -93,6 +105,32 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private string _lanMulticastInfo = "UDP Multicast 239.255.42.99:41234";
 
+    [ObservableProperty]
+    private string _techStackSummary = ".NET 11 (C# 15) · Native WPF Fluent UI · UnoCSS 66.12.0 (0 Bootstrap)";
+
+    [ObservableProperty]
+    private string _ytDlpVersionText = "yt-dlp (Invidious Cloud-Fallback)";
+
+    [ObservableProperty]
+    private string _authorDisplayName = "Tobias Boyke";
+
+    [ObservableProperty]
+    private string _authorHandle = "@T-Boyke";
+
+    [ObservableProperty]
+    private Uri _authorAvatarUri = new("https://avatars.githubusercontent.com/u/37149164?v=4&s=72");
+
+    [ObservableProperty]
+    private string _authorStatsSummary = "17 Repos · 24 Followers · ★ 76 · AGPL-3.0";
+
+    [ObservableProperty]
+    private string _appVersionBadge = "v1.1.0";
+
+    private string _authorProfileUrl = AuthorProfileUrl;
+    private string _projectRepoUrl = ProjectRepoUrl;
+
+    internal Task AboutLoadTask { get; private set; } = Task.CompletedTask;
+
     public ObservableCollection<DiscoveredGroupItem> DiscoveredGroups { get; } = [];
 
     public IReadOnlyList<ITelephonyProvider> AvailableTelephonyProviders => _telephonyManager.AvailableProviders;
@@ -110,12 +148,15 @@ public sealed partial class SettingsViewModel : ObservableObject
         IEmbeddedWebDropServer? webDropServer = null,
         ILocalNetworkInfoService? networkInfo = null,
         BurroGroup? group = null,
-        ILanGroupService? lanGroupService = null)
+        ILanGroupService? lanGroupService = null,
+        IGitHubRepoStatsClient? gitHubStatsClient = null)
     {
         _settingsService = settingsService;
         _telephonyManager = telephonyManager;
         _autostartService = autostartService;
         _audioDeviceEnumerator = audioDeviceEnumerator;
+        _streamResolver = streamResolver;
+        _gitHubStatsClient = gitHubStatsClient;
         _networkInfo = networkInfo;
         _group = group;
         _lanGroupService = lanGroupService;
@@ -162,6 +203,69 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (_lanGroupService is not null)
         {
             _lanGroupService.GroupDiscovered += OnGroupDiscovered;
+        }
+
+        AboutLoadTask = LoadAboutMetadataAsync();
+    }
+
+    private async Task LoadAboutMetadataAsync()
+    {
+        if (_streamResolver is not null)
+        {
+            if (_streamResolver.IsYtDlpAvailable)
+            {
+                string? ver = await _streamResolver.GetYtDlpVersionAsync().ConfigureAwait(false);
+                YtDlpVersionText = string.IsNullOrWhiteSpace(ver)
+                    ? "yt-dlp (Lokal installiert)"
+                    : $"yt-dlp {ver}";
+            }
+            else
+            {
+                YtDlpVersionText = "Nicht lokal installiert (Invidious Cloud-Fallback)";
+            }
+        }
+
+        if (_gitHubStatsClient is not null)
+        {
+            GitHubAboutSnapshot snap = await _gitHubStatsClient.FetchSnapshotAsync().ConfigureAwait(false);
+            AuthorDisplayName = snap.AuthorDisplayName;
+            AuthorHandle = snap.AuthorHandle;
+            AuthorAvatarUri = snap.AuthorAvatarUri;
+            _authorProfileUrl = snap.AuthorProfileUri.ToString();
+            _projectRepoUrl = snap.RepositoryUri.ToString();
+            AppVersionBadge = $"v{snap.AppVersion}";
+            AuthorStatsSummary = $"{snap.PublicRepos} Repos · {snap.Followers} Followers · ★ {snap.Stars} · {snap.LicenseSpdx}";
+        }
+    }
+
+    [RelayCommand]
+    public void OpenYtDlpRepository() => OpenExternalUrl(YtDlpRepoUrl);
+
+    [RelayCommand]
+    public void OpenAuthorProfile() => OpenExternalUrl(_authorProfileUrl);
+
+    [RelayCommand]
+    public void OpenProjectRepository() => OpenExternalUrl(_projectRepoUrl);
+
+    [RelayCommand]
+    public void ReportBugOnGitHub() => OpenExternalUrl(BugReportUrl);
+
+    [RelayCommand]
+    public void RequestFeatureOnGitHub() => OpenExternalUrl(FeatureRequestUrl);
+
+    private void OpenExternalUrl(string url)
+    {
+        try
+        {
+            ProcessStarter(new ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            StatusMessage = "Browser konnte nicht geöffnet werden.";
         }
     }
 

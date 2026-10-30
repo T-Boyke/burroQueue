@@ -13,6 +13,7 @@ public sealed class XamlLayoutValidationTests
     [Theory]
     [InlineData("MainWindow.xaml")]
     [InlineData("SettingsWindow.xaml")]
+    [InlineData("AboutWindow.xaml")]
     public void FluentWindows_ShouldKeepRootGridMarginZero_SoTitleBarSpansFullWindowEdge(string fileName)
     {
         string path = Path.Combine(XamlSymbolValidationTests.FindSolutionRoot(), "src", "burroQueue.Presentation", "Views", fileName);
@@ -75,5 +76,17 @@ public sealed class XamlLayoutValidationTests
         rawXaml.Should().Contain("IsQuickAddInputVisible", "Quick-Add row must bind visibility to IsQuickAddInputVisible (#11)");
         rawXaml.Should().Contain("QueueContainerBorder", "Outer queue Border must collapse/shrink cleanly without empty space (#8)");
         rawXaml.Should().Contain("AvatarUriToImageSourceConverter", "Queue and Now-Playing items must render the collaborator's circular YouTube avatar (#278)");
+    }
+
+    [Fact]
+    public void SettingsWindow_ShouldIncludeAboutProjectAndStackCardWithYtDlpAuthorAndIssuesLinks()
+    {
+        string path = Path.Combine(XamlSymbolValidationTests.FindSolutionRoot(), "src", "burroQueue.Presentation", "Views", "SettingsWindow.xaml");
+        string rawXaml = File.ReadAllText(path);
+
+        rawXaml.Should().Contain("OpenYtDlpRepositoryCommand", "SettingsWindow About card must link to yt-dlp (#14)");
+        rawXaml.Should().Contain("OpenAuthorProfileCommand", "SettingsWindow About card must link to @T-Boyke (#14)");
+        rawXaml.Should().Contain("ReportBugOnGitHubCommand", "SettingsWindow About card must provide direct GitHub Bug report shortcut (#14)");
+        rawXaml.Should().Contain("AuthorAvatarUri", "SettingsWindow About card must render the circular 36x36 @T-Boyke avatar (#14)");
     }
 }

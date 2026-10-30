@@ -69,6 +69,22 @@ public sealed class AvatarBitmapCacheServiceTests
     }
 
     [Fact]
+    public async Task GetOrLoadAsync_WhenValidGitHubUserContentAvatarUri_ShouldAllowCreatorProfileAvatar()
+    {
+        byte[] pngBytes = CreateTinyPngBytes();
+        using HttpClient http = new(new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(pngBytes)
+        }));
+
+        using AvatarBitmapCacheService cache = new(http, maxEntries: 4);
+        ImageSource? avatar = await cache.GetOrLoadAsync(new Uri("https://avatars.githubusercontent.com/u/37149164?v=4&s=72"));
+
+        avatar.Should().NotBeNull();
+        avatar!.IsFrozen.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task GetOrLoadAsync_WhenCapacityExceeded_ShouldEvictLeastRecentlyUsedAvatar()
     {
         byte[] pngBytes = CreateTinyPngBytes();

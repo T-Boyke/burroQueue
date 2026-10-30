@@ -5,72 +5,84 @@
   xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
   Title="Über burroQueue"
   Icon="pack://application:,,,/burroQueue;component/Assets/logo.png"
-  Width="420"
-  Height="520"
+  Width="440"
+  Height="560"
   WindowStartupLocation="CenterOwner"
   ExtendsContentIntoTitleBar="True"
   WindowBackdropType="Mica"
   WindowCornerPreference="Round"
   ResizeMode="NoResize"
   FontFamily="Segoe UI Variable Text, Segoe UI, sans-serif">
-  <Grid Margin="18">
+  <Grid Margin="0">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
-      <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
-      <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
-    <!-- Native Title Bar with Burro Icon -->
-    <ui:TitleBar Title="Über burroQueue" Grid.Row="0">
+    <!-- Native Title Bar flush with window edges -->
+    <ui:TitleBar Title="Über burroQueue" Grid.Row="0" Margin="0" Padding="12,0,0,0">
       <ui:TitleBar.Icon>
         <ui:ImageIcon Source="pack://application:,,,/burroQueue;component/Assets/logo.png" />
       </ui:TitleBar.Icon>
     </ui:TitleBar>
 
-    <!-- Header mit App-Icon und Name -->
-    <StackPanel Grid.Row="1" HorizontalAlignment="Center" Margin="0,4,0,12">
-      <Image Source="pack://application:,,,/burroQueue;component/Assets/logo.png" Width="64" Height="64" Margin="0,0,0,8" />
-      <TextBlock Text="burroQueue" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" />
-      <TextBlock Text="Kollaborative Windows 11 Office-Jukebox" FontSize="12" Opacity="0.7" HorizontalAlignment="Center" />
-      <TextBlock Text="Version 1.0.0 (Release x64)" FontSize="11" Opacity="0.5" HorizontalAlignment="Center" Margin="0,2,0,0" />
-    </StackPanel>
+    <Grid Grid.Row="1" Margin="18,6,18,18">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
 
-    <!-- Details Card -->
-    <Border
-      Grid.Row="2"
-      Padding="14,12"
-      CornerRadius="8"
-      Background="{DynamicResource SubtleFillColorSecondaryBrush}"
-      BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
-      BorderThickness="1">
-      <StackPanel>
-        <TextBlock Text="Projekt &amp; Stack" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6" />
-        <TextBlock Text="• Runtime: .NET 10 (net10.0-windows) / C# 14" FontSize="11" Margin="0,2" />
-        <TextBlock Text="• UI: Native WPF + Wpf.Ui (Fluent Design &amp; Mica)" FontSize="11" Margin="0,2" />
-        <TextBlock Text="• Architektur: Domain-Driven Design (DDD) &amp; TDD" FontSize="11" Margin="0,2" />
-        <TextBlock Text="• Netzwerk: P2P LAN Multicast Discovery (239.255.42.99)" FontSize="11" Margin="0,2" />
-        <TextBlock Text="• Audio: Core Audio Endpoints &amp; SwyxIt! Ducking" FontSize="11" Margin="0,2" />
-        <TextBlock Text="• Lizenz: GNU AGPL v3.0 (Copyleft)" FontSize="11" Margin="0,2" />
-
-        <Separator Margin="0,8" Opacity="0.3" />
-
-        <TextBlock Text="GitHub Repository:" FontSize="11" FontWeight="SemiBold" Margin="0,2" />
-        <ui:HyperlinkButton
-          Content="https://github.com/T-Boyke/burroQueue"
-          NavigateUri="https://github.com/T-Boyke/burroQueue"
-          Padding="0"
-          FontSize="11" />
+      <!-- Header mit App-Icon und Name -->
+      <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,4,0,12">
+        <Image Source="pack://application:,,,/burroQueue;component/Assets/logo.png" Width="60" Height="60" Margin="0,0,0,8" />
+        <TextBlock Text="burroQueue" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" />
+        <TextBlock Text="Kollaborative Windows 11 Office-Jukebox" FontSize="12" Opacity="0.7" HorizontalAlignment="Center" />
+        <TextBlock Text="Version 1.1.0 (Release x64 · .NET 11)" FontSize="11" Opacity="0.55" HorizontalAlignment="Center" Margin="0,2,0,0" />
       </StackPanel>
-    </Border>
 
-    <!-- Schließen Button -->
-    <ui:Button
-      Grid.Row="3"
-      Margin="0,12,0,0"
-      HorizontalAlignment="Right"
-      Appearance="Primary"
-      Content="Schließen"
-      Click="OnCloseClicked" />
+      <!-- Details Card -->
+      <Border
+        Grid.Row="1"
+        Padding="14,12"
+        CornerRadius="8"
+        Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+        BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+        BorderThickness="1">
+        <StackPanel>
+          <TextBlock Text="Projekt &amp; Stack" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6" />
+          <TextBlock Text="• Runtime: .NET 11 (net11.0-windows) / C# 15" FontSize="11" Margin="0,2" />
+          <TextBlock Text="• UI: Native WPF + Wpf.Ui (Fluent Design, Mica/Acrylic)" FontSize="11" Margin="0,2" />
+          <TextBlock Text="• WebDrop: Build-Time UnoCSS 66.12.0 (0 Bootstrap, &lt; 30 MB RAM)" FontSize="11" Margin="0,2" />
+          <TextBlock Text="• Architektur: Domain-Driven Design (DDD), TDD &amp; 1CPF" FontSize="11" Margin="0,2" />
+          <TextBlock Text="• Audio-Extraktion: yt-dlp (https://github.com/yt-dlp/yt-dlp)" FontSize="11" Margin="0,2" />
+          <TextBlock Text="• Lizenz: GNU AGPL v3.0 (AGPL-3.0-only)" FontSize="11" Margin="0,2" />
+
+          <Separator Margin="0,8" Opacity="0.3" />
+
+          <TextBlock Text="Autor: Tobias Boyke (@T-Boyke)" FontSize="11" FontWeight="SemiBold" Margin="0,2" />
+          <ui:HyperlinkButton
+            Content="https://github.com/T-Boyke/burroQueue"
+            NavigateUri="https://github.com/T-Boyke/burroQueue"
+            Padding="0"
+            FontSize="11" />
+          <ui:HyperlinkButton
+            Content="Bug melden / Feature wünschen (GitHub Issues)"
+            NavigateUri="https://github.com/T-Boyke/burroQueue/issues/new/choose"
+            Padding="0"
+            Margin="0,2,0,0"
+            FontSize="11" />
+        </StackPanel>
+      </Border>
+
+      <!-- Schließen Button -->
+      <ui:Button
+        Grid.Row="2"
+        Margin="0,12,0,0"
+        HorizontalAlignment="Right"
+        Appearance="Primary"
+        Content="Schließen"
+        Click="OnCloseClicked" />
+    </Grid>
   </Grid>
 </ui:FluentWindow>

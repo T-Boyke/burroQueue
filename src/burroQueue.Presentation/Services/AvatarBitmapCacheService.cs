@@ -40,7 +40,7 @@ public sealed class AvatarBitmapCacheService : IAvatarBitmapCacheService
 
     public ImageSource? TryGetCached(Uri? avatarUri)
     {
-        Uri? clean = Track.SanitizeAvatarUri(avatarUri);
+        Uri? clean = SanitizeDisplayAvatarUri(avatarUri);
         if (clean is null)
         {
             return null;
@@ -60,7 +60,7 @@ public sealed class AvatarBitmapCacheService : IAvatarBitmapCacheService
 
     public Task<ImageSource?> GetOrLoadAsync(Uri? avatarUri, CancellationToken cancellationToken = default)
     {
-        Uri? clean = Track.SanitizeAvatarUri(avatarUri);
+        Uri? clean = SanitizeDisplayAvatarUri(avatarUri);
         if (clean is null)
         {
             return Task.FromResult<ImageSource?>(null);
@@ -83,6 +83,25 @@ public sealed class AvatarBitmapCacheService : IAvatarBitmapCacheService
             _inflight[clean] = loadTask;
             return loadTask;
         }
+    }
+
+    private static Uri? SanitizeDisplayAvatarUri(Uri? candidate)
+    {
+        Uri? youtubeClean = Track.SanitizeAvatarUri(candidate);
+        if (youtubeClean is not null)
+        {
+            return youtubeClean;
+        }
+
+        if (candidate is not null &&
+            candidate.IsAbsoluteUri &&
+            string.Equals(candidate.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) &&
+            candidate.Host.EndsWith(".githubusercontent.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return candidate;
+        }
+
+        return null;
     }
 
     private async Task<ImageSource?> LoadAndFreezeAsync(Uri cleanUri, CancellationToken cancellationToken)

@@ -12,6 +12,24 @@ public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
 
     public bool IsYtDlpAvailable => !string.IsNullOrEmpty(_ytDlpPath);
 
+    public async Task<string?> GetYtDlpVersionAsync(CancellationToken cancellationToken = default)
+    {
+        if (_explicitlyDisabledYtDlp || string.IsNullOrWhiteSpace(_ytDlpPath))
+        {
+            return null;
+        }
+
+        try
+        {
+            string? output = await ProcessRunner(_ytDlpPath, "--version", cancellationToken).ConfigureAwait(false);
+            return string.IsNullOrWhiteSpace(output) ? null : output.Trim();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     internal static Func<string, string, CancellationToken, Task<string?>> ProcessRunner { get; set; } = DefaultRunProcessAsync;
 
     public YouTubeAudioStreamResolver(HttpClient? httpClient = null, string? ytDlpPath = null)
