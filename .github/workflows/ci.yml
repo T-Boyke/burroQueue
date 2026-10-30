@@ -47,10 +47,11 @@ jobs:
           npm ci
           npm run build:css
 
-      - name: Setup .NET 11 SDK (global.json)
+      - name: Setup .NET 11 SDK
         uses: actions/setup-dotnet@v6
         with:
-          global-json-file: global.json
+          dotnet-version: '11.0.x'
+          dotnet-quality: 'preview'
 
       - name: Verify DDD Boundaries & SFC / 1CPF Rule
         shell: pwsh
