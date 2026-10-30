@@ -70,3 +70,6 @@ ehthumbs.db
 Desktop.ini
 .DS_Store
 
+
+# Build-time UnoCSS WebDrop dependencies
+node_modules/

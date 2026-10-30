@@ -254,6 +254,15 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
                     await stream.WriteAsync(svgBytes, token).ConfigureAwait(false);
                     await stream.FlushAsync(token).ConfigureAwait(false);
                 }
+                else if (method == "GET" && (path == "/assets/webdrop.css" || path.StartsWith("/assets/webdrop.css?", StringComparison.Ordinal)))
+                {
+                    ReadOnlyMemory<byte> cssBytes = WebDropStylesheetProvider.GetCssUtf8Bytes();
+                    byte[] headerBytes = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: text/css; charset=utf-8\r\nCache-Control: public, max-age=3600\r\nContent-Length: {cssBytes.Length}\r\nConnection: close\r\n\r\n");
+
+                    await stream.WriteAsync(headerBytes, token).ConfigureAwait(false);
+                    await stream.WriteAsync(cssBytes, token).ConfigureAwait(false);
+                    await stream.FlushAsync(token).ConfigureAwait(false);
+                }
                 else if (method == "GET" && (path == "/api/status" || path.StartsWith("/api/status?", StringComparison.Ordinal)))
                 {
                     string statusJson = GenerateStatusJson();
@@ -358,305 +367,98 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
         bool isVoted = path?.Contains("status=voted", StringComparison.OrdinalIgnoreCase) == true;
 
         sb.Append(@"<!DOCTYPE html>
-<html lang='de'>
+<html lang='de' data-style-engine='unocss-66.12.0'>
 <head>
     <meta charset='utf-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1'>
     <title>burroQueue &ndash; Web Drop</title>
-    <style>
-        :root {
-            --bg-page: #141416;
-            --bg-card: #202023;
-            --bg-subtle: #27272b;
-            --border: rgba(255, 255, 255, 0.08);
-            --border-focus: #60cdff;
-            --text-main: #f5f5f7;
-            --text-secondary: #9a9aa0;
-            --accent: #60cdff;
-            --accent-hover: #78d5ff;
-            --accent-active: #4abce8;
-            --success-bg: rgba(56, 178, 107, 0.15);
-            --success-border: rgba(56, 178, 107, 0.35);
-            --success-text: #5fe09a;
-        }
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            padding: 24px 16px;
-            background-color: var(--bg-page);
-            color: var(--text-main);
-            font-family: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
-            -webkit-font-smoothing: antialiased;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-        }
-        .container {
-            width: 100%;
-            max-width: 460px;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 28px 24px;
-            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
-        }
-        .brand-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-        .brand-title {
-            font-size: 20px;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            color: var(--text-main);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .brand-accent {
-            color: var(--accent);
-        }
-        .group-badge {
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--text-secondary);
-            background: var(--bg-subtle);
-            border: 1px solid var(--border);
-            padding: 4px 8px;
-            border-radius: 6px;
-        }
-        .toast {
-            background: var(--success-bg);
-            border: 1px solid var(--success-border);
-            color: var(--success-text);
-            font-size: 13px;
-            font-weight: 500;
-            padding: 10px 14px;
-            border-radius: 8px;
-            margin-bottom: 18px;
-            text-align: center;
-        }
-        .section-card {
-            background: var(--bg-subtle);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 14px 16px;
-            margin-bottom: 16px;
-            text-align: left;
-        }
-        .section-label {
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--accent);
-            margin-bottom: 4px;
-        }
-        .now-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--text-main);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .now-submitter {
-            font-size: 12px;
-            color: var(--text-secondary);
-            margin-top: 3px;
-        }
-        .skip-form {
-            margin-top: 10px;
-        }
-        .btn-skip {
-            background: transparent;
-            color: var(--text-secondary);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 6px 12px;
-            font-size: 12px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
-        .btn-skip:hover {
-            color: var(--text-main);
-            border-color: rgba(255, 255, 255, 0.2);
-            background: rgba(255, 255, 255, 0.04);
-        }
-        .btn-skip:active {
-            transform: scale(0.98);
-        }
-        .queue-container {
-            max-height: 140px;
-            overflow-y: auto;
-            margin-top: 8px;
-        }
-        .queue-list {
-            margin: 0;
-            padding-left: 20px;
-            font-size: 13px;
-            color: var(--text-main);
-        }
-        .queue-list li {
-            margin-bottom: 4px;
-        }
-        .queue-empty {
-            font-size: 13px;
-            color: var(--text-secondary);
-            font-style: italic;
-        }
-        .form-group {
-            margin-bottom: 12px;
-            text-align: left;
-        }
-        .form-label {
-            display: block;
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--text-secondary);
-            margin-bottom: 6px;
-        }
-        .input-text {
-            width: 100%;
-            background: #19191b;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 10px 12px;
-            color: var(--text-main);
-            font-size: 14px;
-            font-family: inherit;
-            outline: none;
-            transition: border-color 0.15s ease;
-        }
-        .input-text:focus {
-            border-color: var(--border-focus);
-        }
-        .input-text::placeholder {
-            color: rgba(255, 255, 255, 0.3);
-        }
-        .btn-primary {
-            width: 100%;
-            background: var(--accent);
-            color: #0b0f14;
-            border: none;
-            border-radius: 6px;
-            padding: 12px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            font-family: inherit;
-            transition: background 0.15s ease, transform 0.05s ease;
-            margin-top: 6px;
-        }
-        .btn-primary:hover {
-            background: var(--accent-hover);
-        }
-        .btn-primary:active {
-            background: var(--accent-active);
-            transform: scale(0.99);
-        }
-        .footer-note {
-            margin-top: 24px;
-            font-size: 11px;
-            color: var(--text-secondary);
-            text-align: center;
-        }
-        .footer-note a {
-            color: var(--text-secondary);
-            text-decoration: underline;
-        }
-    </style>
+    <link rel='stylesheet' href='/assets/webdrop.css'>
 </head>
-<body>
-    <div class='container'>
-        <div class='brand-header'>
-            <div class='brand-title'>
-                <span class='brand-accent'>burro</span>Queue
+<body class='bq-page'>
+    <main class='bq-shell'>
+        <header class='flex items-center justify-between mb-5'>
+            <div class='text-xl font-bold tracking-tight text-fluent-text flex items-center gap-1'>
+                <span><span class='text-fluent-accent'>burro</span>Queue</span>
             </div>");
 
-        sb.Append(CultureInfo.InvariantCulture, $"<div class='group-badge'>{WebUtility.HtmlEncode(groupName)}</div></div>");
+        sb.Append(CultureInfo.InvariantCulture, $"<div class='bq-badge'>{WebUtility.HtmlEncode(groupName)}</div></header>");
 
         if (isDropped)
         {
-            sb.Append("<div class='toast'>Titel erfolgreich zur Warteschlange hinzugefügt.</div>");
+            sb.Append("<div class='bq-toast'>Titel erfolgreich zur Warteschlange hinzugefügt.</div>");
         }
         else if (isVoted)
         {
-            sb.Append("<div class='toast'>Deine Stimme für Skip wurde gezählt.</div>");
+            sb.Append("<div class='bq-toast'>Deine Stimme für Skip wurde gezählt.</div>");
         }
 
-        sb.Append("<div class='section-card'>");
-        sb.Append("<div class='section-label'>Aktuell l&auml;uft</div>");
+        sb.Append("<section class='bq-section'>");
+        sb.Append("<div class='bq-section-label'>Aktuell l&auml;uft</div>");
 
         Domain.Model.Track? currentTrack = _group?.Playlist.CurrentTrack;
         if (currentTrack is not null)
         {
-            sb.Append(CultureInfo.InvariantCulture, $"<div class='now-title' id='now-playing-title'>{WebUtility.HtmlEncode(currentTrack.Title)}</div>");
-            sb.Append(CultureInfo.InvariantCulture, $"<div class='now-submitter' id='now-playing-submitter'>Eingeworfen von: {WebUtility.HtmlEncode(currentTrack.SubmittedBy)}</div>");
+            sb.Append(CultureInfo.InvariantCulture, $"<div class='text-[15px] font-semibold text-fluent-text truncate' id='now-playing-title'>{WebUtility.HtmlEncode(currentTrack.Title)}</div>");
+            sb.Append(CultureInfo.InvariantCulture, $"<div class='text-xs text-fluent-muted mt-1' id='now-playing-submitter'>Eingeworfen von: {WebUtility.HtmlEncode(currentTrack.SubmittedBy)}</div>");
         }
         else
         {
-            sb.Append("<div class='now-title' id='now-playing-title' style='color:var(--text-secondary);'>Kein Song aktiv</div>");
-            sb.Append("<div class='now-submitter' id='now-playing-submitter'></div>");
+            sb.Append("<div class='text-[15px] font-semibold text-fluent-muted truncate' id='now-playing-title'>Kein Song aktiv</div>");
+            sb.Append("<div class='text-xs text-fluent-muted mt-1' id='now-playing-submitter'></div>");
         }
 
         string voteLabel = !string.IsNullOrWhiteSpace(skipVoteStatus) ? $" ({WebUtility.HtmlEncode(skipVoteStatus)})" : string.Empty;
         string skipBtnDisplay = currentTrack is not null ? "block" : "none";
-        sb.Append(CultureInfo.InvariantCulture, $@"<form method='POST' action='/vote-skip' class='skip-form' id='skip-form' style='display:{skipBtnDisplay};'>
-            <button type='submit' class='btn-skip' id='skip-btn'>F&uuml;r Skip stimmen{voteLabel}</button>
+        sb.Append(CultureInfo.InvariantCulture, $@"<form method='POST' action='/vote-skip' class='mt-2.5' id='skip-form' style='display:{skipBtnDisplay};'>
+            <button type='submit' class='bq-btn-skip' id='skip-btn'>F&uuml;r Skip stimmen{voteLabel}</button>
         </form>
-        </div>");
+        </section>");
 
-        sb.Append(@"<div class='section-card'>
-            <div class='section-label'>Warteschlange</div>
-            <div class='queue-container'>");
+        sb.Append(@"<section class='bq-section'>
+            <div class='bq-section-label'>Warteschlange</div>
+            <div class='max-h-[140px] overflow-y-auto mt-2'>");
 
         List<Domain.Model.Track>? queued = _group?.Playlist.QueuedTracks.ToList();
         bool hasQueued = queued is not null && queued.Count > 0;
         string queueListDisplay = hasQueued ? "block" : "none";
         string queueEmptyDisplay = hasQueued ? "none" : "block";
 
-        sb.Append(CultureInfo.InvariantCulture, $"<ol class='queue-list' id='queue-list' style='display:{queueListDisplay};'>");
+        sb.Append(CultureInfo.InvariantCulture, $"<ol class='m-0 pl-5 text-[13px] text-fluent-text space-y-1' id='queue-list' style='display:{queueListDisplay};'>");
         if (queued is not null)
         {
             foreach (Domain.Model.Track t in queued)
             {
-                sb.Append(CultureInfo.InvariantCulture, $"<li>{WebUtility.HtmlEncode(t.Title)} ({WebUtility.HtmlEncode(t.SubmittedBy)})</li>");
+                sb.Append(CultureInfo.InvariantCulture, $"<li class='mb-1'>{WebUtility.HtmlEncode(t.Title)} ({WebUtility.HtmlEncode(t.SubmittedBy)})</li>");
             }
         }
         sb.Append("</ol>");
-        sb.Append(CultureInfo.InvariantCulture, $"<div class='queue-empty' id='queue-empty' style='display:{queueEmptyDisplay};'>Warteschlange ist leer</div>");
-        sb.Append("</div></div>");
+        sb.Append(CultureInfo.InvariantCulture, $"<div class='text-[13px] text-fluent-muted italic' id='queue-empty' style='display:{queueEmptyDisplay};'>Warteschlange ist leer</div>");
+        sb.Append("</div></section>");
 
-        sb.Append(@"<div style='display:flex;align-items:center;gap:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:14px;'>
-            <img src='/qr.svg' width='48' height='48' style='border-radius:4px;background:#ffffff;padding:2px;' alt='QR-Code' />
+        sb.Append(@"<div class='flex items-center gap-3 bg-fluent-subtle border border-solid border-fluent-border rounded-lg px-3 py-2 mb-3.5'>
+            <img src='/qr.svg' width='48' height='48' class='rounded bg-white p-0.5 shrink-0' alt='QR-Code' />
             <div>
-                <div style='font-size:12px;font-weight:600;color:var(--text-main);'>Smartphone Direkt-Drop</div>
-                <div style='font-size:11px;color:var(--text-secondary);'>QR-Code mit dem Handy scannen, um Songs mobil einzuwerfen.</div>
+                <div class='text-xs font-semibold text-fluent-text'>Smartphone Direkt-Drop</div>
+                <div class='text-[11px] text-fluent-muted'>QR-Code mit dem Handy scannen, um Songs mobil einzuwerfen.</div>
             </div>
         </div>");
 
         sb.Append(@"<form method='POST' action='/drop'>
-
-            <div class='form-group'>
-                <label for='submitter' class='form-label'>Dein Name (optional)</label>
-                <input type='text' id='submitter' name='submitter' placeholder='z. B. Alex' class='input-text' maxlength='40' />
+            <div class='mb-3 text-left'>
+                <label for='submitter' class='block text-xs font-semibold text-fluent-muted mb-1.5'>Dein Name (optional)</label>
+                <input type='text' id='submitter' name='submitter' placeholder='z. B. Alex' class='bq-input' maxlength='40' />
             </div>
-            <div class='form-group'>
-                <label for='url' class='form-label'>YouTube-Link</label>
-                <input type='url' id='url' name='url' placeholder='https://www.youtube.com/watch?v=...' required autofocus class='input-text' />
+            <div class='mb-3 text-left'>
+                <label for='url' class='block text-xs font-semibold text-fluent-muted mb-1.5'>YouTube-Link</label>
+                <input type='url' id='url' name='url' placeholder='https://www.youtube.com/watch?v=...' required autofocus class='bq-input' />
             </div>
-            <button type='submit' class='btn-primary'>In Warteschlange werfen</button>
+            <button type='submit' class='bq-btn-primary'>In Warteschlange werfen</button>
         </form>
 
-        <div class='footer-note'>
-            burroQueue &bull; Lizenziert unter GNU AGPL-3.0 &bull; <a href='https://github.com/T-Boyke/burroQueue' target='_blank' rel='noopener'>GitHub</a>
-        </div>
-    </div>
+        <footer class='mt-6 text-[11px] text-fluent-muted text-center'>
+            burroQueue &bull; Lizenziert unter GNU AGPL-3.0 &bull; <a href='https://github.com/T-Boyke/burroQueue' target='_blank' rel='noopener' class='text-fluent-muted underline hover:text-fluent-text'>GitHub</a>
+        </footer>
+    </main>
 
     <script>
         const nameField = document.getElementById('submitter');
@@ -682,7 +484,8 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
                     if (data.currentTrack) {
                         if (titleEl) {
                             titleEl.textContent = data.currentTrack.title;
-                            titleEl.style.color = 'var(--text-main)';
+                            titleEl.classList.remove('text-fluent-muted');
+                            titleEl.classList.add('text-fluent-text');
                         }
                         if (subEl) subEl.textContent = 'Eingeworfen von: ' + (data.currentTrack.submittedBy || 'Anonym');
                         if (skipForm) skipForm.style.display = 'block';
@@ -690,7 +493,8 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
                     } else {
                         if (titleEl) {
                             titleEl.textContent = 'Kein Song aktiv';
-                            titleEl.style.color = 'var(--text-secondary)';
+                            titleEl.classList.remove('text-fluent-text');
+                            titleEl.classList.add('text-fluent-muted');
                         }
                         if (subEl) subEl.textContent = '';
                         if (skipForm) skipForm.style.display = 'none';
@@ -703,6 +507,7 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
                             listEl.innerHTML = '';
                             data.queuedTracks.forEach(t => {
                                 const li = document.createElement('li');
+                                li.className = 'mb-1';
                                 li.textContent = t.title + ' (' + (t.submittedBy || 'Anonym') + ')';
                                 listEl.appendChild(li);
                             });

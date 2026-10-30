@@ -414,6 +414,37 @@ public sealed class WebDropServerIntegrationTests : IAsyncLifetime, IDisposable
         svg.Should().EndWith("</svg>");
         svg.Should().Contain("<rect");
     }
+
+    [Fact]
+    public async Task GetWebDropStylesheet_ShouldReturnUnoCssWithTextCssContentTypeAndNoBootstrap()
+    {
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
+        HttpResponseMessage response = await _httpClient!.GetAsync($"http://localhost:{_port}/assets/webdrop.css");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("text/css");
+        string css = await response.Content.ReadAsStringAsync();
+        css.Should().Contain(".bq-shell");
+        css.Should().Contain(".bq-btn-primary");
+        css.Should().NotContainEquivalentOf("bootstrap");
+    }
+
+    [Fact]
+    public void GeneratePageHtml_ShouldReferenceUnoCssStylesheetAndFluentShellClasses()
+    {
+        EmbeddedWebDropServer server = new(8080, _group);
+
+        string html = server.GeneratePageHtml();
+
+        html.Should().Contain("data-style-engine='unocss-66.12.0'");
+        html.Should().Contain("href='/assets/webdrop.css'");
+        html.Should().Contain("class='bq-shell'");
+        html.Should().NotContainEquivalentOf("bootstrap");
+    }
 }
 
 

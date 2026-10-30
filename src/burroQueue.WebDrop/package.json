@@ -1,0 +1,14 @@
+{
+  "name": "burroqueue-webdrop-unocss",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Build-time UnoCSS 66.12.0 atomic Windows 11 Fluent stylesheet pipeline for burroQueue WebDrop (zero Bootstrap, zero runtime Node overhead)",
+  "scripts": {
+    "build:css": "unocss \"template.html\" \"../burroQueue.Infrastructure/Web/EmbeddedWebDropServer.cs\" -c uno.config.mjs -o ../burroQueue.Infrastructure/Web/Assets/webdrop.uno.min.css --minify"
+  },
+  "devDependencies": {
+    "@unocss/cli": "66.12.0",
+    "unocss": "66.12.0"
+  }
+}

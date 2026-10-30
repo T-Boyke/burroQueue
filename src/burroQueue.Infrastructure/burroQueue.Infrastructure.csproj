@@ -9,6 +9,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Web\Assets\webdrop.uno.min.css" LogicalName="burroQueue.Infrastructure.Web.Assets.webdrop.uno.min.css" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\burroQueue.Domain\burroQueue.Domain.csproj" />
   </ItemGroup>
 
