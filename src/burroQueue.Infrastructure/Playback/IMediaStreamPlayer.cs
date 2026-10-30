@@ -17,4 +17,8 @@ public interface IMediaStreamPlayer : IAsyncDisposable
     void Pause();
 
     void StopPlayback();
+
+    void Seek(TimeSpan position)
+    {
+    }
 }

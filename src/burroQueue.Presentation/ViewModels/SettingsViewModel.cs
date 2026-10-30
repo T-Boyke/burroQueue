@@ -438,7 +438,10 @@ public sealed partial class SettingsViewModel : ObservableObject
             AutoSyncCollaborativePlaylist = AutoSyncCollaborativePlaylist,
             AutoSyncPlaylistIntervalSeconds = Math.Clamp(AutoSyncPlaylistIntervalSeconds, 15, 3600),
             WindowBackdrop = string.IsNullOrWhiteSpace(SelectedWindowBackdrop) ? "Mica" : SelectedWindowBackdrop,
-            UseSystemAccentColor = UseSystemAccentColor
+            UseSystemAccentColor = UseSystemAccentColor,
+            AppLanguage = _settingsService.CurrentSettings.AppLanguage,
+            ClipboardDetectionMode = _settingsService.CurrentSettings.ClipboardDetectionMode,
+            MaxMusicDurationMinutes = _settingsService.CurrentSettings.MaxMusicDurationMinutes
         };
 
         await _settingsService.SaveAsync(data).ConfigureAwait(false);

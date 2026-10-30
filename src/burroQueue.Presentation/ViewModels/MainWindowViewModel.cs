@@ -49,6 +49,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _duckingReleaseCts;
     private CancellationTokenSource? _playlistAutoSyncCts;
     private readonly System.Windows.Threading.DispatcherTimer? _playbackTimer;
+    private int _checkpointTickCounter;
 
     internal static Func<TimeSpan, CancellationToken, Task> DelayProvider { get; set; } = Task.Delay;
 
@@ -370,13 +371,26 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             await _playlistStorage.LoadPlaylistAsync(_group.Playlist).ConfigureAwait(false);
             RunOnUi(SyncQueuedItems);
+
+            QueuePlaybackCursor restoredCursor = _playlistStorage.LastLoadedCursor;
+            if (_group.Playlist.CurrentTrack is { } restoredTrack && restoredCursor.PlaybackPosition > TimeSpan.Zero)
+            {
+                await _audioPlayerBackend.PreparePausedAtPositionAsync(restoredTrack, restoredCursor.PlaybackPosition).ConfigureAwait(false);
+                RunOnUi(() =>
+                {
+                    _group.Pause();
+                    PlaybackState = _group.PlaybackState;
+                    PlaybackTimeFormatted = $"{restoredCursor.PlaybackPosition:mm\\:ss} / --:--";
+                    StatusMessage = $"Bereit ab {restoredCursor.PlaybackPosition:mm\\:ss}: {restoredTrack.Title}";
+                });
+            }
         }
         catch
         {
             // Fail-safe: Fallback auf leere Playlist
         }
 
-        if (_group.Playlist.Count == 0 && !string.IsNullOrWhiteSpace(CollaborativePlaylistUrl))
+        if (_group.Playlist.TotalCount == 0 && !string.IsNullOrWhiteSpace(CollaborativePlaylistUrl))
         {
             await ImportPlaylistFromYouTubeAsync(CollaborativePlaylistUrl).ConfigureAwait(false);
         }
@@ -384,12 +398,21 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         ConfigurePlaylistAutoSyncLoop();
     }
 
+    public QueuePlaybackCursor CapturePlaybackCursor() =>
+        new(
+            _group.Playlist.CurrentTrack?.VideoId ?? string.Empty,
+            _group.Playlist.CurrentTrackIndex,
+            _audioPlayerBackend.Position,
+            PlaybackState == PlaybackState.Playing);
+
     private void AutoSavePlaylist()
     {
+        QueuePlaybackCursor cursor = CapturePlaybackCursor();
         AutoSaveTask = Task.Run(async () =>
         {
             try
             {
+                _playlistStorage.UpdatePlaybackCursor(cursor);
                 await _playlistStorage.SavePlaylistAsync(_group.Playlist).ConfigureAwait(false);
             }
             catch
@@ -971,6 +994,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         PlaybackState = _group.PlaybackState;
         RunOnUi(() => _playbackTimer?.Stop());
         await _audioPlayerBackend.PauseAsync().ConfigureAwait(false);
+        AutoSavePlaylist();
         await _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "Pause").ConfigureAwait(false);
     }
 
@@ -1511,6 +1535,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             PlaybackProgress = 0.0;
             PlaybackTimeFormatted = $"{pos:mm\\:ss} / --:--";
+        }
+
+        if (++_checkpointTickCounter >= 15)
+        {
+            _checkpointTickCounter = 0;
+            AutoSavePlaylist();
         }
     }
 

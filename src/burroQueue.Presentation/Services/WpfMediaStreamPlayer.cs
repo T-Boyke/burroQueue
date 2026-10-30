@@ -7,6 +7,7 @@ namespace burroQueue.Presentation.Services;
 public sealed class WpfMediaStreamPlayer : IMediaStreamPlayer
 {
     private readonly MediaPlayer _mediaPlayer;
+    private TimeSpan? _pendingSeek;
     private bool _isDisposed;
 
     public double Volume
@@ -40,6 +41,14 @@ public sealed class WpfMediaStreamPlayer : IMediaStreamPlayer
     {
         AppContext.SetSwitch("Switch.System.Windows.Net.DoNotApplyZoneCheckForDefaultCredentials", true);
         _mediaPlayer = new MediaPlayer();
+        _mediaPlayer.MediaOpened += (_, _) =>
+        {
+            if (_pendingSeek is { } target)
+            {
+                _pendingSeek = null;
+                _mediaPlayer.Position = target;
+            }
+        };
         _mediaPlayer.MediaEnded += (_, e) => MediaEnded?.Invoke(this, e);
         _mediaPlayer.MediaFailed += (_, e) => App.LogStartup($"WpfMediaStreamPlayer MediaFailed: {e.ErrorException}");
     }
@@ -78,6 +87,32 @@ public sealed class WpfMediaStreamPlayer : IMediaStreamPlayer
         else
         {
             _mediaPlayer.Dispatcher.Invoke(() => _mediaPlayer.Pause());
+        }
+    }
+
+    public void Seek(TimeSpan position)
+    {
+        TimeSpan clamped = position < TimeSpan.Zero ? TimeSpan.Zero : position;
+        void ApplySeek()
+        {
+            _pendingSeek = clamped;
+            try
+            {
+                _mediaPlayer.Position = clamped;
+            }
+            catch
+            {
+                // Deferred until MediaOpened
+            }
+        }
+
+        if (_mediaPlayer.Dispatcher.CheckAccess())
+        {
+            ApplySeek();
+        }
+        else
+        {
+            _mediaPlayer.Dispatcher.Invoke(ApplySeek);
         }
     }
 

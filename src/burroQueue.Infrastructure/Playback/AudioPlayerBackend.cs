@@ -77,6 +77,30 @@ public sealed class AudioPlayerBackend : IAudioPlayerBackend
         StateChanged?.Invoke(this, _currentState);
     }
 
+    public async Task PreparePausedAtPositionAsync(Track track, TimeSpan position, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+
+        _activeTrack = track;
+        Uri? streamUri = await _streamResolver.ResolveAudioStreamUriAsync(track.VideoId, cancellationToken).ConfigureAwait(false);
+
+        if (_mediaPlayer is not null && streamUri is not null)
+        {
+            _mediaPlayer.Volume = _currentVolume;
+            _mediaPlayer.Open(streamUri);
+            _mediaPlayer.Pause();
+            _mediaPlayer.Seek(position);
+        }
+
+        _currentState = PlaybackState.Paused;
+        StateChanged?.Invoke(this, _currentState);
+    }
+
+    public void Seek(TimeSpan position)
+    {
+        _mediaPlayer?.Seek(position);
+    }
+
     public void NotifyTrackFinished()
     {
         if (_activeTrack is not null)

@@ -27,4 +27,10 @@ public sealed class AppSettingsData
     public string WindowBackdrop { get; set; } = "Mica";
 
     public bool UseSystemAccentColor { get; set; } = true;
+
+    public string AppLanguage { get; set; } = "Auto";
+
+    public string ClipboardDetectionMode { get; set; } = "AskToast";
+
+    public int MaxMusicDurationMinutes { get; set; } = 12;
 }

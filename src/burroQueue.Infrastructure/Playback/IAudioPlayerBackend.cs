@@ -25,4 +25,11 @@ public interface IAudioPlayerBackend : IAsyncDisposable
     Task ResumeAsync(CancellationToken cancellationToken = default);
 
     Task StopAsync(CancellationToken cancellationToken = default);
+
+    Task PreparePausedAtPositionAsync(Track track, TimeSpan position, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+
+    void Seek(TimeSpan position)
+    {
+    }
 }

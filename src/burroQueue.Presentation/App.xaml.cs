@@ -237,6 +237,16 @@ public partial class App : System.Windows.Application
             {
                 IPlaylistStorageService storage = serviceProvider.GetRequiredService<IPlaylistStorageService>();
                 BurroGroup group = serviceProvider.GetRequiredService<BurroGroup>();
+                IAudioPlayerBackend? backend = serviceProvider.GetService<IAudioPlayerBackend>();
+                if (backend is not null)
+                {
+                    storage.UpdatePlaybackCursor(new QueuePlaybackCursor(
+                        group.Playlist.CurrentTrack?.VideoId ?? string.Empty,
+                        group.Playlist.CurrentTrackIndex,
+                        backend.Position,
+                        group.PlaybackState == PlaybackState.Playing));
+                }
+
                 await storage.SavePlaylistAsync(group.Playlist).ConfigureAwait(false);
             }
             catch
