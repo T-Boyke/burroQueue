@@ -142,6 +142,19 @@ public partial class MainWindow : FluentWindow
     {
         ApplyThemeAndBackdrop();
         HandleHotkeyRegistration(_hotkeyService, this, _viewModel);
+        try
+        {
+            IClipboardMonitorService? clipboardMonitor = _serviceProvider?.GetService<IClipboardMonitorService>();
+            if (clipboardMonitor is not null)
+            {
+                IntPtr hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+                clipboardMonitor.ClipboardTextChanged += async (_, text) => await _viewModel.HandleClipboardTextAsync(text).ConfigureAwait(false);
+                clipboardMonitor.AttachToWindow(hwnd);
+            }
+        }
+        catch
+        {
+        }
     }
 
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]

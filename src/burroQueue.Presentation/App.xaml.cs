@@ -278,6 +278,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IStreamUriResolver, YouTubeAudioStreamResolver>();
         services.AddSingleton<IYouTubeUrlParser, YouTubeUrlParser>();
         services.AddSingleton<IYouTubeMetadataFetcher, YouTubeMetadataFetcher>();
+        services.AddSingleton<IYouTubeMusicValidator, YouTubeMusicValidator>();
         services.AddSingleton<IYouTubePlaylistReader, YouTubePlaylistReader>();
         services.AddSingleton<IYouTubePlaylistWriter, YouTubePlaylistWriter>();
         services.AddSingleton<IAudioOutputController, AudioOutputController>();
@@ -301,6 +302,7 @@ public partial class App : System.Windows.Application
 
         // Presentation Services & Views
         services.AddSingleton<IAvatarBitmapCacheService>(_ => AvatarBitmapCacheService.Shared);
+        services.AddSingleton<IClipboardMonitorService, Win32ClipboardMonitorService>();
         services.AddSingleton<ISingleInstanceManager, SingleInstanceManager>();
         services.AddSingleton<ISystrayNotificationService, SystrayNotificationService>();
         services.AddSingleton<IGlobalHotkeyService, GlobalHotkeyService>();

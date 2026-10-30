@@ -310,9 +310,34 @@
             </Grid>
 
             <CheckBox
-              Margin="0,2,0,0"
+              Margin="0,2,0,8"
               Content="Windows System-Akzentfarbe automatisch übernehmen (SystemAccentColor)"
               IsChecked="{Binding UseSystemAccentColor}" />
+
+            <Grid Margin="0,4,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                <TextBlock
+                  Text="Smart Clipboard-Erkennung (WM_CLIPBOARDUPDATE)"
+                  FontSize="12"
+                  FontWeight="Medium"
+                  Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                <TextBlock
+                  FontSize="11"
+                  Opacity="0.7"
+                  Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                  Text="Off / AskToast / AutoQueueVerifiedMusic (4-Signal Musik-Filter)" />
+              </StackPanel>
+              <ComboBox
+                Grid.Column="1"
+                Width="170"
+                VerticalAlignment="Center"
+                ItemsSource="{Binding AvailableClipboardDetectionModes}"
+                SelectedItem="{Binding SelectedClipboardDetectionMode, Mode=TwoWay}" />
+            </Grid>
           </StackPanel>
         </Border>
 

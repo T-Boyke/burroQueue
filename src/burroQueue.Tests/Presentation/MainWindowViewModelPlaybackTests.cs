@@ -1366,4 +1366,58 @@ public sealed class MainWindowViewModelPlaybackTests
         vm.FavoriteTracks.Should().BeEmpty();
         vm.QueueViewItems[0].UpvoteCount.Should().Be(0);
     }
+
+    [Fact]
+    public async Task HandleClipboardTextAsync_WhenAutoQueueVerifiedMusic_ShouldOnlyEnqueueVerifiedMusicAndRejectNonMusic()
+    {
+        burroQueue.Domain.Services.IYouTubeMusicValidator musicValidator = Substitute.For<burroQueue.Domain.Services.IYouTubeMusicValidator>();
+        musicValidator.ValidateAsync("music123456", Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
+            .Returns(new MusicValidationResult(true, "music123456", "Get Lucky", "Daft Punk - Topic", TimeSpan.FromMinutes(4), null));
+        musicValidator.ValidateAsync("talk9999999", Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
+            .Returns(new MusicValidationResult(false, "talk9999999", "2 Hour Podcast", "Tech Talk", TimeSpan.FromHours(2), "Category 'People & Blogs' is not Music"));
+
+        _urlParser.TryExtractVideoId("https://music.youtube.com/watch?v=music123456", out Arg.Any<string>()!, out Arg.Any<Uri>()!)
+            .Returns(x =>
+            {
+                x[1] = "music123456";
+                x[2] = new Uri("https://www.youtube.com/watch?v=music123456");
+                return true;
+            });
+        _urlParser.TryExtractVideoId("https://www.youtube.com/watch?v=talk9999999", out Arg.Any<string>()!, out Arg.Any<Uri>()!)
+            .Returns(x =>
+            {
+                x[1] = "talk9999999";
+                x[2] = new Uri("https://www.youtube.com/watch?v=talk9999999");
+                return true;
+            });
+
+        _settingsService.CurrentSettings.Returns(new burroQueue.Infrastructure.Configuration.AppSettingsData
+        {
+            ClipboardDetectionMode = "AutoQueueVerifiedMusic",
+            MaxMusicDurationMinutes = 12,
+            ClientDisplayName = "Tobias"
+        });
+
+        MainWindowViewModel vm = new(
+            _group,
+            _urlParser,
+            _metadataFetcher,
+            _telephonyManager,
+            _lanGroupService,
+            _audioController,
+            _settingsService,
+            _webDropServer,
+            _networkInfoService,
+            _audioPlayerBackend,
+            _playlistStorage,
+            musicValidator: musicValidator);
+
+        bool acceptedMusic = await vm.HandleClipboardTextAsync("https://music.youtube.com/watch?v=music123456");
+        acceptedMusic.Should().BeTrue();
+        _group.Playlist.AllTracks.Should().ContainSingle(t => t.VideoId == "music123456");
+
+        bool acceptedTalk = await vm.HandleClipboardTextAsync("https://www.youtube.com/watch?v=talk9999999");
+        acceptedTalk.Should().BeFalse();
+        _group.Playlist.AllTracks.Should().NotContain(t => t.VideoId == "talk9999999");
+    }
 }

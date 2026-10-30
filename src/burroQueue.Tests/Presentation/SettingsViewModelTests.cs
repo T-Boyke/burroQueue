@@ -398,4 +398,24 @@ public sealed class SettingsViewModelTests
             "Alice",
             Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task SaveSettingsAsync_ShouldPersistClipboardDetectionModeAndMaxMusicDuration()
+    {
+        SettingsViewModel vm = new(
+            _settingsService,
+            _telephonyManager,
+            _autostartService,
+            _audioDeviceEnumerator);
+
+        vm.SelectedClipboardDetectionMode = "AutoQueueVerifiedMusic";
+        vm.MaxMusicDurationMinutes = 15;
+
+        await vm.SaveSettingsAsync();
+
+        await _settingsService.Received(1).SaveAsync(Arg.Is<AppSettingsData>(d =>
+            d.ClipboardDetectionMode == "AutoQueueVerifiedMusic" &&
+            d.MaxMusicDurationMinutes == 15));
+        vm.AvailableClipboardDetectionModes.Should().ContainInOrder("Off", "AskToast", "AutoQueueVerifiedMusic");
+    }
 }

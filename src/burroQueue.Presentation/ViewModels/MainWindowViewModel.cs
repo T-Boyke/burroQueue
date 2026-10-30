@@ -41,7 +41,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private readonly IEntropySource _entropySource;
     private readonly QueueShuffleEngine _shuffleEngine;
     private readonly IFavoriteQueueRepository? _favoriteRepository;
+    private readonly IYouTubeMusicValidator? _musicValidator;
     private readonly Dictionary<string, FavoriteTrackEntry> _favoritesByVideoId = new(StringComparer.Ordinal);
+    private string _lastHandledClipboardVideoId = string.Empty;
     private readonly ClientId _localClientId = ClientId.New();
     private readonly HashSet<Guid> _activeRemoteCallPeers = [];
     private bool _localCallActive;
@@ -253,7 +255,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         IStreamUriResolver? streamUriResolver = null,
         IEntropySource? entropySource = null,
         QueueShuffleEngine? shuffleEngine = null,
-        IFavoriteQueueRepository? favoriteRepository = null)
+        IFavoriteQueueRepository? favoriteRepository = null,
+        IYouTubeMusicValidator? musicValidator = null)
     {
         _group = group ?? throw new ArgumentNullException(nameof(group));
         _urlParser = urlParser ?? throw new ArgumentNullException(nameof(urlParser));
@@ -274,6 +277,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _entropySource = entropySource ?? new HardwareCsprngEntropySource();
         _shuffleEngine = shuffleEngine ?? new QueueShuffleEngine();
         _favoriteRepository = favoriteRepository;
+        _musicValidator = musicValidator;
         _networkInfoService = networkInfoService ?? throw new ArgumentNullException(nameof(networkInfoService));
 
         _groupName = _group.Name;
@@ -737,6 +741,60 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public void EnqueueRawUrl(string? rawUrl)
     {
         EnqueueRawUrl(rawUrl, null);
+    }
+
+    public async Task<bool> HandleClipboardTextAsync(string? clipboardText)
+    {
+        string mode = _settingsService.CurrentSettings?.ClipboardDetectionMode ?? "AskToast";
+        if (string.Equals(mode, "Off", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(clipboardText))
+        {
+            return false;
+        }
+
+        if (!_urlParser.TryExtractVideoId(clipboardText, out string videoId, out _))
+        {
+            return false;
+        }
+
+        if (string.Equals(videoId, _lastHandledClipboardVideoId, StringComparison.Ordinal) ||
+            _group.Playlist.AllTracks.Any(t => t.VideoId == videoId))
+        {
+            return false;
+        }
+
+        if (string.Equals(mode, "AskToast", StringComparison.OrdinalIgnoreCase))
+        {
+            _lastHandledClipboardVideoId = videoId;
+            RunOnUi(() =>
+            {
+                QuickAddUrl = clipboardText.Trim();
+                IsQuickAddInputVisible = true;
+                StatusMessage = $"YouTube-Link erkannt ({videoId}) – Enter drücken zum Einreihen";
+            });
+            _systrayService?.ShowNotification(
+                "burroQueue – YouTube-Link erkannt",
+                $"Link ({videoId}) im Eingabefeld bereitgestellt",
+                $"https://img.youtube.com/vi/{videoId}/hqdefault.jpg");
+            return true;
+        }
+
+        if (string.Equals(mode, "AutoQueueVerifiedMusic", StringComparison.OrdinalIgnoreCase))
+        {
+            int maxMins = Math.Clamp(_settingsService.CurrentSettings?.MaxMusicDurationMinutes ?? 12, 1, 60);
+            IYouTubeMusicValidator validator = _musicValidator ?? new YouTubeMusicValidator();
+            MusicValidationResult validation = await validator.ValidateAsync(videoId, TimeSpan.FromMinutes(maxMins)).ConfigureAwait(false);
+            if (!validation.IsVerifiedMusic)
+            {
+                RunOnUi(() => StatusMessage = $"Zwischenablage übersprungen (kein Musik-Track: {validation.RejectionReason})");
+                return false;
+            }
+
+            _lastHandledClipboardVideoId = videoId;
+            RunOnUi(() => EnqueueRawUrl(clipboardText));
+            return true;
+        }
+
+        return false;
     }
 
     public void EnqueueRawUrl(string? rawUrl, string? submitter = null)

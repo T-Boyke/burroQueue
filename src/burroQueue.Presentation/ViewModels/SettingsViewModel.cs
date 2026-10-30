@@ -78,6 +78,19 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool _useSystemAccentColor = true;
 
+    [ObservableProperty]
+    private string _selectedClipboardDetectionMode = "AskToast";
+
+    [ObservableProperty]
+    private int _maxMusicDurationMinutes = 12;
+
+    public IReadOnlyList<string> AvailableClipboardDetectionModes { get; } =
+    [
+        "Off",
+        "AskToast",
+        "AutoQueueVerifiedMusic"
+    ];
+
     public IReadOnlyList<string> AvailableWindowBackdrops { get; } =
     [
         "Auto",
@@ -180,6 +193,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         _autoSyncPlaylistIntervalSeconds = Math.Clamp(current.AutoSyncPlaylistIntervalSeconds, 15, 3600);
         _selectedWindowBackdrop = string.IsNullOrWhiteSpace(current.WindowBackdrop) ? "Mica" : current.WindowBackdrop;
         _useSystemAccentColor = current.UseSystemAccentColor;
+        _selectedClipboardDetectionMode = string.IsNullOrWhiteSpace(current.ClipboardDetectionMode) ? "AskToast" : current.ClipboardDetectionMode;
+        _maxMusicDurationMinutes = Math.Clamp(current.MaxMusicDurationMinutes, 1, 60);
 
         if (!string.IsNullOrWhiteSpace(_collaborativePlaylistUrl))
         {
@@ -440,8 +455,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             WindowBackdrop = string.IsNullOrWhiteSpace(SelectedWindowBackdrop) ? "Mica" : SelectedWindowBackdrop,
             UseSystemAccentColor = UseSystemAccentColor,
             AppLanguage = _settingsService.CurrentSettings.AppLanguage,
-            ClipboardDetectionMode = _settingsService.CurrentSettings.ClipboardDetectionMode,
-            MaxMusicDurationMinutes = _settingsService.CurrentSettings.MaxMusicDurationMinutes
+            ClipboardDetectionMode = string.IsNullOrWhiteSpace(SelectedClipboardDetectionMode) ? "AskToast" : SelectedClipboardDetectionMode,
+            MaxMusicDurationMinutes = Math.Clamp(MaxMusicDurationMinutes, 1, 60)
         };
 
         await _settingsService.SaveAsync(data).ConfigureAwait(false);
