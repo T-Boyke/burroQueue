@@ -32,3 +32,4 @@ public sealed class WebDropStylesheetProviderTests
         first.Equals(second).Should().BeTrue();
     }
 }
+

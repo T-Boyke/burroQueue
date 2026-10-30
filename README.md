@@ -43,6 +43,7 @@ In German, an office is a **Büro**. In Spanish, a **burro** is a donkey—a har
 ## Key Features & New Achievements
 
 ### 1. Multi-Provider VoIP Auto-Ducking & Configurable Release Delay
+
 - **STARFACE VoIP Client (3-Tier Detection):** Monitors incoming, outgoing, and active calls via the STARFACE Windows Client (`StarfaceUcClient.exe`) using:
   1. **Tier 1 (WCF Named Pipe):** Direct binary `.NET` framing probe against `net.pipe://localhost/StarfaceUcClient/UccService`.
   2. **Tier 2 (Incremental Log Tail):** Zero-allocation tailing of `%LOCALAPPDATA%\STARFACE GmbH\STARFACE Client\Logs\UCC*.log` (`FileShare.ReadWrite`) for `CallStateChanged`, `Ringing`, `Dialing`, `Connected`, and `Disconnected` transitions.
@@ -51,21 +52,25 @@ In German, an office is a **Büro**. In Spanish, a **burro** is a donkey—a har
 - **Configurable Ducking Release Delay (`0–120s`):** When a call or call attempt ends, `burroQueue` waits for a user-configurable release delay (default: `3s`) before smoothly restoring the preset master volume—preventing abrupt music bursts during back-to-back calls. Any new call during the countdown immediately cancels the release timer.
 
 ### 2. Bidirectional Collaborative YouTube Playlist Sync
+
 - **Permanent Playlist Write (`YouTubePlaylistWriter`):** Adding a song to the queue automatically appends it permanently to the configured collaborative YouTube playlist (`list=...&jct=...`) via YouTube InnerTube `ACTION_ADD_VIDEO` (`youtubei/v1/browse/edit_playlist`) with collaboration token support.
 - **Periodic Background Auto-Sync & Manual Sync:** Configurable background `PeriodicTimer` (`15–3600s`, default `60s`) plus an instant **Sync (`↻`)** button in the queue header keep the local queue synchronized with tracks added directly on YouTube.
 - **Reliable Local Audio Playback (`YouTubeAudioStreamResolver`):** Downloads progressive MP4 (`itag 18`) streams to a rolling local cache via `yt-dlp` (avoiding WPF `MediaPlayer` HTTP zone-policy blocks and expired stream URLs) with automatic multi-instance Invidious/Piped fallback.
 
 ### 3. Windows 11 Fluent Design, System Accent Colors & Dynamic Backdrops
+
 - **System Accent Color Integration:** Uses `Wpf.Ui` [`ApplicationAccentColorManager`](https://wpfui.lepo.co/documentation/accent.html) (`SystemAccentColorSecondaryBrush`, `SystemAccentColorTertiaryBrush`, `AccentTextFillColorPrimaryBrush`) so badges, active cards, progress bars, and highlights adapt automatically to the user's Windows 11 accent color.
 - **Selectable Window Backdrops (`SystemThemeWatcher`):** Full support for [`SystemThemeWatcher`](https://wpfui.lepo.co/documentation/system-theme-watcher.html) with runtime switching between **`Auto`**, **`Mica`**, **`Tabbed`**, **`Acrylic`**, and **`None`** backdrops, plus seamless Dark/Light mode adaptive typography.
 - **Right-Docked Queue Controls & Instant Play (`▶`):** All queue item action buttons (**Play Now `▶`**, **Move Up `↑`**, **Move Down `↓`**, **Remove `✕`**) are right-docked in a `DockPanel` so icons align vertically across every row regardless of song title length.
 - **Cover-Art Toast Notifications:** Custom borderless Fluent notification window (`TrackToastWindow`) in the bottom-right work area displays the **`64x48` song cover thumbnail** whenever a new track starts playing.
 
 ### 4. Extreme Memory & CPU Efficiency (`< 30 MB` RAM & E-Core EcoQoS)
+
 - **Windows 11 EcoQoS & Efficiency Cores:** `ProcessEfficiencyManager` applies `PROCESS_POWER_THROTTLING_EXECUTION_SPEED` and `THREAD_POWER_THROTTLING_EXECUTION_SPEED` via `SetProcessInformation` / `SetThreadInformation` together with `ProcessPriorityClass.Idle`, steering background workers onto Intel Hybrid **E-Cores** / AMD low-power states.
 - **Working-Set Trimming & UI Virtualization:** Automatically compacts the Large Object Heap (`GCLargeObjectHeapCompactionMode.CompactOnce`) and invokes Win32 `K32EmptyWorkingSet` when minimizing to the systray or closing dialogs, paired with `VirtualizingStackPanel` (`VirtualizationMode.Recycling`) in the queue view.
 
 ### 5. Peer-to-Peer LAN Sync & Instant Mobile Web-Drop (UnoCSS 66.12.0)
+
 - **Zero-Config LAN Discovery:** Discovers office groups over UDP multicast (`239.255.42.99:41234`) for real-time queue synchronization and democratic **Vote-to-Skip**.
 - **Instant-Toggle Mobile Web-Drop (`http://<LAN-IP>:<PORT>`):** Toggling the Web-Drop checkbox in Settings immediately starts or stops the embedded HTTP listener, binds to the primary physical LAN IPv4 address (automatically skipping virtual WSL/Hyper-V/Docker adapters and falling back across ports if `8080` is occupied), serves a build-time compiled **UnoCSS 66.12.0** atomic Windows 11 Fluent Light/Dark UI (`< 9 KB`, zero Bootstrap, zero WebView2/Node runtime overhead), and generates an in-app QR code for smartphone uploads.
 
@@ -93,6 +98,7 @@ src/
 5. **Atomic Conventional Commits:** All changes are committed in small, logical increments adhering to Conventional Commits 1.0.0.
 
 Verify architecture compliance at any time:
+
 ```powershell
 ./scripts/verify-architecture.ps1
 ```
@@ -102,12 +108,14 @@ Verify architecture compliance at any time:
 ## Quickstart
 
 ### Prerequisites
+
 - Windows 11 (22H2 or newer recommended)
 - [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0)
 - Optional (only when modifying WebDrop CSS): Node.js 24+ (`npm ci && npm run build:css` in `src/burroQueue.WebDrop`)
 - Optional: `yt-dlp` (`winget install yt-dlp.yt-dlp`) for local progressive MP4 audio caching
 
 ### Build and Test
+
 ```powershell
 # Clone repository
 git clone https://github.com/T-Boyke/burroQueue.git
@@ -124,6 +132,7 @@ dotnet test burroQueue.sln --configuration Release
 ```
 
 ### Launch
+
 ```powershell
 dotnet run --project src/burroQueue.Presentation/burroQueue.Presentation.csproj
 ```
