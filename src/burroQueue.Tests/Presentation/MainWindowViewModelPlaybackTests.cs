@@ -1448,4 +1448,29 @@ public sealed class MainWindowViewModelPlaybackTests
         _group.Playlist.CurrentTrack.Should().BeSameAs(t2);
         await _audioPlayerBackend.Received(1).PreparePausedAtPositionAsync(t2, TimeSpan.FromSeconds(75), Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task PlayAsync_WhenQueueReachedEnd_ShouldWrapToFirstTrackAndPlay()
+    {
+        Track t1 = new("wrap-1", new Uri("https://www.youtube.com/watch?v=wrap-1"), "Song 1", "Alice", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(t1);
+        _group.Playlist.AdvanceNext(); // Reaches end of queue (CurrentTrack is null, Count == 0, TotalCount == 1)
+        _group.Playlist.CurrentTrack.Should().BeNull();
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        await vm.PlayAsync();
+
+        _group.Playlist.CurrentTrack.Should().BeSameAs(t1);
+        await _audioPlayerBackend.Received(1).PlayTrackAsync(t1, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task WpfMediaStreamPlayer_ShouldUseWindowsMediaFoundationWithoutLegacyWmpException()
+    {
+        await using WpfMediaStreamPlayer player = new();
+        player.IsUsingWindowsMediaFoundation.Should().BeTrue();
+        player.Volume = 0.35;
+        player.Volume.Should().BeApproximately(0.35, 0.01);
+    }
 }

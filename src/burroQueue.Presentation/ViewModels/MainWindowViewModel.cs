@@ -70,16 +70,25 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal static void InvokeOnDispatcher(Action action)
     {
-        if (System.Windows.Application.Current?.Dispatcher is { HasShutdownStarted: false } dispatcher && !dispatcher.CheckAccess())
+        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher)
         {
-            try
+            if (dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished)
             {
-                dispatcher.Invoke(action);
                 return;
             }
-            catch
+
+            if (!dispatcher.CheckAccess())
             {
-                // Fallback bei Dispatcher-Shutdown
+                try
+                {
+                    dispatcher.Invoke(action);
+                }
+                catch
+                {
+                    // Fallback bei Dispatcher-Shutdown
+                }
+
+                return;
             }
         }
 
@@ -1166,9 +1175,17 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task PlayAsync()
     {
-        if (_group.Playlist.CurrentTrack is null && _group.Playlist.Count > 0)
+        if (_group.Playlist.CurrentTrack is null)
         {
-            _group.Playlist.AdvanceNext();
+            if (_group.Playlist.Count > 0)
+            {
+                _group.Playlist.AdvanceNext();
+            }
+            else if (_group.Playlist.TotalCount > 0)
+            {
+                _group.Playlist.JumpToIndex(0);
+            }
+
             SyncQueuedItems();
         }
 
@@ -1190,6 +1207,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             else
             {
                 StatusMessage = $"Playing: {current.Title}";
+                MetadataLoadTask = LoadTrackMetadataAsync(current);
                 await _audioPlayerBackend.PlayTrackAsync(current).ConfigureAwait(false);
             }
         }

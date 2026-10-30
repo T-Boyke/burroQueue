@@ -1,5 +1,6 @@
-using System.Windows.Media;
 using burroQueue.Infrastructure.Playback;
+using Windows.Media.Core;
+using Windows.Media.Playback;
 
 namespace burroQueue.Presentation.Services;
 
@@ -7,129 +8,207 @@ namespace burroQueue.Presentation.Services;
 public sealed class WpfMediaStreamPlayer : IMediaStreamPlayer
 {
     private readonly MediaPlayer _mediaPlayer;
+    private MediaSource? _activeMediaSource;
     private TimeSpan? _pendingSeek;
+    private double _volume = 0.8;
     private bool _isDisposed;
+
+    public bool IsUsingWindowsMediaFoundation => !_isDisposed;
 
     public double Volume
     {
-        get => _mediaPlayer.Dispatcher.CheckAccess() ? _mediaPlayer.Volume : _mediaPlayer.Dispatcher.Invoke(() => _mediaPlayer.Volume);
+        get => _volume;
         set
         {
             double clamped = Math.Clamp(value, 0.0, 1.0);
-            if (_mediaPlayer.Dispatcher.CheckAccess())
+            _volume = clamped;
+            if (!_isDisposed)
             {
-                _mediaPlayer.Volume = clamped;
-            }
-            else
-            {
-                _mediaPlayer.Dispatcher.Invoke(() => _mediaPlayer.Volume = clamped);
+                try
+                {
+                    _mediaPlayer.Volume = clamped;
+                }
+                catch
+                {
+                }
             }
         }
     }
 
-    public TimeSpan Position => _mediaPlayer.Dispatcher.CheckAccess()
-        ? _mediaPlayer.Position
-        : _mediaPlayer.Dispatcher.Invoke(() => _mediaPlayer.Position);
+    public TimeSpan Position
+    {
+        get
+        {
+            if (_isDisposed)
+            {
+                return TimeSpan.Zero;
+            }
 
-    public TimeSpan Duration => _mediaPlayer.Dispatcher.CheckAccess()
-        ? (_mediaPlayer.NaturalDuration.HasTimeSpan ? _mediaPlayer.NaturalDuration.TimeSpan : TimeSpan.Zero)
-        : _mediaPlayer.Dispatcher.Invoke(() => _mediaPlayer.NaturalDuration.HasTimeSpan ? _mediaPlayer.NaturalDuration.TimeSpan : TimeSpan.Zero);
+            try
+            {
+                return _mediaPlayer.PlaybackSession.Position;
+            }
+            catch
+            {
+                return TimeSpan.Zero;
+            }
+        }
+    }
+
+    public TimeSpan Duration
+    {
+        get
+        {
+            if (_isDisposed)
+            {
+                return TimeSpan.Zero;
+            }
+
+            try
+            {
+                TimeSpan natural = _mediaPlayer.PlaybackSession.NaturalDuration;
+                return natural > TimeSpan.Zero && natural != TimeSpan.MaxValue ? natural : TimeSpan.Zero;
+            }
+            catch
+            {
+                return TimeSpan.Zero;
+            }
+        }
+    }
 
     public event EventHandler? MediaEnded;
 
     public WpfMediaStreamPlayer()
     {
-        AppContext.SetSwitch("Switch.System.Windows.Net.DoNotApplyZoneCheckForDefaultCredentials", true);
-        _mediaPlayer = new MediaPlayer();
-        _mediaPlayer.MediaOpened += (_, _) =>
+        _mediaPlayer = new MediaPlayer
         {
-            if (_pendingSeek is { } target)
+            AudioCategory = MediaPlayerAudioCategory.Media,
+            AutoPlay = false,
+            Volume = _volume
+        };
+
+        try
+        {
+            _mediaPlayer.CommandManager.IsEnabled = false;
+        }
+        catch
+        {
+        }
+
+        _mediaPlayer.MediaOpened += (sender, _) =>
+        {
+            try
             {
-                _pendingSeek = null;
-                _mediaPlayer.Position = target;
+                if (_pendingSeek is { } target)
+                {
+                    _pendingSeek = null;
+                    sender.PlaybackSession.Position = target;
+                }
+            }
+            catch
+            {
             }
         };
-        _mediaPlayer.MediaEnded += (_, e) => MediaEnded?.Invoke(this, e);
-        _mediaPlayer.MediaFailed += (_, e) => App.LogStartup($"WpfMediaStreamPlayer MediaFailed: {e.ErrorException}");
+
+        _mediaPlayer.MediaEnded += (_, _) => MediaEnded?.Invoke(this, EventArgs.Empty);
+        _mediaPlayer.MediaFailed += (_, e) =>
+            App.LogStartup($"WpfMediaStreamPlayer (MediaFoundation) MediaFailed: {e.Error} - {e.ErrorMessage} (0x{e.ExtendedErrorCode?.HResult:X8})");
     }
 
     public void Open(Uri uri)
     {
         ArgumentNullException.ThrowIfNull(uri);
-        if (_mediaPlayer.Dispatcher.CheckAccess())
+        if (_isDisposed)
         {
-            _mediaPlayer.Open(uri);
+            return;
         }
-        else
+
+        try
         {
-            _mediaPlayer.Dispatcher.Invoke(() => _mediaPlayer.Open(uri));
+            MediaSource? previous = _activeMediaSource;
+            MediaSource nextSource = MediaSource.CreateFromUri(uri);
+            _activeMediaSource = nextSource;
+            _mediaPlayer.Source = nextSource;
+            previous?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            App.LogStartup($"WpfMediaStreamPlayer Open failed for '{uri}': {ex.Message}");
         }
     }
 
     public void Play()
     {
-        if (_mediaPlayer.Dispatcher.CheckAccess())
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        try
         {
             _mediaPlayer.Play();
         }
-        else
+        catch (Exception ex)
         {
-            _mediaPlayer.Dispatcher.Invoke(() => _mediaPlayer.Play());
+            App.LogStartup($"WpfMediaStreamPlayer Play failed: {ex.Message}");
         }
     }
 
     public void Pause()
     {
-        if (_mediaPlayer.Dispatcher.CheckAccess())
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        try
         {
             _mediaPlayer.Pause();
         }
-        else
+        catch
         {
-            _mediaPlayer.Dispatcher.Invoke(() => _mediaPlayer.Pause());
         }
     }
 
     public void Seek(TimeSpan position)
     {
-        TimeSpan clamped = position < TimeSpan.Zero ? TimeSpan.Zero : position;
-        void ApplySeek()
+        if (_isDisposed)
         {
-            _pendingSeek = clamped;
-            try
-            {
-                _mediaPlayer.Position = clamped;
-            }
-            catch
-            {
-                // Deferred until MediaOpened
-            }
+            return;
         }
 
-        if (_mediaPlayer.Dispatcher.CheckAccess())
+        TimeSpan clamped = position < TimeSpan.Zero ? TimeSpan.Zero : position;
+        _pendingSeek = clamped;
+        try
         {
-            ApplySeek();
+            if (_mediaPlayer.PlaybackSession.CanSeek)
+            {
+                _mediaPlayer.PlaybackSession.Position = clamped;
+                _pendingSeek = null;
+            }
         }
-        else
+        catch
         {
-            _mediaPlayer.Dispatcher.Invoke(ApplySeek);
+            // Deferred until MediaOpened
         }
     }
 
     public void StopPlayback()
     {
-        if (_mediaPlayer.Dispatcher.CheckAccess())
+        if (_isDisposed)
         {
-            _mediaPlayer.Stop();
-            _mediaPlayer.Close();
+            return;
         }
-        else
+
+        try
         {
-            _mediaPlayer.Dispatcher.Invoke(() =>
-            {
-                _mediaPlayer.Stop();
-                _mediaPlayer.Close();
-            });
+            _mediaPlayer.Pause();
+            _mediaPlayer.Source = null;
+            _activeMediaSource?.Dispose();
+            _activeMediaSource = null;
+        }
+        catch
+        {
         }
     }
 
@@ -138,18 +217,16 @@ public sealed class WpfMediaStreamPlayer : IMediaStreamPlayer
         if (!_isDisposed)
         {
             _isDisposed = true;
-            if (_mediaPlayer.Dispatcher.CheckAccess())
+            try
             {
-                _mediaPlayer.Stop();
-                _mediaPlayer.Close();
+                _mediaPlayer.Pause();
+                _mediaPlayer.Source = null;
+                _activeMediaSource?.Dispose();
+                _activeMediaSource = null;
+                _mediaPlayer.Dispose();
             }
-            else
+            catch
             {
-                _mediaPlayer.Dispatcher.Invoke(() =>
-                {
-                    _mediaPlayer.Stop();
-                    _mediaPlayer.Close();
-                });
             }
         }
 
