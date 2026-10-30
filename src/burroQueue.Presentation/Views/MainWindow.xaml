@@ -24,7 +24,7 @@
     </Grid.RowDefinitions>
 
     <!-- Native Title Bar flush with top/right window edge for full HTCAPTION drag area -->
-    <ui:TitleBar Title="burroQueue" Grid.Row="0" Margin="0" Padding="12,0,0,0">
+    <ui:TitleBar Title="{Binding Title, RelativeSource={RelativeSource AncestorType=Window}}" Grid.Row="0" Margin="0" Padding="12,0,0,0">
       <ui:TitleBar.Icon>
         <ui:ImageIcon Source="pack://application:,,,/burroQueue;component/Assets/logo.png" />
       </ui:TitleBar.Icon>
