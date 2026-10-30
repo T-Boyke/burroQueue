@@ -119,11 +119,70 @@ public sealed class YouTubePlaylistReaderTests
             tracks[1].VideoId.Should().Be("def67890");
             tracks[1].Title.Should().Be("Don't Stop Me Now");
             tracks[1].SubmittedBy.Should().Be("Queen Official");
+            tracks[1].IsSyncedFromPlaylist.Should().BeTrue();
         }
         finally
         {
             YouTubePlaylistReader.ProcessRunner = original;
         }
+    }
+
+    [Fact]
+    public async Task ReadPlaylistTracksAsync_WhenInnerTubeBrowseReturnsCollaborativePlaylist_ShouldPreferCollaboratorAndSendNoCacheHeader()
+    {
+        string innerTubeJson = """
+        {
+          "contents": {
+            "playlistVideoListRenderer": {
+              "contents": [
+                {
+                  "playlistVideoRenderer": {
+                    "videoId": "kXYiU_JCYtU",
+                    "title": { "runs": [ { "text": "Numb" } ] },
+                    "shortBylineText": { "runs": [ { "text": "Linkin Park" } ] },
+                    "contributors": [
+                      {
+                        "contributorName": { "runs": [ { "text": "Tobias" } ] },
+                        "contributorAvatar": {
+                          "thumbnails": [
+                            { "url": "https://yt3.ggpht.com/ytc/tobias_pic=s88-c-k", "width": 88, "height": 88 }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+        """;
+
+        HttpRequestMessage? capturedRequest = null;
+        using HttpClient client = new(new MockHttpMessageHandler(req =>
+        {
+            capturedRequest ??= req;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(innerTubeJson, System.Text.Encoding.UTF8, "application/json")
+            };
+        }));
+
+        YouTubePlaylistReader reader = new(client, ytDlpPath: string.Empty);
+
+        IReadOnlyList<Track> tracks = await reader.ReadPlaylistTracksAsync("https://www.youtube.com/playlist?list=PLCollab99&jct=inv123");
+
+        capturedRequest.Should().NotBeNull();
+        capturedRequest!.RequestUri!.ToString().Should().Contain("/youtubei/v1/browse");
+        capturedRequest.Headers.CacheControl?.NoCache.Should().BeTrue();
+
+        tracks.Should().ContainSingle();
+        tracks[0].VideoId.Should().Be("kXYiU_JCYtU");
+        tracks[0].Title.Should().Be("Numb");
+        tracks[0].ArtistName.Should().Be("Linkin Park");
+        tracks[0].SubmittedBy.Should().Be("Tobias");
+        tracks[0].SubmitterAvatarUrl.Should().Be(new Uri("https://yt3.ggpht.com/ytc/tobias_pic=s88-c-k"));
+        tracks[0].IsSyncedFromPlaylist.Should().BeTrue();
     }
 }
 

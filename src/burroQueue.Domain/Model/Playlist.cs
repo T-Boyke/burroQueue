@@ -91,4 +91,71 @@ public sealed class Playlist
         _items.Clear();
         CurrentTrack = null;
     }
+
+    public PlaylistReconciliationResult ReconcileRemotePlaylist(IReadOnlyList<Track> remoteTracks)
+    {
+        ArgumentNullException.ThrowIfNull(remoteTracks);
+
+        Dictionary<string, Track> remoteById = new(StringComparer.Ordinal);
+        foreach (Track remote in remoteTracks)
+        {
+            remoteById.TryAdd(remote.VideoId, remote);
+        }
+
+        List<Track> removed = [];
+        int updatedCount = 0;
+
+        if (CurrentTrack is not null && remoteById.TryGetValue(CurrentTrack.VideoId, out Track? remoteCurrent))
+        {
+            if (CurrentTrack.UpdateAttribution(remoteCurrent.SubmittedBy, remoteCurrent.SubmitterAvatarUrl, remoteCurrent.ArtistName))
+            {
+                updatedCount++;
+            }
+        }
+
+        for (int i = _items.Count - 1; i >= 0; i--)
+        {
+            Track existing = _items[i];
+            if (!remoteById.TryGetValue(existing.VideoId, out Track? remoteMatch))
+            {
+                if (existing.IsSyncedFromPlaylist)
+                {
+                    removed.Add(existing);
+                    _items.RemoveAt(i);
+                }
+
+                continue;
+            }
+
+            if (existing.UpdateAttribution(remoteMatch.SubmittedBy, remoteMatch.SubmitterAvatarUrl, remoteMatch.ArtistName))
+            {
+                updatedCount++;
+            }
+        }
+
+        removed.Reverse();
+
+        HashSet<string> presentIds = new(StringComparer.Ordinal);
+        if (CurrentTrack is not null)
+        {
+            presentIds.Add(CurrentTrack.VideoId);
+        }
+
+        foreach (Track item in _items)
+        {
+            presentIds.Add(item.VideoId);
+        }
+
+        List<Track> added = [];
+        foreach (Track remote in remoteTracks)
+        {
+            if (presentIds.Add(remote.VideoId))
+            {
+                Enqueue(remote);
+                added.Add(remote);
+            }
+        }
+
+        return new PlaylistReconciliationResult(added, removed, updatedCount);
+    }
 }

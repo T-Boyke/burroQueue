@@ -7,4 +7,6 @@ public sealed record QueueSyncMessage(
     string TrackUrl,
     string Title,
     string AddedBy,
-    DateTimeOffset Timestamp);
+    DateTimeOffset Timestamp,
+    string? ArtistName = null,
+    string? AddedByAvatarUrl = null);

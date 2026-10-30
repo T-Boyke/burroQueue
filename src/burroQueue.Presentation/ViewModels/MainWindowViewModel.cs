@@ -34,6 +34,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private readonly IQrCodeSvgGenerator? _qrCodeGenerator;
     private readonly IYouTubePlaylistReader? _playlistReader;
     private readonly IYouTubePlaylistWriter? _playlistWriter;
+    private readonly IStreamUriResolver? _streamUriResolver;
     private readonly ClientId _localClientId = ClientId.New();
     private SkipVotePool _skipVotePool;
     private bool _isUpdatingVolumeInternally;
@@ -210,7 +211,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         ISystrayNotificationService? systrayService = null,
         IQrCodeSvgGenerator? qrCodeGenerator = null,
         IYouTubePlaylistReader? playlistReader = null,
-        IYouTubePlaylistWriter? playlistWriter = null)
+        IYouTubePlaylistWriter? playlistWriter = null,
+        IStreamUriResolver? streamUriResolver = null)
     {
         _group = group ?? throw new ArgumentNullException(nameof(group));
         _urlParser = urlParser ?? throw new ArgumentNullException(nameof(urlParser));
@@ -227,6 +229,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _qrCodeGenerator = qrCodeGenerator;
         _playlistReader = playlistReader;
         _playlistWriter = playlistWriter;
+        _streamUriResolver = streamUriResolver;
         _networkInfoService = networkInfoService ?? throw new ArgumentNullException(nameof(networkInfoService));
 
         _groupName = _group.Name;
@@ -1116,12 +1119,20 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
                 if (Uri.TryCreate(message.TrackUrl, UriKind.Absolute, out Uri? trackUri))
                 {
+                    Uri? peerAvatar = null;
+                    if (!string.IsNullOrWhiteSpace(message.AddedByAvatarUrl))
+                    {
+                        _ = Uri.TryCreate(message.AddedByAvatarUrl, UriKind.Absolute, out peerAvatar);
+                    }
+
                     Track peerTrack = new(
                         message.VideoId,
                         trackUri,
                         message.Title,
                         message.AddedBy,
-                        message.Timestamp);
+                        message.Timestamp,
+                        artistName: message.ArtistName,
+                        submitterAvatarUrl: peerAvatar);
 
                     _group.Playlist.Enqueue(peerTrack);
                     SyncQueuedItems();
@@ -1338,22 +1349,24 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             {
                 RunOnUi(() =>
                 {
-                    int addedCount = 0;
-                    foreach (Track track in tracks)
+                    PlaylistReconciliationResult result = _group.Playlist.ReconcileRemotePlaylist(tracks);
+                    foreach (Track removed in result.RemovedTracks)
                     {
-                        if (!_group.Playlist.QueuedTracks.Any(t => t.VideoId == track.VideoId) &&
-                            _group.Playlist.CurrentTrack?.VideoId != track.VideoId)
-                        {
-                            _group.Playlist.Enqueue(track);
-                            addedCount++;
-                        }
+                        _streamUriResolver?.RemoveCachedAudioFile(removed.VideoId);
                     }
 
-                    if (addedCount > 0)
+                    if (result.HasChanges)
                     {
                         SyncQueuedItems();
                         AutoSavePlaylist();
-                        TriggerAddFeedback($"{addedCount} Songs aus Playlist importiert");
+                        if (result.AddedTracks.Count > 0)
+                        {
+                            TriggerAddFeedback($"{result.AddedTracks.Count} Songs aus Playlist importiert");
+                        }
+                        else if (result.RemovedTracks.Count > 0)
+                        {
+                            TriggerAddFeedback($"{result.RemovedTracks.Count} gelöschte Playlist-Songs entfernt");
+                        }
                     }
                 });
             }

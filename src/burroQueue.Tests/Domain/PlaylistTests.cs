@@ -250,6 +250,41 @@ public sealed class PlaylistTests
         moved.Should().BeFalse();
     }
 
+    [Fact]
+    public void ReconcileRemotePlaylist_ShouldAddNewPruneDeletedSyncedTracksKeepManualAndCurrentTrack()
+    {
+        Playlist playlist = new();
+        Track activeSynced = new("active11111", new Uri("https://www.youtube.com/watch?v=active11111"), "Active Song", "Alice", DateTimeOffset.UtcNow, isSyncedFromPlaylist: true);
+        Track deletedSynced = new("deleted2222", new Uri("https://www.youtube.com/watch?v=deleted2222"), "Deleted On YT", "Bob", DateTimeOffset.UtcNow, isSyncedFromPlaylist: true);
+        Track keptSynced = new("kept3333333", new Uri("https://www.youtube.com/watch?v=kept3333333"), "Still On YT", "OldChannel", DateTimeOffset.UtcNow, isSyncedFromPlaylist: true);
+        Track manualLocal = new("manual44444", new Uri("https://www.youtube.com/watch?v=manual44444"), "Local DragDrop", "Charlie", DateTimeOffset.UtcNow, isSyncedFromPlaylist: false);
+
+        playlist.Enqueue(activeSynced);
+        playlist.Enqueue(deletedSynced);
+        playlist.Enqueue(keptSynced);
+        playlist.Enqueue(manualLocal);
+
+        Uri avatarUri = new("https://yt3.ggpht.com/ytc/avatar_clara=s88-c-k");
+        Track remoteKeptUpdated = new("kept3333333", new Uri("https://www.youtube.com/watch?v=kept3333333"), "Still On YT", "Clara", DateTimeOffset.UtcNow, artistName: "Daft Punk", submitterAvatarUrl: avatarUri, isSyncedFromPlaylist: true);
+        Track remoteNew = new("new55555555", new Uri("https://www.youtube.com/watch?v=new55555555"), "Brand New YT", "Tobias", DateTimeOffset.UtcNow, artistName: "Gorillaz", submitterAvatarUrl: avatarUri, isSyncedFromPlaylist: true);
+
+        PlaylistReconciliationResult result = playlist.ReconcileRemotePlaylist([remoteKeptUpdated, remoteNew]);
+
+        // Active track is never cut off even if deleted remotely
+        playlist.CurrentTrack.Should().BeSameAs(activeSynced);
+        // Deleted synced track was pruned
+        result.RemovedTracks.Should().ContainSingle(t => t.VideoId == "deleted2222");
+        // New remote track was added
+        result.AddedTracks.Should().ContainSingle(t => t.VideoId == "new55555555");
+        // Existing synced track received enriched collaborator & avatar attribution
+        result.UpdatedAttributionCount.Should().Be(1);
+        keptSynced.SubmittedBy.Should().Be("Clara");
+        keptSynced.ArtistName.Should().Be("Daft Punk");
+        keptSynced.SubmitterAvatarUrl.Should().Be(avatarUri);
+        // Manual drag-drop track was preserved untouched
+        playlist.QueuedTracks.Select(t => t.VideoId).Should().Equal("kept3333333", "manual44444", "new55555555");
+    }
+
     private static Track CreateSampleTrack(string videoId, string title) =>
         new(videoId, new Uri($"https://www.youtube.com/watch?v={videoId}"), title, "Tester", DateTimeOffset.UtcNow);
 }

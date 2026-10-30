@@ -34,5 +34,46 @@ public sealed class TrackTests
 
         act.Should().Throw<InvalidTrackUrlException>();
     }
+
+    [Fact]
+    public void Constructor_WhenCollaboratorAndTrustedHttpsAvatarProvided_ShouldStoreArtistSubmitterAndAvatar()
+    {
+        Uri url = new("https://www.youtube.com/watch?v=eVTXPUF4Oz4");
+        Uri avatar = new("https://yt3.ggpht.com/ytc/AIdro_kcollaborator=s88-c-k-c0x00ffffff-no-rj");
+
+        Track track = new(
+            "eVTXPUF4Oz4",
+            url,
+            "In The End",
+            "Tobias",
+            DateTimeOffset.UtcNow,
+            artistName: "Linkin Park",
+            submitterAvatarUrl: avatar,
+            isSyncedFromPlaylist: true);
+
+        track.SubmittedBy.Should().Be("Tobias");
+        track.ArtistName.Should().Be("Linkin Park");
+        track.SubmitterAvatarUrl.Should().Be(avatar);
+        track.IsSyncedFromPlaylist.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("http://yt3.ggpht.com/insecure.jpg")]
+    [InlineData("https://evil-tracker.example.com/pixel.png")]
+    public void Constructor_WhenAvatarUriIsNonHttpsOrUntrustedHost_ShouldRejectAvatarToNull(string untrustedAvatar)
+    {
+        Uri url = new("https://www.youtube.com/watch?v=eVTXPUF4Oz4");
+        Uri badAvatar = new(untrustedAvatar);
+
+        Track track = new(
+            "eVTXPUF4Oz4",
+            url,
+            "In The End",
+            "Tobias",
+            DateTimeOffset.UtcNow,
+            submitterAvatarUrl: badAvatar);
+
+        track.SubmitterAvatarUrl.Should().BeNull();
+    }
 }
 

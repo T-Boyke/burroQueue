@@ -238,4 +238,45 @@ public sealed class MainWindowViewModelAddFeedbackAndGroupTests : IDisposable
             "https://www.youtube.com/playlist?list=PLtest&jct=tok",
             Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task ImportPlaylistFromYouTubeAsync_WhenRemoteTrackDeleted_ShouldPruneSyncedTrackAndCleanCache()
+    {
+        burroQueue.Infrastructure.Playback.IStreamUriResolver streamResolver = Substitute.For<burroQueue.Infrastructure.Playback.IStreamUriResolver>();
+        _group.Playlist.Enqueue(new Track("active1", new Uri("https://www.youtube.com/watch?v=active1"), "Active", "Alice", DateTimeOffset.UtcNow, isSyncedFromPlaylist: true));
+        _group.Playlist.Enqueue(new Track("deleted2", new Uri("https://www.youtube.com/watch?v=deleted2"), "Deleted", "Bob", DateTimeOffset.UtcNow, isSyncedFromPlaylist: true));
+        _group.Playlist.Enqueue(new Track("manual3", new Uri("https://www.youtube.com/watch?v=manual3"), "Manual", "Charlie", DateTimeOffset.UtcNow, isSyncedFromPlaylist: false));
+
+        _playlistReader.ReadPlaylistTracksAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns([new Track("active1", new Uri("https://www.youtube.com/watch?v=active1"), "Active", "Alice", DateTimeOffset.UtcNow, isSyncedFromPlaylist: true)]);
+
+        _settingsService.CurrentSettings.Returns(new AppSettingsData
+        {
+            ClientDisplayName = "FeedbackTester",
+            CollaborativePlaylistUrl = "https://www.youtube.com/playlist?list=PLtest&jct=tok"
+        });
+        _networkInfoService.GetWebDropUrl(8080).Returns("http://localhost:8080");
+
+        MainWindowViewModel vm = new(
+            _group,
+            _urlParser,
+            _metadataFetcher,
+            _telephonyManager,
+            _lanGroupService,
+            _audioController,
+            _settingsService,
+            _webDropServer,
+            _networkInfoService,
+            _audioPlayerBackend,
+            _playlistStorage,
+            systrayService: _systrayService,
+            playlistReader: _playlistReader,
+            playlistWriter: _playlistWriter,
+            streamUriResolver: streamResolver);
+
+        await vm.ImportPlaylistFromYouTubeAsync("https://www.youtube.com/playlist?list=PLtest");
+
+        vm.QueuedItems.Select(t => t.VideoId).Should().Equal("manual3");
+        streamResolver.Received(1).RemoveCachedAudioFile("deleted2");
+    }
 }

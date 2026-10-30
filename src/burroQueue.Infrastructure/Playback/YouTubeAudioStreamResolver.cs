@@ -173,6 +173,33 @@ public sealed class YouTubeAudioStreamResolver : IStreamUriResolver
         return new Uri($"https://www.youtube.com/watch?v={cleanId}");
     }
 
+    public void RemoveCachedAudioFile(string videoId)
+    {
+        if (string.IsNullOrWhiteSpace(videoId))
+        {
+            return;
+        }
+
+        try
+        {
+            string cleanId = Path.GetFileName(videoId.Trim());
+            string cacheFile = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "burroQueue",
+                "cache",
+                $"{cleanId}.mp4");
+
+            if (File.Exists(cacheFile))
+            {
+                File.Delete(cacheFile);
+            }
+        }
+        catch
+        {
+            // Ignore locked or already deleted cache files
+        }
+    }
+
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     private static void PruneCacheDirectory(string cacheDir, int maxFiles)
     {
