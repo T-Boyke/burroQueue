@@ -42,6 +42,8 @@ public sealed class LanGroupService : ILanGroupService
 
     public event EventHandler<PeerTelephonyStateMessage>? TelephonyStateReceived;
 
+    public event EventHandler<QueueOrderSyncMessage>? QueueOrderSyncReceived;
+
     public LanGroupService(ILocalNetworkInfoService? networkInfo = null)
     {
         _networkInfo = networkInfo ?? new LocalNetworkInfoService();
@@ -271,6 +273,23 @@ public sealed class LanGroupService : ILanGroupService
         await SendMessageAsync("SKIP_VOTE", message, includeBroadcastFallback: false, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task SendQueueOrderSyncAsync(
+        GroupId groupId,
+        ClientId issuerId,
+        bool isShuffleEnabled,
+        IReadOnlyList<string> orderedVideoIds,
+        CancellationToken cancellationToken = default)
+    {
+        QueueOrderSyncMessage message = new(
+            groupId.Value,
+            issuerId.Value,
+            isShuffleEnabled,
+            orderedVideoIds ?? [],
+            DateTimeOffset.UtcNow);
+
+        await SendMessageAsync("QUEUE_ORDER_SYNC", message, includeBroadcastFallback: false, cancellationToken).ConfigureAwait(false);
+    }
+
     private async Task SendMessageAsync<T>(string type, T payload, bool includeBroadcastFallback, CancellationToken cancellationToken)
     {
         UdpClient? client = _udpClient;
@@ -438,6 +457,14 @@ public sealed class LanGroupService : ILanGroupService
                         if (skipVote is not null)
                         {
                             SkipVoteReceived?.Invoke(this, skipVote);
+                        }
+                        break;
+
+                    case "QUEUE_ORDER_SYNC":
+                        QueueOrderSyncMessage? orderSync = JsonSerializer.Deserialize<QueueOrderSyncMessage>(rawData);
+                        if (orderSync is not null)
+                        {
+                            QueueOrderSyncReceived?.Invoke(this, orderSync);
                         }
                         break;
                 }

@@ -1,8 +1,10 @@
 using System.IO;
 using System.Windows;
 using burroQueue.Domain.Model;
+using burroQueue.Domain.Services;
 using burroQueue.Infrastructure.Audio;
 using burroQueue.Infrastructure.Configuration;
+using burroQueue.Infrastructure.Cryptography;
 using burroQueue.Infrastructure.Diagnostics;
 using burroQueue.Infrastructure.Network;
 using burroQueue.Infrastructure.Performance;
@@ -254,8 +256,10 @@ public partial class App : System.Windows.Application
     {
         // Domain
         services.AddSingleton(new BurroGroup(GroupId.New(), "Büro Jukebox"));
+        services.AddSingleton<QueueShuffleEngine>();
 
         // Infrastructure
+        services.AddSingleton<IEntropySource, HardwareCsprngEntropySource>();
         services.AddSingleton<IAppSettingsService, AppSettingsService>();
         services.AddSingleton<IPlaylistStorageService, PlaylistStorageService>();
         services.AddSingleton<IAudioDeviceEnumerator, WindowsAudioDeviceEnumerator>();

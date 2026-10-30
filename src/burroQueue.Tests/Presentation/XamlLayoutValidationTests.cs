@@ -78,6 +78,8 @@ public sealed class XamlLayoutValidationTests
         rawXaml.Should().Contain("AvatarUriToImageSourceConverter", "Queue and Now-Playing items must render the collaborator's circular YouTube avatar (#278)");
         rawXaml.Should().Contain("QueueViewItems", "Queue ListView must bind to non-destructive cursor QueueViewItems (#9)");
         rawXaml.Should().Contain("IsCurrentlyPlaying", "Active track row must highlight via IsCurrentlyPlaying (#9)");
+        rawXaml.Should().Contain("ToggleShuffleCommand", "Transport bar must expose Shuffle toggle button (#10)");
+        rawXaml.Should().Contain("ArrowShuffle24", "Shuffle button must use SymbolRegular.ArrowShuffle24 (#10)");
     }
 
     [Fact]

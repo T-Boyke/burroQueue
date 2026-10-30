@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using burroQueue.Domain.Model;
+using burroQueue.Domain.Services;
 using burroQueue.Infrastructure.Audio;
 using burroQueue.Infrastructure.Configuration;
+using burroQueue.Infrastructure.Cryptography;
 using burroQueue.Infrastructure.Network;
 using burroQueue.Infrastructure.Network.Messages;
 using burroQueue.Infrastructure.Persistence;
@@ -35,6 +37,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private readonly IYouTubePlaylistReader? _playlistReader;
     private readonly IYouTubePlaylistWriter? _playlistWriter;
     private readonly IStreamUriResolver? _streamUriResolver;
+    private readonly IEntropySource _entropySource;
+    private readonly QueueShuffleEngine _shuffleEngine;
     private readonly ClientId _localClientId = ClientId.New();
     private readonly HashSet<Guid> _activeRemoteCallPeers = [];
     private bool _localCallActive;
@@ -178,6 +182,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private bool _isQuickAddInputVisible;
 
     [ObservableProperty]
+    private bool _isShuffleEnabled;
+
+    [ObservableProperty]
+    private bool _isRepeatAllEnabled;
+
+    [ObservableProperty]
     private bool _isAddFeedbackVisible;
 
     [ObservableProperty]
@@ -228,7 +238,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         IQrCodeSvgGenerator? qrCodeGenerator = null,
         IYouTubePlaylistReader? playlistReader = null,
         IYouTubePlaylistWriter? playlistWriter = null,
-        IStreamUriResolver? streamUriResolver = null)
+        IStreamUriResolver? streamUriResolver = null,
+        IEntropySource? entropySource = null,
+        QueueShuffleEngine? shuffleEngine = null)
     {
         _group = group ?? throw new ArgumentNullException(nameof(group));
         _urlParser = urlParser ?? throw new ArgumentNullException(nameof(urlParser));
@@ -246,6 +258,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _playlistReader = playlistReader;
         _playlistWriter = playlistWriter;
         _streamUriResolver = streamUriResolver;
+        _entropySource = entropySource ?? new HardwareCsprngEntropySource();
+        _shuffleEngine = shuffleEngine ?? new QueueShuffleEngine();
         _networkInfoService = networkInfoService ?? throw new ArgumentNullException(nameof(networkInfoService));
 
         _groupName = _group.Name;
@@ -317,6 +331,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _lanGroupService.QueueSyncReceived += OnQueueSyncReceived;
         _lanGroupService.SkipVoteReceived += OnSkipVoteReceived;
         _lanGroupService.TelephonyStateReceived += OnPeerTelephonyStateReceived;
+        _lanGroupService.QueueOrderSyncReceived += OnQueueOrderSyncReceived;
         _lanGroupService.SetBeaconResponder(() => new DiscoveryBeaconMessage(
             _group.Id.Value,
             _group.Name,
@@ -975,8 +990,44 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    public async Task ToggleShuffleAsync()
+    {
+        if (IsShuffleEnabled)
+        {
+            _shuffleEngine.DisableShuffle(_group.Playlist);
+            IsShuffleEnabled = false;
+            StatusMessage = "Shuffle deaktiviert (Original-Reihenfolge)";
+        }
+        else
+        {
+            _shuffleEngine.EnableShuffle(_group.Playlist, _entropySource);
+            IsShuffleEnabled = true;
+            StatusMessage = "Shuffle aktiviert (Hardware-CSPRNG)";
+        }
+
+        SyncQueuedItems();
+        AutoSavePlaylist();
+
+        string[] orderedIds = _group.Playlist.AllTracks.Select(t => t.VideoId).ToArray();
+        await _lanGroupService.SendQueueOrderSyncAsync(_group.Id, _localClientId, IsShuffleEnabled, orderedIds).ConfigureAwait(false);
+    }
+
+    [RelayCommand]
+    public void ToggleRepeatAll()
+    {
+        IsRepeatAllEnabled = !IsRepeatAllEnabled;
+        _group.Playlist.IsRepeatAllEnabled = IsRepeatAllEnabled;
+        StatusMessage = IsRepeatAllEnabled ? "Wiederholen (Alle) aktiv" : "Wiederholen deaktiviert";
+    }
+
+    [RelayCommand]
     public async Task SkipAsync()
     {
+        if (_group.Playlist.CurrentTrack is { } finished)
+        {
+            _shuffleEngine.RecordPlayed(finished.VideoId);
+        }
+
         Track? next = _group.Skip();
         PlaybackState = _group.PlaybackState;
         SyncQueuedItems();
@@ -1227,6 +1278,51 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private async void OnTrackPlaybackFinished(object? sender, Track finishedTrack)
     {
         await SkipAsync().ConfigureAwait(false);
+    }
+
+    private void OnQueueOrderSyncReceived(object? sender, QueueOrderSyncMessage message)
+    {
+        if (message.GroupId != _group.Id.Value || message.IssuerClientId == _localClientId.Value || message.OrderedVideoIds.Count == 0)
+        {
+            return;
+        }
+
+        RunOnUi(() =>
+        {
+            Dictionary<string, Queue<Track>> byVideoId = new(StringComparer.Ordinal);
+            foreach (Track existing in _group.Playlist.AllTracks)
+            {
+                if (!byVideoId.TryGetValue(existing.VideoId, out Queue<Track>? bucket))
+                {
+                    bucket = new Queue<Track>();
+                    byVideoId[existing.VideoId] = bucket;
+                }
+
+                bucket.Enqueue(existing);
+            }
+
+            List<Track> reordered = new(_group.Playlist.AllTracks.Count);
+            foreach (string vid in message.OrderedVideoIds)
+            {
+                if (byVideoId.TryGetValue(vid, out Queue<Track>? bucket) && bucket.Count > 0)
+                {
+                    reordered.Add(bucket.Dequeue());
+                }
+            }
+
+            foreach (Queue<Track> remaining in byVideoId.Values)
+            {
+                while (remaining.Count > 0)
+                {
+                    reordered.Add(remaining.Dequeue());
+                }
+            }
+
+            _group.Playlist.ReplaceOrderPreservingCursor(reordered);
+            IsShuffleEnabled = message.IsShuffleEnabled;
+            SyncQueuedItems();
+            AutoSavePlaylist();
+        });
     }
 
     private void OnQueueSyncReceived(object? sender, QueueSyncMessage message)

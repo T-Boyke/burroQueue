@@ -1300,4 +1300,34 @@ public sealed class MainWindowViewModelPlaybackTests
 
         vm.IsAudioDucked.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task ToggleShuffleAsync_ShouldShuffleAndBroadcastOrderAndRestoreOnSecondToggle()
+    {
+        Track t1 = new("s1", new Uri("https://www.youtube.com/watch?v=s1"), "S1", "Alice", DateTimeOffset.UtcNow);
+        Track t2 = new("s2", new Uri("https://www.youtube.com/watch?v=s2"), "S2", "Bob", DateTimeOffset.UtcNow);
+        Track t3 = new("s3", new Uri("https://www.youtube.com/watch?v=s3"), "S3", "Clara", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(t1);
+        _group.Playlist.Enqueue(t2);
+        _group.Playlist.Enqueue(t3);
+
+        MainWindowViewModel vm = CreateViewModel();
+        vm.IsShuffleEnabled.Should().BeFalse();
+
+        await vm.ToggleShuffleAsync();
+
+        vm.IsShuffleEnabled.Should().BeTrue();
+        _group.Playlist.CurrentTrack.Should().BeSameAs(t1);
+        await _lanGroupService.Received(1).SendQueueOrderSyncAsync(
+            _group.Id,
+            Arg.Any<ClientId>(),
+            true,
+            Arg.Is<IReadOnlyList<string>>(ids => ids.Count == 3 && ids[0] == "s1"),
+            Arg.Any<CancellationToken>());
+
+        await vm.ToggleShuffleAsync();
+
+        vm.IsShuffleEnabled.Should().BeFalse();
+        _group.Playlist.AllTracks.Select(t => t.VideoId).Should().Equal("s1", "s2", "s3");
+    }
 }

@@ -19,6 +19,8 @@ public interface ILanGroupService : IAsyncDisposable
 
     event EventHandler<PeerTelephonyStateMessage>? TelephonyStateReceived;
 
+    event EventHandler<QueueOrderSyncMessage>? QueueOrderSyncReceived;
+
     void SetBeaconResponder(Func<DiscoveryBeaconMessage?>? responder)
     {
     }
@@ -44,5 +46,8 @@ public interface ILanGroupService : IAsyncDisposable
     Task SendQueueSyncAsync(GroupId groupId, string action, Track track, CancellationToken cancellationToken = default);
 
     Task SendSkipVoteAsync(GroupId groupId, string trackId, ClientId voterId, CancellationToken cancellationToken = default);
+
+    Task SendQueueOrderSyncAsync(GroupId groupId, ClientId issuerId, bool isShuffleEnabled, IReadOnlyList<string> orderedVideoIds, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
 }
 

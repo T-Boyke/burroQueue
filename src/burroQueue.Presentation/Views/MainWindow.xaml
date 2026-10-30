@@ -307,6 +307,40 @@
           Icon="{ui:SymbolIcon Next24}"
           Content="Skip"
           Command="{Binding SkipCommand}" />
+        <ui:Button
+          Margin="0,0,6,0"
+          Padding="9,6"
+          ToolTip="Hardware-CSPRNG Shuffle ein-/ausschalten"
+          Command="{Binding ToggleShuffleCommand}">
+          <ui:Button.Style>
+            <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+              <Setter Property="Appearance" Value="Secondary" />
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding IsShuffleEnabled}" Value="True">
+                  <Setter Property="Appearance" Value="Primary" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </ui:Button.Style>
+          <ui:SymbolIcon Symbol="ArrowShuffle24" FontSize="15" />
+        </ui:Button>
+        <ui:Button
+          Margin="0,0,6,0"
+          Padding="9,6"
+          ToolTip="Playlist wiederholen ein-/ausschalten"
+          Command="{Binding ToggleRepeatAllCommand}">
+          <ui:Button.Style>
+            <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+              <Setter Property="Appearance" Value="Secondary" />
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding IsRepeatAllEnabled}" Value="True">
+                  <Setter Property="Appearance" Value="Primary" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </ui:Button.Style>
+          <ui:SymbolIcon Symbol="ArrowRepeatAll24" FontSize="15" />
+        </ui:Button>
       </StackPanel>
 
       <Border
