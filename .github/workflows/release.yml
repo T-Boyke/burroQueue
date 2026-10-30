@@ -171,3 +171,16 @@ jobs:
             ./publish-installer/burroQueue-portable-win-x64.zip
             ./publish-installer/SHA256SUMS.txt
           generate_release_notes: true
+
+  publish-winget:
+    name: Publish T-Boyke.burroQueue to winget-pkgs
+    needs: build-sign-and-package
+    if: startsWith(github.ref, 'refs/tags/v') && secrets.WINGET_GITHUB_TOKEN != ''
+    runs-on: windows-latest
+    steps:
+      - name: Submit Package to microsoft/winget-pkgs via Komac
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: T-Boyke.burroQueue
+          installers-regex: 'burroQueue-Setup-x64\.exe$'
+          token: ${{ secrets.WINGET_GITHUB_TOKEN }}
