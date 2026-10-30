@@ -1522,4 +1522,28 @@ public sealed class MainWindowViewModelPlaybackTests
         await _audioPlayerBackend.Received(1).PlayTrackAsync(t2, Arg.Any<CancellationToken>());
         await _audioPlayerBackend.Received(1).PrefetchTrackAsync(t3, Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task GroupActionJoinReceived_ShouldBroadcastExistingTracksToJoinedPeer()
+    {
+        Track t1 = new("join-1", new Uri("https://www.youtube.com/watch?v=join-1"), "Host Track 1", "Alice", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(t1);
+
+        MainWindowViewModel vm = CreateViewModel();
+        _lanGroupService.ClearReceivedCalls();
+
+        _lanGroupService.GroupActionReceived += Raise.Event<EventHandler<burroQueue.Infrastructure.Network.Messages.GroupActionMessage>>(
+            _lanGroupService,
+            new burroQueue.Infrastructure.Network.Messages.GroupActionMessage(
+                _group.Id.Value,
+                Guid.NewGuid(),
+                "Join",
+                "PeerBob",
+                DateTimeOffset.UtcNow));
+
+        await Task.Delay(30);
+
+        vm.StatusMessage.Should().Contain("PeerBob");
+        await _lanGroupService.Received(1).SendQueueSyncAsync(_group.Id, "Enqueue", t1, Arg.Any<CancellationToken>());
+    }
 }

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -13,9 +14,11 @@ public sealed class LanGroupService : ILanGroupService
     private const int _defaultMulticastPort = 41234;
 
     private readonly IPAddress _multicastAddress = IPAddress.Parse(_multicastAddressString);
+    private readonly IPAddress _loopbackBroadcastAddress = IPAddress.Parse("127.255.255.255");
     private readonly ILocalNetworkInfoService _networkInfo;
     private readonly SemaphoreSlim _sendLock = new(1, 1);
     private readonly List<IPAddress> _boundPhysicalInterfaces = [];
+    private readonly ConcurrentDictionary<string, long> _recentPayloads = new(StringComparer.Ordinal);
     private Func<DiscoveryBeaconMessage?>? _beaconResponder;
     private UdpClient? _udpClient;
     private CancellationTokenSource? _cts;
@@ -27,6 +30,8 @@ public sealed class LanGroupService : ILanGroupService
     private IPEndPoint MulticastEndpoint => new(_multicastAddress, Port);
 
     private IPEndPoint BroadcastEndpoint => new(IPAddress.Broadcast, Port);
+
+    private IPEndPoint LoopbackBroadcastEndpoint => new(_loopbackBroadcastAddress, Port);
 
     public event EventHandler<DiscoveryBeaconMessage>? GroupDiscovered;
 
@@ -383,6 +388,14 @@ public sealed class LanGroupService : ILanGroupService
                     // Subnet broadcast may be restricted on certain networks
                 }
             }
+
+            try
+            {
+                await client.SendAsync(bytes, bytes.Length, LoopbackBroadcastEndpoint).ConfigureAwait(false);
+            }
+            catch (SocketException)
+            {
+            }
         }
         catch (Exception ex) when (ex is SocketException or ObjectDisposedException)
         {
@@ -434,6 +447,22 @@ public sealed class LanGroupService : ILanGroupService
                 }
 
                 string? type = typeElem.GetString();
+                if (type is not "DISCOVER_PROBE" and not "BEACON")
+                {
+                    long nowMs = Environment.TickCount64;
+                    if (_recentPayloads.TryGetValue(json, out long prevMs) && nowMs - prevMs < 1500)
+                    {
+                        continue;
+                    }
+
+                    if (_recentPayloads.Count > 128)
+                    {
+                        _recentPayloads.Clear();
+                    }
+
+                    _recentPayloads[json] = nowMs;
+                }
+
                 string rawData = dataElem.GetRawText();
 
                 switch (type)

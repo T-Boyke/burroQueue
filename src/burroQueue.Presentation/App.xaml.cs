@@ -30,6 +30,39 @@ public partial class App : System.Windows.Application
     private ISystrayNotificationService? _systrayService;
 
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal static string? ResolveInstanceId(string[]? args = null)
+    {
+        string[] effectiveArgs = args ?? Environment.GetCommandLineArgs();
+        for (int i = 0; i < effectiveArgs.Length; i++)
+        {
+            string arg = effectiveArgs[i];
+            if ((string.Equals(arg, "--instance", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(arg, "-i", StringComparison.OrdinalIgnoreCase)) &&
+                i + 1 < effectiveArgs.Length &&
+                !string.IsNullOrWhiteSpace(effectiveArgs[i + 1]))
+            {
+                return SanitizeInstanceId(effectiveArgs[i + 1]);
+            }
+
+            if (arg.StartsWith("--instance=", StringComparison.OrdinalIgnoreCase))
+            {
+                return SanitizeInstanceId(arg["--instance=".Length..]);
+            }
+        }
+
+        string? envInstance = Environment.GetEnvironmentVariable("BURRO_INSTANCE");
+        return string.IsNullOrWhiteSpace(envInstance) ? null : SanitizeInstanceId(envInstance);
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    private static string SanitizeInstanceId(string raw)
+    {
+        char[] invalid = Path.GetInvalidFileNameChars();
+        string cleaned = new(raw.Trim().Where(c => !invalid.Contains(c)).ToArray());
+        return string.IsNullOrWhiteSpace(cleaned) ? "Peer" : cleaned;
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     internal static void LogStartup(string message)
     {
         try
@@ -79,6 +112,18 @@ public partial class App : System.Windows.Application
                 {
                     LogStartup("showWindow callback invoked");
                     Current.MainWindow = w;
+                    string? instId = ResolveInstanceId();
+                    if (!string.IsNullOrWhiteSpace(instId) && !w.IsVisible)
+                    {
+                        w.WindowStartupLocation = WindowStartupLocation.Manual;
+                        int slot = instId.EndsWith('1') ? 0
+                            : instId.EndsWith('2') ? 1
+                            : instId.EndsWith('3') ? 2
+                            : Math.Abs(instId.GetHashCode(StringComparison.Ordinal)) % 3;
+                        w.Left = 40 + (slot * 540);
+                        w.Top = 80;
+                    }
+
                     w.Show();
                     w.WindowState = WindowState.Normal;
                     w.Activate();
@@ -151,6 +196,17 @@ public partial class App : System.Windows.Application
         }
 
         MainWindow mainWindow = serviceProvider.GetRequiredService<MainWindow>();
+        string? instanceId = ResolveInstanceId();
+        if (!string.IsNullOrWhiteSpace(instanceId))
+        {
+            mainWindow.Title = $"burroQueue ({instanceId})";
+            if (settings.CurrentSettings is not null &&
+                string.Equals(settings.CurrentSettings.ClientDisplayName, Environment.UserName, StringComparison.Ordinal))
+            {
+                settings.CurrentSettings.ClientDisplayName = $"{Environment.UserName} ({instanceId})";
+            }
+        }
+
         MainWindowViewModel? viewModel = mainWindow.DataContext as MainWindowViewModel;
         if (viewModel is not null)
         {
@@ -276,15 +332,34 @@ public partial class App : System.Windows.Application
 
     internal static void ConfigureServices(IServiceCollection services)
     {
+        string? instanceId = ResolveInstanceId();
+        string defaultGroupName = string.IsNullOrWhiteSpace(instanceId)
+            ? "Büro Jukebox"
+            : $"Büro Jukebox ({instanceId})";
+
+        string? customSettingsPath = null;
+        string? customSessionPath = null;
+        if (!string.IsNullOrWhiteSpace(instanceId))
+        {
+            string instanceDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "burroQueue",
+                "instances",
+                instanceId);
+            Directory.CreateDirectory(instanceDir);
+            customSettingsPath = Path.Combine(instanceDir, "settings.toml");
+            customSessionPath = Path.Combine(instanceDir, "session.toml");
+        }
+
         // Domain
-        services.AddSingleton(new BurroGroup(GroupId.New(), "Büro Jukebox"));
+        services.AddSingleton(new BurroGroup(GroupId.New(), defaultGroupName));
         services.AddSingleton<QueueShuffleEngine>();
 
         // Infrastructure
         services.AddSingleton<IEntropySource, HardwareCsprngEntropySource>();
         services.AddSingleton<IFavoriteQueueRepository, TomlFavoriteQueueRepository>();
-        services.AddSingleton<IAppSettingsService, AppSettingsService>();
-        services.AddSingleton<IPlaylistStorageService, PlaylistStorageService>();
+        services.AddSingleton<IAppSettingsService>(_ => new AppSettingsService(customSettingsPath));
+        services.AddSingleton<IPlaylistStorageService>(_ => new PlaylistStorageService(customSessionPath));
         services.AddSingleton<IAudioDeviceEnumerator, WindowsAudioDeviceEnumerator>();
         services.AddSingleton<IStreamUriResolver, YouTubeAudioStreamResolver>();
         services.AddSingleton<IYouTubeUrlParser, YouTubeUrlParser>();
@@ -319,7 +394,12 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IAvatarBitmapCacheService>(_ => AvatarBitmapCacheService.Shared);
         services.AddSingleton<IClipboardMonitorService, Win32ClipboardMonitorService>();
         services.AddSingleton<ISystemMediaControlsService, WindowsSmtcService>();
-        services.AddSingleton<ISingleInstanceManager, SingleInstanceManager>();
+        services.AddSingleton<ISingleInstanceManager>(_ =>
+            string.IsNullOrWhiteSpace(instanceId)
+                ? new SingleInstanceManager()
+                : new SingleInstanceManager(
+                    $@"Local\burroQueue_SingleInstance_Mutex_{instanceId}",
+                    $@"Local\burroQueue_Show_Event_{instanceId}"));
         services.AddSingleton<ISystrayNotificationService, SystrayNotificationService>();
         services.AddSingleton<IGlobalHotkeyService, GlobalHotkeyService>();
         services.AddTransient<MainWindowViewModel>();

@@ -307,16 +307,24 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private void OnGroupDiscovered(object? sender, DiscoveryBeaconMessage beacon)
     {
-        DiscoveredGroupItem? existing = DiscoveredGroups.FirstOrDefault(g => g.GroupId == beacon.GroupId);
-        if (existing is not null)
+        if (_group is not null && beacon.GroupId == _group.Id.Value)
         {
-            int index = DiscoveredGroups.IndexOf(existing);
-            DiscoveredGroups[index] = new DiscoveredGroupItem(beacon.GroupId, beacon.GroupName, beacon.MemberCount, beacon.HostDisplayName, DateTimeOffset.UtcNow);
+            return;
         }
-        else
+
+        MainWindowViewModel.UiDispatcherRunner(() =>
         {
-            DiscoveredGroups.Add(new DiscoveredGroupItem(beacon.GroupId, beacon.GroupName, beacon.MemberCount, beacon.HostDisplayName, DateTimeOffset.UtcNow));
-        }
+            DiscoveredGroupItem? existing = DiscoveredGroups.FirstOrDefault(g => g.GroupId == beacon.GroupId);
+            if (existing is not null)
+            {
+                int index = DiscoveredGroups.IndexOf(existing);
+                DiscoveredGroups[index] = new DiscoveredGroupItem(beacon.GroupId, beacon.GroupName, beacon.MemberCount, beacon.HostDisplayName, DateTimeOffset.UtcNow);
+            }
+            else
+            {
+                DiscoveredGroups.Add(new DiscoveredGroupItem(beacon.GroupId, beacon.GroupName, beacon.MemberCount, beacon.HostDisplayName, DateTimeOffset.UtcNow));
+            }
+        });
     }
 
     internal Task WebDropToggleTask { get; private set; } = Task.CompletedTask;
@@ -426,6 +434,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         _group.SwitchGroup(new GroupId(target.GroupId), target.GroupName);
         CurrentGroupName = target.GroupName;
+        MainWindowViewModel.UiDispatcherRunner(() => DiscoveredGroups.Remove(target));
         if (_lanGroupService is not null)
         {
             await _lanGroupService.SendGroupActionAsync(new GroupId(target.GroupId), ClientId.New(), "Join", ClientDisplayName).ConfigureAwait(false);
@@ -446,6 +455,11 @@ public sealed partial class SettingsViewModel : ObservableObject
         _group.SwitchGroup(GroupId.New(), trimmed);
         CurrentGroupName = trimmed;
         NewGroupName = string.Empty;
+        if (_lanGroupService is not null)
+        {
+            _ = _lanGroupService.BroadcastBeaconAsync(_group, ClientId.New(), ClientDisplayName);
+        }
+
         StatusMessage = $"Neue Gruppe '{trimmed}' gegründet!";
     }
 

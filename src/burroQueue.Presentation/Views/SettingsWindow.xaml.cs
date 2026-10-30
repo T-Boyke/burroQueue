@@ -21,6 +21,7 @@ public partial class SettingsWindow : FluentWindow
             }
 
             Wpf.Ui.Appearance.SystemThemeWatcher.Watch(this, backdrop, viewModel.UseSystemAccentColor);
+            _ = viewModel.ScanGroupsAsync();
         };
     }
 

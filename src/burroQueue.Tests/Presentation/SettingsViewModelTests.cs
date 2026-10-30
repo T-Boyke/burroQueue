@@ -469,4 +469,50 @@ public sealed class SettingsViewModelTests
             !d.EnableLoudnessNormalization &&
             Math.Abs(d.TargetLoudnessLufs - (-24.0)) < 0.01));
     }
+
+    [Fact]
+    public void OnGroupDiscovered_ShouldIgnoreOwnGroupAndAddForeignGroupToDiscoveredGroups()
+    {
+        burroQueue.Domain.Model.BurroGroup ownGroup = new(burroQueue.Domain.Model.GroupId.New(), "Own Office");
+        burroQueue.Infrastructure.Network.ILanGroupService lan = Substitute.For<burroQueue.Infrastructure.Network.ILanGroupService>();
+
+        SettingsViewModel vm = new(
+            _settingsService,
+            _telephonyManager,
+            _autostartService,
+            _audioDeviceEnumerator,
+            group: ownGroup,
+            lanGroupService: lan);
+
+        // Own group beacon should be ignored
+        lan.GroupDiscovered += Raise.Event<EventHandler<burroQueue.Infrastructure.Network.Messages.DiscoveryBeaconMessage>>(
+            lan,
+            new burroQueue.Infrastructure.Network.Messages.DiscoveryBeaconMessage(
+                ownGroup.Id.Value,
+                ownGroup.Name,
+                Guid.NewGuid(),
+                "Alice",
+                1,
+                false,
+                null,
+                DateTimeOffset.UtcNow));
+
+        vm.DiscoveredGroups.Should().BeEmpty();
+
+        // Foreign group beacon should be added
+        Guid foreignGroupId = Guid.NewGuid();
+        lan.GroupDiscovered += Raise.Event<EventHandler<burroQueue.Infrastructure.Network.Messages.DiscoveryBeaconMessage>>(
+            lan,
+            new burroQueue.Infrastructure.Network.Messages.DiscoveryBeaconMessage(
+                foreignGroupId,
+                "Dev Team Lounge",
+                Guid.NewGuid(),
+                "Bob",
+                2,
+                false,
+                null,
+                DateTimeOffset.UtcNow));
+
+        vm.DiscoveredGroups.Should().ContainSingle(g => g.GroupId == foreignGroupId && g.GroupName == "Dev Team Lounge");
+    }
 }

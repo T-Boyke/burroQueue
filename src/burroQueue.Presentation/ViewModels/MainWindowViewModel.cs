@@ -1567,17 +1567,38 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
         if (action.ActionType == "Rename" && !string.IsNullOrWhiteSpace(action.Payload))
         {
-            _group.Rename(action.Payload);
-            GroupName = _group.Name;
+            RunOnUi(() =>
+            {
+                _group.Rename(action.Payload);
+                GroupName = _group.Name;
+            });
         }
         else if (action.ActionType == "Join")
         {
             string peerName = !string.IsNullOrWhiteSpace(action.Payload) ? action.Payload : "Ein neues Mitglied";
+            IReadOnlyList<Track> snapshotTracks = [];
+            string? currentPlaylistUrl = null;
             RunOnUi(() =>
             {
                 StatusMessage = $"{peerName} ist der Gruppe beigetreten";
+                snapshotTracks = _group.Playlist.AllTracks.ToList();
+                currentPlaylistUrl = CollaborativePlaylistUrl;
             });
             _systrayService?.ShowNotification("burroQueue – Neues Gruppenmitglied", $"{peerName} ist der Gruppe beigetreten.");
+
+            _ = Task.Run(async () =>
+            {
+                foreach (Track existingTrack in snapshotTracks)
+                {
+                    await _lanGroupService.SendQueueSyncAsync(_group.Id, "Enqueue", existingTrack).ConfigureAwait(false);
+                }
+
+                if (!string.IsNullOrWhiteSpace(currentPlaylistUrl))
+                {
+                    string hostName = _settingsService.CurrentSettings?.ClientDisplayName ?? Environment.UserName;
+                    await _lanGroupService.ShareCollaborativePlaylistAsync(_group.Id, currentPlaylistUrl, hostName).ConfigureAwait(false);
+                }
+            });
         }
     }
 
@@ -1591,16 +1612,25 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         switch (cmd.Command)
         {
             case "Play":
-                _group.Play();
-                PlaybackState = _group.PlaybackState;
+                RunOnUi(() =>
+                {
+                    _group.Play();
+                    PlaybackState = _group.PlaybackState;
+                });
                 break;
             case "Pause":
-                _group.Pause();
-                PlaybackState = _group.PlaybackState;
+                RunOnUi(() =>
+                {
+                    _group.Pause();
+                    PlaybackState = _group.PlaybackState;
+                });
                 break;
             case "Stop":
-                _group.Stop();
-                PlaybackState = _group.PlaybackState;
+                RunOnUi(() =>
+                {
+                    _group.Stop();
+                    PlaybackState = _group.PlaybackState;
+                });
                 break;
             case "Skip":
                 PlaybackCommandTask = SkipAsync();
@@ -1615,12 +1645,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             return;
         }
 
-        CollaborativePlaylistUrl = message.CollaborativePlaylistUrl;
-
-        if (!_settingsService.CurrentSettings.HasJoinedCollaborativePlaylist && !string.IsNullOrWhiteSpace(message.CollaborativePlaylistUrl))
+        RunOnUi(() =>
         {
-            RunOnUi(() => IsFirstJoinPromptVisible = true);
-        }
+            CollaborativePlaylistUrl = message.CollaborativePlaylistUrl;
+            if (!_settingsService.CurrentSettings.HasJoinedCollaborativePlaylist && !string.IsNullOrWhiteSpace(message.CollaborativePlaylistUrl))
+            {
+                IsFirstJoinPromptVisible = true;
+            }
+        });
 
         if (_settingsService.CurrentSettings.AutoOpenCollaborativePlaylistOnJoin)
         {
