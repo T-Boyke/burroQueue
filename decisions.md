@@ -182,3 +182,28 @@ Dieses Dokument hält alle zentralen architektonischen Entscheidungen für `burr
   4. `MainWindow` und `SettingsWindow` binden `ApplicationAccentColorManager` (`SystemAccentColor*Brush`) und `SystemThemeWatcher` mit wählbarem `WindowBackdropType` (`Auto`, `Mica`, `Tabbed`, `Acrylic`, `None`) ein; Queue-Aktionsicons werden rechtsbündig im `DockPanel` ausgerichtet und `TrackToastWindow` zeigt das `64x48` Song-Cover.
   5. `SettingsViewModel.OnEnableWebDropServerChanged` startet/stoppt den `EmbeddedWebDropServer` unmittelbar beim Umschalten inklusive Port-Fallback und Filterung virtueller Docker/WSL-Subnetze.
 - **Konsequenzen:** Nahtlose Integration in moderne Windows 11 Büro-Umgebungen mit minimalem Ressourcenverbrauch und zuverlässiger Erreichbarkeit des WebDrop-Servers.
+
+
+---
+
+## ADR-018: Tech-Stack-Upgrade auf `.NET 11` (`C# 15`) und Build-Time `UnoCSS 66.12.0` (Zero Bootstrap)
+
+- **Status:** Angenommen
+- **Kontext:** Für die Version-2.0-Roadmap soll die Lösung auf den aktuellen `.NET 11`-Stack gehoben und das WebDrop-Interface für Büro-Kollegen auf `UnoCSS 66.12.0` (strikt ohne Bootstrap) umgestellt werden, ohne Gesetz 4 (`< 30 MB` RAM im Standby, kein `WebView2`, kein Node.js-Laufzeitprozess) zu verletzen.
+- **Entscheidung:**
+  1. Anhebung aller Target Frameworks auf `net11.0` (`Domain`, `Infrastructure`) bzw. `net11.0-windows10.0.22621.0` (`Presentation`, `Tests`) mit `global.json` (`11.0.100-rc.1`, `rollForward: latestFeature`, `allowPrerelease: true`), sodass sowohl aktuelle RC-Builds als auch das `.NET 11` GA-SDK nahtlos unterstützt werden.
+  2. Einführung der reinen Build-Time-Pipeline `src/burroQueue.WebDrop` (`unocss@66.12.0`, `@unocss/cli@66.12.0`), die Windows 11 Fluent Light/Dark Design-Tokens (`prefers-color-scheme`) und atomare Utility-Klassen in ein `< 9 KB` großes Stylesheet (`webdrop.uno.min.css`) kompiliert.
+  3. Einbettung von `webdrop.uno.min.css` als `<EmbeddedResource>` in `burroQueue.Infrastructure`, gecacht als allokationsfreies UTF-8 `ReadOnlyMemory<byte>` in `WebDropStylesheetProvider` und ausgeliefert unter `GET /assets/webdrop.css` mit `Cache-Control: public, max-age=86400`.
+- **Konsequenzen:** Modernste `.NET 11`-Laufzeitoptimierungen, sauberes responsives Fluent-WebDrop-UI ohne Inline-CSS-Duplikation, null Bootstrap-Ballast und exakt 0 MB zusätzlicher Laufzeit-Speicherbedarf.
+
+---
+
+## ADR-019: Zweistufiges OSS Authenticode Code-Signing (`SignPath.io`), GitHub Secrets Governance & SSH-`Verified` Commits
+
+- **Status:** Angenommen
+- **Kontext:** Unsignierte Windows-Installer und `.exe`-Dateien lösen bei jeder Installation Warnungen von Microsoft Defender SmartScreen aus. Zudem sollen alle Git-Commits auf GitHub kryptografisch verifiziert (`Verified`) sein und die gesamte Projektentwicklung über ein strukturiertes 5-Säulen-Kanban-Projekt gesteuert werden.
+- **Entscheidung:**
+  1. Integration von kostenlosem Open-Source Authenticode Code-Signing über **SignPath.io** (Zertifikat der **SignPath Foundation**, kompatibel mit `AGPL-3.0`) in `.github/workflows/release.yml` mittels zweistufiger Artefakt-Attestierung (`SignPath/github-action-submit-signing-request@v2`): zuerst Signatur von `burroQueue.exe`, danach Inno-Setup-Paketierung und abschließend Signatur von `burroQueue-Setup-x64.exe` inklusive `Get-AuthenticodeSignature`-Prüfung und `SHA256SUMS.txt`.
+  2. Strikte Trennung von Geheimnissen: CI/CD-Tokens (`SIGNPATH_API_TOKEN`, optional `WINGET_GITHUB_TOKEN`) liegen ausschließlich in **GitHub Actions Secrets**; Client-Binärdateien enthalten niemals eingebettete Secrets (`SECURITY.md`).
+  3. Verpflichtende lokale SSH-Commit- und Tag-Signatur (`Ed25519`, `gpg.format = ssh`, `commit.gpgsign = true`, `tag.gpgsign = true`) sowie vollständige 1:1-Nachverfolgung im GitHub Project v2 Kanban-Board entlang der 5 Entwicklungs-Säulen (Epics `#23`–`#27`).
+- **Konsequenzen:** Vertrauenswürdige Windows-11-Installation ohne SmartScreen-Blockade nach Hinterlegung der SignPath-Secrets, lückenlose Supply-Chain-Nachvollziehbarkeit vom signierten Commit bis zum signierten Installer.
