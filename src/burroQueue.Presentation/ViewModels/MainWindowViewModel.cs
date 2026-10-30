@@ -388,6 +388,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
         _webDropServer.LinkDropped += (_, req) => EnqueueRawUrl(req.Url, req.Submitter);
         _webDropServer.SkipVoteRequested += async (_, _) => await VoteToSkipAsync().ConfigureAwait(false);
+        _webDropServer.TrackUpvoteRequested += async (_, req) =>
+        {
+            Track? target = _group.Playlist.AllTracks.FirstOrDefault(t => t.VideoId == req.VideoId);
+            if (target is not null)
+            {
+                await ToggleTrackUpvoteAsync(target).ConfigureAwait(false);
+            }
+        };
         _webDropServer.SkipVoteStatusProvider = () => SkipVoteStatus;
 
         if (_smtcService is not null)
@@ -935,6 +943,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
             QueuedCount = _group.Playlist.Count;
             SyncCurrentTrackDisplayIfEmpty();
+            _webDropServer.BroadcastStatusEvent();
         });
     }
 

@@ -43,4 +43,29 @@ public sealed class EmbeddedWebDropServerTests
         html.Should().Contain("Warteschlange ist leer");
         html.Should().Contain("GNU AGPL-3.0");
     }
+
+    [Fact]
+    public void GeneratePageHtmlAndStatusJson_ShouldContainSseEventSourceUpvoteActionAndCollaboratorAvatar()
+    {
+        BurroGroup group = new(GroupId.New(), "Test Jukebox");
+        Track track1 = new(
+            "vid1",
+            new Uri("https://www.youtube.com/watch?v=vid1"),
+            "Awesome Song 1",
+            "UserA",
+            DateTimeOffset.UtcNow,
+            submitterAvatarUrl: new Uri("https://yt3.ggpht.com/ytc/userA=s88"));
+        group.Playlist.Enqueue(track1);
+
+        EmbeddedWebDropServer server = new(8089, group);
+
+        string html = server.GeneratePageHtml();
+        string json = server.GenerateStatusJson();
+
+        html.Should().Contain("new EventSource('/api/events')");
+        html.Should().Contain("action='/upvote'");
+        html.Should().Contain("https://yt3.ggpht.com/ytc/userA=s88");
+        json.Should().Contain("\"videoId\":\"vid1\"");
+        json.Should().Contain("\"submitterAvatarUrl\":\"https://yt3.ggpht.com/ytc/userA=s88\"");
+    }
 }

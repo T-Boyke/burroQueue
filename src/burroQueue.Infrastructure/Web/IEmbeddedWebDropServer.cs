@@ -12,6 +12,12 @@ public interface IEmbeddedWebDropServer : IAsyncDisposable
 
     event EventHandler? SkipVoteRequested;
 
+    event EventHandler<WebDropUpvoteRequest>? TrackUpvoteRequested;
+
+    void BroadcastStatusEvent()
+    {
+    }
+
     Task StartAsync(CancellationToken cancellationToken = default);
 
     Task StopAsync(CancellationToken cancellationToken = default);

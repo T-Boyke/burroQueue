@@ -21,10 +21,18 @@
             <div class="bq-section-label">Aktuell läuft</div>
             <div class="text-[15px] font-semibold text-fluent-text truncate" id="now-playing-title">Song</div>
             <div class="text-[15px] font-semibold text-fluent-muted truncate">Kein Song aktiv</div>
-            <div class="text-xs text-fluent-muted mt-1" id="now-playing-submitter">Eingeworfen von: Alex</div>
-            <form method="POST" action="/vote-skip" class="mt-2.5" id="skip-form">
-                <button type="submit" class="bq-btn-skip" id="skip-btn">Für Skip stimmen</button>
-            </form>
+            <div class="flex items-center gap-1.5 mt-1">
+                <img src="/avatar.jpg" width="16" height="16" class="rounded-full shrink-0" alt="" />
+                <div class="text-xs text-fluent-muted" id="now-playing-submitter">Eingeworfen von: Alex</div>
+            </div>
+            <div class="flex items-center gap-2 mt-2.5" id="skip-form">
+                <form method="POST" action="/vote-skip" class="inline">
+                    <button type="submit" class="bq-btn-skip" id="skip-btn">Für Skip stimmen</button>
+                </form>
+                <form method="POST" action="/upvote" class="inline">
+                    <button type="submit" class="bq-btn-skip">👍 Favorit</button>
+                </form>
+            </div>
         </section>
 
         <section class="bq-section">

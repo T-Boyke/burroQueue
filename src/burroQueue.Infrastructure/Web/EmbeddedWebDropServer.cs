@@ -28,6 +28,10 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
 
     public event EventHandler? SkipVoteRequested;
 
+    public event EventHandler<WebDropUpvoteRequest>? TrackUpvoteRequested;
+
+    private readonly List<Stream> _sseSubscribers = [];
+    private readonly object _sseLock = new();
     private readonly IQrCodeSvgGenerator _qrCodeGenerator;
 
     public EmbeddedWebDropServer(
@@ -240,6 +244,71 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
                     await stream.WriteAsync(headerBytes, token).ConfigureAwait(false);
                     await stream.FlushAsync(token).ConfigureAwait(false);
                 }
+                else if (method == "POST" && (path == "/upvote" || path.StartsWith("/upvote?", StringComparison.Ordinal)))
+                {
+                    string body = await ReadBodyAsync(reader, contentLength).ConfigureAwait(false);
+                    string videoId = string.Empty;
+                    string? voter = null;
+
+                    foreach (string pair in body.Split('&'))
+                    {
+                        string[] kvp = pair.Split('=', 2);
+                        if (kvp.Length == 2)
+                        {
+                            string key = WebUtility.UrlDecode(kvp[0]).Trim();
+                            string val = WebUtility.UrlDecode(kvp[1]).Trim();
+                            if (key.Equals("videoId", StringComparison.OrdinalIgnoreCase))
+                            {
+                                videoId = val;
+                            }
+                            else if (key.Equals("submitter", StringComparison.OrdinalIgnoreCase))
+                            {
+                                voter = string.IsNullOrWhiteSpace(val) ? null : val;
+                            }
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(videoId))
+                    {
+                        TrackUpvoteRequested?.Invoke(this, new WebDropUpvoteRequest(videoId, voter));
+                    }
+
+                    byte[] headerBytes = Encoding.ASCII.GetBytes("HTTP/1.1 303 See Other\r\nLocation: /?status=upvoted\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                    await stream.WriteAsync(headerBytes, token).ConfigureAwait(false);
+                    await stream.FlushAsync(token).ConfigureAwait(false);
+                }
+                else if (method == "GET" && (path == "/api/events" || path.StartsWith("/api/events?", StringComparison.Ordinal)))
+                {
+                    client.SendTimeout = 0;
+                    byte[] headerBytes = Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream; charset=utf-8\r\nCache-Control: no-cache\r\nConnection: keep-alive\r\n\r\n");
+                    await stream.WriteAsync(headerBytes, token).ConfigureAwait(false);
+                    byte[] initialEvent = Encoding.UTF8.GetBytes($"data: {GenerateStatusJson()}\n\n");
+                    await stream.WriteAsync(initialEvent, token).ConfigureAwait(false);
+                    await stream.FlushAsync(token).ConfigureAwait(false);
+
+                    lock (_sseLock)
+                    {
+                        _sseSubscribers.Add(stream);
+                    }
+
+                    try
+                    {
+                        while (!token.IsCancellationRequested && _isRunning)
+                        {
+                            await Task.Delay(15000, token).ConfigureAwait(false);
+                            byte[] keepAlive = Encoding.ASCII.GetBytes(": keep-alive\n\n");
+                            await stream.WriteAsync(keepAlive, token).ConfigureAwait(false);
+                            await stream.FlushAsync(token).ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        lock (_sseLock)
+                        {
+                            _sseSubscribers.Remove(stream);
+                        }
+                    }
+                }
                 else if (method == "GET" && (path == "/qr.svg" || path.StartsWith("/qr.svg?", StringComparison.Ordinal)))
                 {
                     string host = !string.IsNullOrWhiteSpace(hostHeader) ? hostHeader : $"localhost:{_actualPort}";
@@ -313,6 +382,42 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
         return new string(buffer, 0, readTotal);
     }
 
+    public void BroadcastStatusEvent()
+    {
+        if (!_isRunning)
+        {
+            return;
+        }
+
+        byte[] payload = Encoding.UTF8.GetBytes($"data: {GenerateStatusJson()}\n\n");
+        Stream[] targets;
+        lock (_sseLock)
+        {
+            if (_sseSubscribers.Count == 0)
+            {
+                return;
+            }
+
+            targets = _sseSubscribers.ToArray();
+        }
+
+        foreach (Stream s in targets)
+        {
+            try
+            {
+                s.Write(payload, 0, payload.Length);
+                s.Flush();
+            }
+            catch
+            {
+                lock (_sseLock)
+                {
+                    _sseSubscribers.Remove(s);
+                }
+            }
+        }
+    }
+
     public string GenerateStatusJson()
     {
         string groupName = _group?.Name ?? "Office Jukebox";
@@ -329,8 +434,10 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
             if (current is not null)
             {
                 writer.WriteStartObject("currentTrack");
+                writer.WriteString("videoId", current.VideoId);
                 writer.WriteString("title", current.Title);
                 writer.WriteString("submittedBy", current.SubmittedBy);
+                writer.WriteString("submitterAvatarUrl", current.SubmitterAvatarUrl?.ToString());
                 writer.WriteEndObject();
             }
             else
@@ -344,8 +451,10 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
                 foreach (Domain.Model.Track track in _group.Playlist.QueuedTracks)
                 {
                     writer.WriteStartObject();
+                    writer.WriteString("videoId", track.VideoId);
                     writer.WriteString("title", track.Title);
                     writer.WriteString("submittedBy", track.SubmittedBy);
+                    writer.WriteString("submitterAvatarUrl", track.SubmitterAvatarUrl?.ToString());
                     writer.WriteEndObject();
                 }
             }
@@ -399,7 +508,12 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
         if (currentTrack is not null)
         {
             sb.Append(CultureInfo.InvariantCulture, $"<div class='text-[15px] font-semibold text-fluent-text truncate' id='now-playing-title'>{WebUtility.HtmlEncode(currentTrack.Title)}</div>");
-            sb.Append(CultureInfo.InvariantCulture, $"<div class='text-xs text-fluent-muted mt-1' id='now-playing-submitter'>Eingeworfen von: {WebUtility.HtmlEncode(currentTrack.SubmittedBy)}</div>");
+            sb.Append("<div class='flex items-center gap-1.5 mt-1'>");
+            if (currentTrack.SubmitterAvatarUrl is not null)
+            {
+                sb.Append(CultureInfo.InvariantCulture, $"<img src='{WebUtility.HtmlEncode(currentTrack.SubmitterAvatarUrl.ToString())}' width='16' height='16' class='rounded-full shrink-0' alt='' id='now-playing-avatar' />");
+            }
+            sb.Append(CultureInfo.InvariantCulture, $"<div class='text-xs text-fluent-muted' id='now-playing-submitter'>Eingeworfen von: {WebUtility.HtmlEncode(currentTrack.SubmittedBy)}</div></div>");
         }
         else
         {
@@ -409,9 +523,16 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
 
         string voteLabel = !string.IsNullOrWhiteSpace(skipVoteStatus) ? $" ({WebUtility.HtmlEncode(skipVoteStatus)})" : string.Empty;
         string skipBtnDisplay = currentTrack is not null ? "block" : "none";
-        sb.Append(CultureInfo.InvariantCulture, $@"<form method='POST' action='/vote-skip' class='mt-2.5' id='skip-form' style='display:{skipBtnDisplay};'>
-            <button type='submit' class='bq-btn-skip' id='skip-btn'>F&uuml;r Skip stimmen{voteLabel}</button>
-        </form>
+        string curVid = currentTrack?.VideoId ?? string.Empty;
+        sb.Append(CultureInfo.InvariantCulture, $@"<div class='flex items-center gap-2 mt-2.5' id='skip-form' style='display:{skipBtnDisplay};'>
+            <form method='POST' action='/vote-skip' class='inline'>
+                <button type='submit' class='bq-btn-skip' id='skip-btn'>F&uuml;r Skip stimmen{voteLabel}</button>
+            </form>
+            <form method='POST' action='/upvote' class='inline'>
+                <input type='hidden' name='videoId' id='upvote-vid' value='{WebUtility.HtmlEncode(curVid)}' />
+                <button type='submit' class='bq-btn-skip'>&#x1F44D; Favorit</button>
+            </form>
+        </div>
         </section>");
 
         sb.Append(@"<section class='bq-section'>
@@ -470,56 +591,58 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
             });
         }
 
-        function pollStatus() {
-            fetch('/api/status')
-                .then(r => r.json())
-                .then(data => {
-                    const titleEl = document.getElementById('now-playing-title');
-                    const subEl = document.getElementById('now-playing-submitter');
-                    const skipForm = document.getElementById('skip-form');
-                    const skipBtn = document.getElementById('skip-btn');
-                    const listEl = document.getElementById('queue-list');
-                    const emptyEl = document.getElementById('queue-empty');
+        function applyStatusData(data) {
+            const titleEl = document.getElementById('now-playing-title');
+            const subEl = document.getElementById('now-playing-submitter');
+            const skipForm = document.getElementById('skip-form');
+            const skipBtn = document.getElementById('skip-btn');
+            const upVid = document.getElementById('upvote-vid');
+            const listEl = document.getElementById('queue-list');
+            const emptyEl = document.getElementById('queue-empty');
 
-                    if (data.currentTrack) {
-                        if (titleEl) {
-                            titleEl.textContent = data.currentTrack.title;
-                            titleEl.classList.remove('text-fluent-muted');
-                            titleEl.classList.add('text-fluent-text');
-                        }
-                        if (subEl) subEl.textContent = 'Eingeworfen von: ' + (data.currentTrack.submittedBy || 'Anonym');
-                        if (skipForm) skipForm.style.display = 'block';
-                        if (skipBtn) skipBtn.textContent = 'F\u00FCr Skip stimmen' + (data.skipVotes ? ' (' + data.skipVotes + ')' : '');
-                    } else {
-                        if (titleEl) {
-                            titleEl.textContent = 'Kein Song aktiv';
-                            titleEl.classList.remove('text-fluent-text');
-                            titleEl.classList.add('text-fluent-muted');
-                        }
-                        if (subEl) subEl.textContent = '';
-                        if (skipForm) skipForm.style.display = 'none';
-                    }
+            if (data.currentTrack) {
+                if (titleEl) {
+                    titleEl.textContent = data.currentTrack.title;
+                    titleEl.classList.remove('text-fluent-muted');
+                    titleEl.classList.add('text-fluent-text');
+                }
+                if (subEl) subEl.textContent = 'Eingeworfen von: ' + (data.currentTrack.submittedBy || 'Anonym');
+                if (upVid && data.currentTrack.videoId) upVid.value = data.currentTrack.videoId;
+                if (skipForm) skipForm.style.display = 'flex';
+                if (skipBtn) skipBtn.textContent = 'F\u00FCr Skip stimmen' + (data.skipVotes ? ' (' + data.skipVotes + ')' : '');
+            } else {
+                if (titleEl) {
+                    titleEl.textContent = 'Kein Song aktiv';
+                    titleEl.classList.remove('text-fluent-text');
+                    titleEl.classList.add('text-fluent-muted');
+                }
+                if (subEl) subEl.textContent = '';
+                if (skipForm) skipForm.style.display = 'none';
+            }
 
-                    if (listEl && emptyEl) {
-                        if (data.queuedTracks && data.queuedTracks.length > 0) {
-                            emptyEl.style.display = 'none';
-                            listEl.style.display = 'block';
-                            listEl.innerHTML = '';
-                            data.queuedTracks.forEach(t => {
-                                const li = document.createElement('li');
-                                li.className = 'mb-1';
-                                li.textContent = t.title + ' (' + (t.submittedBy || 'Anonym') + ')';
-                                listEl.appendChild(li);
-                            });
-                        } else {
-                            listEl.style.display = 'none';
-                            emptyEl.style.display = 'block';
-                        }
-                    }
-                })
-                .catch(() => {});
+            if (listEl && emptyEl) {
+                if (data.queuedTracks && data.queuedTracks.length > 0) {
+                    emptyEl.style.display = 'none';
+                    listEl.style.display = 'block';
+                    listEl.innerHTML = '';
+                    data.queuedTracks.forEach(t => {
+                        const li = document.createElement('li');
+                        li.className = 'mb-1';
+                        li.textContent = t.title + ' (' + (t.submittedBy || 'Anonym') + ')';
+                        listEl.appendChild(li);
+                    });
+                } else {
+                    listEl.style.display = 'none';
+                    emptyEl.style.display = 'block';
+                }
+            }
         }
-        setInterval(pollStatus, 5000);
+
+        if (window.EventSource) {
+            const es = new EventSource('/api/events');
+            es.onmessage = e => { try { applyStatusData(JSON.parse(e.data)); } catch {} };
+        }
+        setInterval(() => fetch('/api/status').then(r => r.json()).then(applyStatusData).catch(() => {}), 10000);
     </script>
 </body>
 </html>");
