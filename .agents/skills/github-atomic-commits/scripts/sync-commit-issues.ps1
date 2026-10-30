@@ -13,6 +13,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+[Console]::InputEncoding  = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding           = [System.Text.Encoding]::UTF8
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..\..\..")
 $RepoFull = "T-Boyke/burroQueue"
 
@@ -77,7 +80,7 @@ function Invoke-WithRetry([scriptblock]$Action, [string]$Desc) {
             return (& $Action)
         } catch {
             $msg = $_.Exception.Message
-            if ($attempt -eq $maxRetries) { throw }
+            if ($attempt -eq $maxRetries -or $msg -match "Content already exists in this project") { throw }
             $waitSec = if ($msg -match "secondary rate limit|abuse|403|429") { 65 } else { 6 * $attempt }
             Write-Host "  [RETRY $attempt/$maxRetries] $Desc failed ($msg). Waiting ${waitSec}s..." -ForegroundColor Yellow
             Start-Sleep -Seconds $waitSec
@@ -121,11 +124,20 @@ function Get-OrAddProjectItemId([string]$IssueNodeId) {
     if ($existing) {
         return $existing
     }
-    $added = Invoke-Gql 'mutation($projectId: ID!, $contentId: ID!) { addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) { item { id } } }' @{
-        projectId = $ProjectId
-        contentId = $IssueNodeId
+    try {
+        $added = Invoke-Gql 'mutation($projectId: ID!, $contentId: ID!) { addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) { item { id } } }' @{
+            projectId = $ProjectId
+            contentId = $IssueNodeId
+        }
+        return $added.addProjectV2ItemById.item.id
+    } catch {
+        $qRetry = Invoke-Gql 'query($id: ID!) { node(id: $id) { ... on Issue { projectItems(first: 10) { nodes { id project { id } } } } } }' @{ id = $IssueNodeId }
+        $existingRetry = ($qRetry.node.projectItems.nodes | Where-Object { $_.project.id -eq $ProjectId } | Select-Object -First 1).id
+        if ($existingRetry) {
+            return $existingRetry
+        }
+        throw
     }
-    return $added.addProjectV2ItemById.item.id
 }
 
 function Get-CommitPillar([string]$Subject) {
@@ -155,7 +167,7 @@ $recordedShortShas = @{}
 $existingJson = (& $GhExe issue list --repo $RepoFull --label "commit-record" --state all --limit 500 --json number,title) -join "`n"
 $existingIssues = $existingJson | ConvertFrom-Json
 foreach ($iss in $existingIssues) {
-    if ($iss.title -match "\[Commit #\d+\s+·\s+([0-9a-f]{7,40})\]") {
+    if ($iss.title -match "\[Commit #\d+[^\]]*?([0-9a-f]{7,40})\]") {
         $recordedShortShas[$Matches[1].Substring(0, 7)] = $iss.number
     }
 }
@@ -296,3 +308,4 @@ foreach ($issueNum in $CompletedIssues) {
 }
 
 Write-Host "[SYNC COMPLETE] $totalCount total commits verified ($createdCount newly recorded)." -ForegroundColor Cyan
+
