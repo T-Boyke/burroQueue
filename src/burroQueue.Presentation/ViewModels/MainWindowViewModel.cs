@@ -251,6 +251,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     internal Task DuckingReleaseTask { get; private set; } = Task.CompletedTask;
 
+    internal Task PrefetchTask { get; private set; } = Task.CompletedTask;
+
     public MainWindowViewModel(
         BurroGroup group,
         IYouTubeUrlParser urlParser,
@@ -325,6 +327,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
         _lastUnmutedVolume = _masterVolume > 0 ? _masterVolume : 0.8;
         _isAudioDucked = _audioController.IsDucked;
+        ApplyLoudnessNormalizationSettings();
 
         if (_telephonyManager.ActiveProvider is { } activeProvider)
         {
@@ -649,6 +652,23 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         ConfigurePlaylistAutoSyncLoop();
+        ApplyLoudnessNormalizationSettings();
+    }
+
+    private void ApplyLoudnessNormalizationSettings()
+    {
+        bool enabled = _settingsService.CurrentSettings?.EnableLoudnessNormalization ?? true;
+        double targetLufs = _settingsService.CurrentSettings?.TargetLoudnessLufs ?? -14.0;
+        _audioPlayerBackend.ConfigureLoudnessNormalization(enabled, targetLufs);
+    }
+
+    private void TriggerNextTrackPrefetch()
+    {
+        IReadOnlyList<Track> upcoming = _group.Playlist.QueuedTracks;
+        if (upcoming.Count > 0)
+        {
+            PrefetchTask = _audioPlayerBackend.PrefetchTrackAsync(upcoming[0]);
+        }
     }
 
     private void RefreshWebDropEndpointUrl()
@@ -867,6 +887,44 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         if (_group.Playlist.CurrentTrack == track)
         {
             MetadataLoadTask = LoadTrackMetadataAsync(track);
+        }
+        else
+        {
+            TriggerNextTrackPrefetch();
+        }
+    }
+
+    public void MoveTrackToTarget(Track? sourceTrack, Track? targetTrack)
+    {
+        if (sourceTrack is null || targetTrack is null || sourceTrack.Id == targetTrack.Id)
+        {
+            return;
+        }
+
+        IReadOnlyList<Track> all = _group.Playlist.AllTracks;
+        int targetIndex = -1;
+        for (int i = 0; i < all.Count; i++)
+        {
+            if (all[i].Id == targetTrack.Id)
+            {
+                targetIndex = i;
+                break;
+            }
+        }
+
+        if (targetIndex < 0)
+        {
+            return;
+        }
+
+        if (_group.Playlist.MoveTrackToIndex(sourceTrack.Id, targetIndex))
+        {
+            SyncQueuedItems();
+            StatusMessage = $"'{sourceTrack.Title}' verschoben";
+            AutoSavePlaylist();
+            TriggerNextTrackPrefetch();
+            string[] orderedIds = _group.Playlist.AllTracks.Select(t => t.VideoId).ToArray();
+            _ = _lanGroupService.SendQueueOrderSyncAsync(_group.Id, _localClientId, IsShuffleEnabled, orderedIds);
         }
     }
 
@@ -1210,6 +1268,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 MetadataLoadTask = LoadTrackMetadataAsync(current);
                 await _audioPlayerBackend.PlayTrackAsync(current).ConfigureAwait(false);
             }
+
+            TriggerNextTrackPrefetch();
         }
 
         await _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "Play").ConfigureAwait(false);
@@ -1230,6 +1290,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         PlaybackState = _group.PlaybackState;
+        CurrentTrackTitle = selected.Title;
+        CurrentTrackArtist = selected.ArtistName ?? selected.SubmittedBy;
+        CurrentTrackSubmittedBy = selected.SubmittedBy;
+        CurrentTrackSubmitterAvatarUrl = selected.SubmitterAvatarUrl;
+        CurrentTrackThumbnailUrl = selected.ThumbnailUrl;
         SyncQueuedItems();
         AutoSavePlaylist();
 
@@ -1240,8 +1305,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             _playbackTimer?.Start();
         });
 
-        await LoadTrackMetadataAsync(selected).ConfigureAwait(true);
+        MetadataLoadTask = LoadTrackMetadataAsync(selected);
         await _audioPlayerBackend.PlayTrackAsync(selected).ConfigureAwait(false);
+        TriggerNextTrackPrefetch();
     }
 
     [RelayCommand]
@@ -1317,13 +1383,19 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         if (next is not null)
         {
             StatusMessage = $"Playing: {next.Title}";
+            CurrentTrackTitle = next.Title;
+            CurrentTrackArtist = next.ArtistName ?? next.SubmittedBy;
+            CurrentTrackSubmittedBy = next.SubmittedBy;
+            CurrentTrackSubmitterAvatarUrl = next.SubmitterAvatarUrl;
+            CurrentTrackThumbnailUrl = next.ThumbnailUrl;
             RunOnUi(() =>
             {
                 PlaybackProgress = 0.0;
                 _playbackTimer?.Start();
             });
-            await LoadTrackMetadataAsync(next).ConfigureAwait(true);
+            MetadataLoadTask = LoadTrackMetadataAsync(next);
             await _audioPlayerBackend.PlayTrackAsync(next).ConfigureAwait(false);
+            TriggerNextTrackPrefetch();
         }
         else
         {

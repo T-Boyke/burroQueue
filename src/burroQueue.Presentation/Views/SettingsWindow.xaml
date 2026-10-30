@@ -116,6 +116,77 @@
             Text="{Binding DuckingReleaseDelaySeconds, UpdateSourceTrigger=PropertyChanged}" />
         </Grid>
 
+        <!-- Loudness Normalization (EBU R128 / LUFS) -->
+        <TextBlock
+          Text="Lautstärke-Normalisierung (EBU R128 / LUFS)"
+          FontSize="13"
+          FontWeight="SemiBold"
+          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+        <Border
+          Margin="0,6,0,16"
+          Padding="12,10"
+          CornerRadius="8"
+          Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+          BorderBrush="{DynamicResource SystemAccentColorSecondaryBrush}"
+          BorderThickness="1">
+          <StackPanel>
+            <CheckBox
+              Margin="0,0,0,8"
+              Content="Songs automatisch auf einheitliche Lautstärke normalisieren (On / Off)"
+              IsChecked="{Binding EnableLoudnessNormalization, Mode=TwoWay}" />
+
+            <Grid IsEnabled="{Binding EnableLoudnessNormalization}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <TextBlock
+                Grid.Column="0"
+                Margin="0,0,10,0"
+                VerticalAlignment="Center"
+                FontSize="12"
+                FontWeight="Medium"
+                Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                Text="Zielwert (EBU):" />
+              <Slider
+                Grid.Column="1"
+                VerticalAlignment="Center"
+                Minimum="-24"
+                Maximum="-6"
+                SmallChange="0.5"
+                LargeChange="2.0"
+                TickFrequency="1"
+                IsSnapToTickEnabled="False"
+                Foreground="{DynamicResource SystemAccentColorSecondaryBrush}"
+                Value="{Binding TargetLoudnessLufs, Mode=TwoWay}" />
+              <ui:TextBox
+                Grid.Column="2"
+                Width="64"
+                Margin="10,0,6,0"
+                VerticalAlignment="Center"
+                TextAlignment="Center"
+                Text="{Binding TargetLoudnessLufs, Mode=TwoWay, StringFormat={}{0:F1}, UpdateSourceTrigger=PropertyChanged}" />
+              <TextBlock
+                Grid.Column="3"
+                VerticalAlignment="Center"
+                FontSize="11"
+                FontWeight="SemiBold"
+                Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                Text="LUFS" />
+            </Grid>
+
+            <TextBlock
+              Margin="0,6,0,0"
+              FontSize="11"
+              Opacity="0.7"
+              TextWrapping="Wrap"
+              Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+              Text="Standard: -14,0 LUFS (YouTube / Spotify Referenz) · -23,0 LUFS (EBU R128 Broadcast). Gleicht laute und leise Songs automatisch aus." />
+          </StackPanel>
+        </Border>
+
         <!-- Collaborative Playlist -->
         <TextBlock
           Text="Gemeinsame YouTube-Playlist (Einladungslink mit &amp;jct=...)"

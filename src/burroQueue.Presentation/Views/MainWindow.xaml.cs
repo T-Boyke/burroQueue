@@ -14,9 +14,11 @@ namespace burroQueue.Presentation.Views;
 [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
 public partial class MainWindow : FluentWindow
 {
+    private const string QueueReorderDragFormat = "burroQueue.TrackReorder";
     private readonly MainWindowViewModel _viewModel;
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly IServiceProvider? _serviceProvider;
+    private System.Windows.Point? _queueDragStartPoint;
 
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public MainWindow(MainWindowViewModel viewModel, IGlobalHotkeyService hotkeyService, IServiceProvider? serviceProvider = null)
@@ -39,6 +41,18 @@ public partial class MainWindow : FluentWindow
                 _viewModel.ReloadSettings();
                 ApplyThemeAndBackdrop();
                 serviceProvider.GetService<burroQueue.Infrastructure.Performance.IProcessEfficiencyManager>()?.TrimMemoryWorkingSet();
+            };
+
+            _viewModel.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(MainWindowViewModel.CurrentTrackTitle))
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(1500).ConfigureAwait(false);
+                        serviceProvider.GetService<burroQueue.Infrastructure.Performance.IProcessEfficiencyManager>()?.TrimMemoryWorkingSet();
+                    });
+                }
             };
         }
 
@@ -286,5 +300,85 @@ public partial class MainWindow : FluentWindow
             viewModel.EnqueueRawUrlCommand.Execute(droppedText);
             setHandled(true);
         }
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal void OnQueueItemPreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (IsDescendantOfButton(e.OriginalSource as DependencyObject))
+        {
+            _queueDragStartPoint = null;
+            return;
+        }
+
+        _queueDragStartPoint = e.GetPosition(null);
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal void OnQueueItemPreviewMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (e.LeftButton != System.Windows.Input.MouseButtonState.Pressed || _queueDragStartPoint is null)
+        {
+            return;
+        }
+
+        System.Windows.Point currentPos = e.GetPosition(null);
+        Vector diff = _queueDragStartPoint.Value - currentPos;
+        if (Math.Abs(diff.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(diff.Y) < SystemParameters.MinimumVerticalDragDistance)
+        {
+            return;
+        }
+
+        if (sender is System.Windows.Controls.ListViewItem item &&
+            item.DataContext is QueueTrackItemViewModel sourceVm)
+        {
+            _queueDragStartPoint = null;
+            System.Windows.DataObject dragData = new(QueueReorderDragFormat, sourceVm.Track);
+            System.Windows.DragDrop.DoDragDrop(item, dragData, DragDropEffects.Move);
+        }
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal void OnQueueItemDragOver(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(QueueReorderDragFormat))
+        {
+            e.Effects = DragDropEffects.Move;
+            e.Handled = true;
+        }
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    internal void OnQueueItemDrop(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(QueueReorderDragFormat))
+        {
+            return;
+        }
+
+        if (e.Data.GetData(QueueReorderDragFormat) is burroQueue.Domain.Model.Track sourceTrack &&
+            sender is System.Windows.Controls.ListViewItem targetItem &&
+            targetItem.DataContext is QueueTrackItemViewModel targetVm)
+        {
+            _viewModel.MoveTrackToTarget(sourceTrack, targetVm.Track);
+            e.Handled = true;
+        }
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    private static bool IsDescendantOfButton(DependencyObject? element)
+    {
+        while (element is not null)
+        {
+            if (element is System.Windows.Controls.Primitives.ButtonBase)
+            {
+                return true;
+            }
+
+            element = System.Windows.Media.VisualTreeHelper.GetParent(element);
+        }
+
+        return false;
     }
 }

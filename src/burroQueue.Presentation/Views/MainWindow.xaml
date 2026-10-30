@@ -167,7 +167,7 @@
             BorderThickness="1"
             Background="{DynamicResource SubtleFillColorSecondaryBrush}">
             <Image
-              Source="{Binding CurrentTrackThumbnailUrl}"
+              Source="{Binding CurrentTrackThumbnailUrl, Converter={StaticResource AvatarUriToImageSourceConverter}}"
               Stretch="UniformToFill" />
           </Border>
 
@@ -639,11 +639,16 @@
                 <Setter Property="Margin" Value="0,1" />
                 <Setter Property="Background" Value="Transparent" />
                 <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="AllowDrop" Value="True" />
+                <EventSetter Event="PreviewMouseLeftButtonDown" Handler="OnQueueItemPreviewMouseLeftButtonDown" />
+                <EventSetter Event="PreviewMouseMove" Handler="OnQueueItemPreviewMouseMove" />
+                <EventSetter Event="DragOver" Handler="OnQueueItemDragOver" />
+                <EventSetter Event="Drop" Handler="OnQueueItemDrop" />
               </Style>
             </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
               <DataTemplate>
-                <Border CornerRadius="6" Padding="6,3">
+                <Border CornerRadius="6" Padding="6,3" Cursor="Hand" ToolTip="Ziehen zum Sortieren der Warteschlange">
                   <Border.Style>
                     <Style TargetType="Border">
                       <Setter Property="Background" Value="Transparent" />
@@ -719,28 +724,6 @@
                         Height="26"
                         Appearance="Transparent"
                         Padding="0"
-                        Margin="0,0,2,0"
-                        ToolTip="Nach oben verschieben"
-                        Command="{Binding DataContext.MoveTrackUpCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
-                        CommandParameter="{Binding Track}">
-                        <ui:SymbolIcon Symbol="ArrowUp24" FontSize="12" />
-                      </ui:Button>
-                      <ui:Button
-                        Width="26"
-                        Height="26"
-                        Appearance="Transparent"
-                        Padding="0"
-                        Margin="0,0,2,0"
-                        ToolTip="Nach unten verschieben"
-                        Command="{Binding DataContext.MoveTrackDownCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
-                        CommandParameter="{Binding Track}">
-                        <ui:SymbolIcon Symbol="ArrowDown24" FontSize="12" />
-                      </ui:Button>
-                      <ui:Button
-                        Width="26"
-                        Height="26"
-                        Appearance="Transparent"
-                        Padding="0"
                         ToolTip="Aus Warteschlange entfernen"
                         Command="{Binding DataContext.RemoveTrackCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
                         CommandParameter="{Binding Track}">
@@ -748,15 +731,26 @@
                       </ui:Button>
                     </StackPanel>
 
-                    <!-- Links: Thumbnail + Titel/Submitter (füllt restliche Breite bis zu den rechts angedockten Icons) -->
+                    <!-- Links: Drag-Handle + Thumbnail + Titel/Submitter -->
                     <Grid VerticalAlignment="Center">
                       <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                       </Grid.ColumnDefinitions>
 
-                      <Border
+                      <ui:SymbolIcon
                         Grid.Column="0"
+                        Symbol="ReOrderDotsVertical24"
+                        FontSize="14"
+                        Opacity="0.45"
+                        Margin="0,0,6,0"
+                        VerticalAlignment="Center"
+                        Cursor="SizeNS"
+                        ToolTip="Ziehen zum Verschieben" />
+
+                      <Border
+                        Grid.Column="1"
                         Width="44"
                         Height="33"
                         CornerRadius="4"
@@ -766,12 +760,12 @@
                         BorderThickness="1"
                         Background="{DynamicResource SubtleFillColorSecondaryBrush}">
                         <Image
-                          Source="{Binding ThumbnailUrl}"
+                          Source="{Binding ThumbnailUrl, Converter={StaticResource AvatarUriToImageSourceConverter}}"
                           Stretch="UniformToFill"
                           RenderOptions.BitmapScalingMode="LowQuality" />
                       </Border>
 
-                      <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                      <StackPanel Grid.Column="2" VerticalAlignment="Center">
                         <TextBlock
                           FontSize="12"
                           TextTrimming="CharacterEllipsis"

@@ -86,6 +86,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     private int _maxMusicDurationMinutes = 12;
 
     [ObservableProperty]
+    private bool _enableLoudnessNormalization = true;
+
+    [ObservableProperty]
+    private double _targetLoudnessLufs = -14.0;
+
+    [ObservableProperty]
     private string _selectedAppLanguage = "Auto";
 
     public IReadOnlyList<string> AvailableLanguages { get; } =
@@ -206,6 +212,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         _useSystemAccentColor = current.UseSystemAccentColor;
         _selectedClipboardDetectionMode = string.IsNullOrWhiteSpace(current.ClipboardDetectionMode) ? "AskToast" : current.ClipboardDetectionMode;
         _maxMusicDurationMinutes = Math.Clamp(current.MaxMusicDurationMinutes, 1, 60);
+        _enableLoudnessNormalization = current.EnableLoudnessNormalization;
+        _targetLoudnessLufs = Math.Clamp(current.TargetLoudnessLufs, -24.0, -6.0);
         _selectedAppLanguage = string.IsNullOrWhiteSpace(current.AppLanguage) ? "Auto" : current.AppLanguage;
         LocalizationManager.Instance.SetLanguage(_selectedAppLanguage);
 
@@ -474,7 +482,9 @@ public sealed partial class SettingsViewModel : ObservableObject
             UseSystemAccentColor = UseSystemAccentColor,
             AppLanguage = string.IsNullOrWhiteSpace(SelectedAppLanguage) ? "Auto" : SelectedAppLanguage,
             ClipboardDetectionMode = string.IsNullOrWhiteSpace(SelectedClipboardDetectionMode) ? "AskToast" : SelectedClipboardDetectionMode,
-            MaxMusicDurationMinutes = Math.Clamp(MaxMusicDurationMinutes, 1, 60)
+            MaxMusicDurationMinutes = Math.Clamp(MaxMusicDurationMinutes, 1, 60),
+            EnableLoudnessNormalization = EnableLoudnessNormalization,
+            TargetLoudnessLufs = Math.Clamp(TargetLoudnessLufs, -24.0, -6.0)
         };
 
         LocalizationManager.Instance.SetLanguage(data.AppLanguage);

@@ -439,4 +439,34 @@ public sealed class SettingsViewModelTests
         vm.SelectedAppLanguage = "de-DE";
         burroQueue.Presentation.Localization.LocalizationManager.Instance.CurrentCulture.Name.Should().Be("de-DE");
     }
+
+    [Fact]
+    public async Task LoudnessNormalizationSettings_ShouldLoadClampAndPersistEnableAndTargetLufs()
+    {
+        SettingsViewModel vm = new(
+            _settingsService,
+            _telephonyManager,
+            _autostartService,
+            _audioDeviceEnumerator);
+
+        vm.EnableLoudnessNormalization.Should().BeTrue();
+        vm.TargetLoudnessLufs.Should().Be(-14.0);
+
+        vm.EnableLoudnessNormalization = true;
+        vm.TargetLoudnessLufs = -16.0;
+        await vm.SaveSettingsAsync();
+
+        await _settingsService.Received(1).SaveAsync(Arg.Is<AppSettingsData>(d =>
+            d.EnableLoudnessNormalization &&
+            Math.Abs(d.TargetLoudnessLufs - (-16.0)) < 0.01));
+
+        // Out-of-bounds LUFS should be clamped to [-24.0, -6.0]
+        vm.EnableLoudnessNormalization = false;
+        vm.TargetLoudnessLufs = -32.0;
+        await vm.SaveSettingsAsync();
+
+        await _settingsService.Received(1).SaveAsync(Arg.Is<AppSettingsData>(d =>
+            !d.EnableLoudnessNormalization &&
+            Math.Abs(d.TargetLoudnessLufs - (-24.0)) < 0.01));
+    }
 }

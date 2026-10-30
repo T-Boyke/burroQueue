@@ -1473,4 +1473,53 @@ public sealed class MainWindowViewModelPlaybackTests
         player.Volume = 0.35;
         player.Volume.Should().BeApproximately(0.35, 0.01);
     }
+
+    [Fact]
+    public async Task MoveTrackToTarget_WhenDraggingTrackToNewPosition_ShouldReorderPlaylistPreserveCurrentAndBroadcastOrderSync()
+    {
+        Track t1 = new("d1", new Uri("https://www.youtube.com/watch?v=d1"), "Song 1", "Alice", DateTimeOffset.UtcNow);
+        Track t2 = new("d2", new Uri("https://www.youtube.com/watch?v=d2"), "Song 2", "Bob", DateTimeOffset.UtcNow);
+        Track t3 = new("d3", new Uri("https://www.youtube.com/watch?v=d3"), "Song 3", "Clara", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(t1);
+        _group.Playlist.Enqueue(t2);
+        _group.Playlist.Enqueue(t3);
+
+        MainWindowViewModel vm = CreateViewModel();
+
+        vm.MoveTrackToTarget(t3, t2);
+        await vm.AutoSaveTask;
+
+        _group.Playlist.AllTracks.Select(t => t.VideoId).Should().Equal("d1", "d3", "d2");
+        _group.Playlist.CurrentTrack.Should().BeSameAs(t1);
+        vm.QueuedItems.Select(t => t.VideoId).Should().Equal("d3", "d2");
+        await _lanGroupService.Received(1).SendQueueOrderSyncAsync(
+            _group.Id,
+            Arg.Any<ClientId>(),
+            false,
+            Arg.Is<IReadOnlyList<string>>(ids => ids.Count == 3 && ids[0] == "d1" && ids[1] == "d3" && ids[2] == "d2"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PlayAndSkipAsync_ShouldTriggerLookaheadPrefetchForNextUpcomingTrackAndConfigureLoudnessNormalization()
+    {
+        Track t1 = new("p1", new Uri("https://www.youtube.com/watch?v=p1"), "Song 1", "Alice", DateTimeOffset.UtcNow);
+        Track t2 = new("p2", new Uri("https://www.youtube.com/watch?v=p2"), "Song 2", "Bob", DateTimeOffset.UtcNow);
+        Track t3 = new("p3", new Uri("https://www.youtube.com/watch?v=p3"), "Song 3", "Clara", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(t1);
+        _group.Playlist.Enqueue(t2);
+        _group.Playlist.Enqueue(t3);
+
+        MainWindowViewModel vm = CreateViewModel();
+        _audioPlayerBackend.Received(1).ConfigureLoudnessNormalization(true, -14.0);
+
+        await vm.PlayAsync();
+        await vm.PrefetchTask;
+        await _audioPlayerBackend.Received(1).PrefetchTrackAsync(t2, Arg.Any<CancellationToken>());
+
+        await vm.SkipAsync();
+        await vm.PrefetchTask;
+        await _audioPlayerBackend.Received(1).PlayTrackAsync(t2, Arg.Any<CancellationToken>());
+        await _audioPlayerBackend.Received(1).PrefetchTrackAsync(t3, Arg.Any<CancellationToken>());
+    }
 }
