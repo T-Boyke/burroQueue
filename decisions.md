@@ -247,3 +247,19 @@ Dieses Dokument hält alle zentralen architektonischen Entscheidungen für `burr
 - **Kontext:** Audio-Normalisierung, Erkennung störender Scherz-/Hardstyle-Tracks ("Deep Work Vibe-Guard") und die 4x-Schärfung niedrig aufgelöster `64x48`-Cover im `TrackToastWindow` mussten ohne schwere ML-/ONNX-Pakete (`> 40 MB`) realisiert werden.
 - **Entscheidung:** Reine `.NET 11` `System.Runtime.Intrinsics` (`Vector256<float>` / `Vector128<float>`) und `ArrayPool<byte>.Shared` in `SimdAudioDspProcessor`, `SimdTrackVibeAnalyzer` und `SimdSuperResolutionThumbnailEnhancer`.
 - **Konsequenzen:** Sub-Millisekunden-Verarbeitung, `0` zusätzliche NuGet-Pakete und `0 B` dauerhafter Managed-Heap-Zuwachs.
+
+---
+
+## ADR-024: Audio-Only `.m4a` Media Foundation Playback (`0% GPU Video Decode`), Lookahead-Prefetch, EBU R128 LUFS Normalisierung & Queue Drag-and-Drop
+
+- **Datum:** 2026-10-30
+- **Status:** Akzeptiert
+- **Kontext:**
+  1. Das Herunterladen gemuxter 360p-MP4-Streams (`-f "18/b"`, bis zu 87 MB) veranlasste Windows Media Foundation (`Windows.Media.Playback.MediaPlayer`), den Direct3D11 Hardware Video Decoder (`GPU 0 - Video Decode`) und ~90 MB D3D11-Videotexturen im Arbeitsspeicher zu allozieren, und verzögerte Songwechsel um mehrere Sekunden.
+  2. In der Warteschlange wünschte der Nutzer direktes Drag-and-Drop-Ziehen von Tracks anstelle der Hoch-/Runter-Pfeilbuttons sowie eine einstellbare EBU R128 / LUFS Lautstärke-Normalisierung (`On` mit Zielwert in LUFS / `Off`).
+- **Entscheidung:**
+  1. Umstellung von `YouTubeAudioStreamResolver` auf reine AAC-Audio-Streams (`-f "140/bestaudio[ext=m4a]/bestaudio/18"`, `.m4a`, ~2,5 MB) inklusive automatischer Bereinigung alter `.mp4`-Cache-Dateien, Lookahead-Prefetching (`PrefetchTrackAsync`) für den jeweils nächsten Queue-Track und nicht-blockierender Metadaten-Auflösung bei `SkipAsync`/`PlayTrackNowAsync`.
+  2. Extraktion der integrierten YouTube-Lautheit (`playerConfig.audioConfig.loudnessDb` relativ zu `-14.0 LUFS`) und dynamische Verstärkungsanpassung über `SimdAudioDspProcessor.ComputeEbuR128LinearGain` (`-24.0` bis `-6.0` LUFS, konfigurierbar in `SettingsWindow.xaml`).
+  3. Ersetzung der `ArrowUp24`/`ArrowDown24`-Buttons durch natives WPF `ListViewItem` Drag-and-Drop (`Playlist.MoveTrackToIndex` + P2P `QUEUE_ORDER_SYNC`).
+- **Konsequenzen:** `0% GPU Video Decode`, ~90 MB weniger Working-Set-RAM, verzögerungsfreie Songwechsel (`< 50 ms`), konsistente Lautstärke nach EBU R128 und intuitive Queue-Sortierung per Drag-and-Drop.
+
