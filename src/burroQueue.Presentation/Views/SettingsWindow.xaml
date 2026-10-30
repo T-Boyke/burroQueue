@@ -5,8 +5,11 @@
   xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
   Title="burroQueue – Einstellungen"
   Icon="pack://application:,,,/burroQueue;component/Assets/logo.png"
-  Width="500"
-  Height="570"
+  Width="520"
+  Height="680"
+  MinWidth="480"
+  MinHeight="450"
+  ResizeMode="CanResize"
   ExtendsContentIntoTitleBar="True"
   WindowBackdropType="Mica"
   WindowStartupLocation="CenterOwner"
@@ -32,7 +35,7 @@
         <RowDefinition Height="Auto" />
       </Grid.RowDefinitions>
 
-    <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto" PreviewMouseWheel="OnScrollViewerPreviewMouseWheel">
       <StackPanel Margin="0,0,10,0">
         <!-- Target Audio Output Device Routing -->
         <TextBlock
@@ -298,7 +301,7 @@
                     </StackPanel>
                     <ui:Button
                       Grid.Column="1"
-                      Appearance="Subtle"
+                      Appearance="Secondary"
                       Padding="8,3"
                       Content="Beitreten"
                       Command="{Binding DataContext.JoinGroupCommand, RelativeSource={RelativeSource AncestorType=ListView}}"

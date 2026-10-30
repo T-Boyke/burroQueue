@@ -515,4 +515,31 @@ public sealed class SettingsViewModelTests
 
         vm.DiscoveredGroups.Should().ContainSingle(g => g.GroupId == foreignGroupId && g.GroupName == "Dev Team Lounge");
     }
+
+    [Fact]
+    public void SettingsWindowXaml_ShouldOnlyUseValidControlAppearanceValuesAndSupportSmoothMouseWheelScrolling()
+    {
+        string repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        string xamlPath = Path.Combine(repoRoot, "src", "burroQueue.Presentation", "Views", "SettingsWindow.xaml");
+        File.Exists(xamlPath).Should().BeTrue();
+
+        System.Xml.Linq.XDocument doc = System.Xml.Linq.XDocument.Load(xamlPath);
+        string[] appearanceValues = doc.Descendants()
+            .Select(e => e.Attribute("Appearance")?.Value)
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Select(v => v!)
+            .ToArray();
+
+        appearanceValues.Should().NotBeEmpty();
+        foreach (string val in appearanceValues)
+        {
+            Enum.TryParse<Wpf.Ui.Controls.ControlAppearance>(val, ignoreCase: false, out _)
+                .Should().BeTrue($"'{val}' must be a valid Wpf.Ui.Controls.ControlAppearance value");
+        }
+
+        System.Xml.Linq.XElement? scrollViewer = doc.Descendants()
+            .FirstOrDefault(e => e.Name.LocalName == "ScrollViewer");
+        scrollViewer.Should().NotBeNull();
+        scrollViewer!.Attribute("PreviewMouseWheel")?.Value.Should().Be("OnScrollViewerPreviewMouseWheel");
+    }
 }
