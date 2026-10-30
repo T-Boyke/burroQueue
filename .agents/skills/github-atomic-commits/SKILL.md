@@ -25,6 +25,10 @@ Ein atomarer Commit umfasst **genau eine logische Änderung** (Single Logical Ch
 1. `./scripts/verify-architecture.ps1` muss erfolgreich durchlaufen (`[OK]`).
 2. Keine unfertigen temporären Dateien oder Build-Artefakte stagen (`git status` prüfen).
 3. Jeder Commit muss das Repository in einem konsistenten, kompilierbaren Zustand hinterlassen.
+4. **Verpflichtendes Commit-Signing (`Verified` auf GitHub):**
+   - Jeder Commit und jeder Release-Tag **muss** kryptografisch signiert sein (`commit.gpgsign=true`, `tag.gpgsign=true`, `gpg.format=ssh`).
+   - Der Parameter `--no-gpg-sign` ist strengstens untersagt!
+   - Prüfe im Zweifel per `git log -1 --show-signature`, dass eine gültige Signatur vorliegt.
 
 ---
 
@@ -77,7 +81,20 @@ Jeder Commit-Header folgt strikt dem Schema:
    # 2. Architektur-Gate prüfen
    ./scripts/verify-architecture.ps1
 
-   # 3. Atomaren Commit mit Conventional Commit Message erstellen
-   git commit -m "feat(domain): add playlist enqueue validation"
+   # 3. Atomaren, SSH-signierten Commit mit Conventional Commit Message erstellen
+   git commit -S -m "feat(domain): add playlist enqueue validation"
    ```
+
+---
+
+## 4. GitHub Governance & Die 5 Entwicklungs-Säulen (`Projects v2 Kanban`)
+
+Jedes Issue und jeder dokumentierte Commit wird im GitHub Project (`https://github.com/users/T-Boyke/projects/7`) mit Assignee `T-Boyke`, einem Milestone und exakt einer der **5 Entwicklungs-Säulen** geführt:
+
+1. **`pillar:1-core-domain`** – Core Domain, Queue Engine & TOML Persistence
+2. **`pillar:2-audio-hardware`** – Audio Engine, VoIP Auto-Ducking & Hardware/AI
+3. **`pillar:3-network-webdrop`** – P2P LAN Sync, YouTube & UnoCSS 66.12 WebDrop
+4. **`pillar:4-fluent-ux`** – Native Windows 11 Fluent UI, Desktop UX & i18n
+5. **`pillar:5-devsecops-release`** – DevSecOps, Code Signing, Verified Git & `.NET 11` CI/CD
+
 
