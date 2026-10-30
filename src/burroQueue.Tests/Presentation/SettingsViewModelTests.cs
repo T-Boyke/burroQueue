@@ -418,4 +418,25 @@ public sealed class SettingsViewModelTests
             d.MaxMusicDurationMinutes == 15));
         vm.AvailableClipboardDetectionModes.Should().ContainInOrder("Off", "AskToast", "AutoQueueVerifiedMusic");
     }
+
+    [Fact]
+    public async Task SelectedAppLanguage_WhenChanged_ShouldApplyLocalizationLiveAndPersistInSettings()
+    {
+        SettingsViewModel vm = new(
+            _settingsService,
+            _telephonyManager,
+            _autostartService,
+            _audioDeviceEnumerator);
+
+        vm.AvailableLanguages.Should().ContainInOrder("Auto", "de-DE", "en-US");
+
+        vm.SelectedAppLanguage = "en-US";
+        burroQueue.Presentation.Localization.LocalizationManager.Instance.CurrentCulture.Name.Should().Be("en-US");
+
+        await vm.SaveSettingsAsync();
+        await _settingsService.Received(1).SaveAsync(Arg.Is<AppSettingsData>(d => d.AppLanguage == "en-US"));
+
+        vm.SelectedAppLanguage = "de-DE";
+        burroQueue.Presentation.Localization.LocalizationManager.Instance.CurrentCulture.Name.Should().Be("de-DE");
+    }
 }

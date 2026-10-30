@@ -10,6 +10,7 @@ using burroQueue.Infrastructure.Playback;
 using burroQueue.Infrastructure.Telephony;
 using burroQueue.Infrastructure.Web;
 using burroQueue.Infrastructure.Windows;
+using burroQueue.Presentation.Localization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -83,6 +84,16 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private int _maxMusicDurationMinutes = 12;
+
+    [ObservableProperty]
+    private string _selectedAppLanguage = "Auto";
+
+    public IReadOnlyList<string> AvailableLanguages { get; } =
+    [
+        "Auto",
+        "de-DE",
+        "en-US"
+    ];
 
     public IReadOnlyList<string> AvailableClipboardDetectionModes { get; } =
     [
@@ -195,6 +206,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         _useSystemAccentColor = current.UseSystemAccentColor;
         _selectedClipboardDetectionMode = string.IsNullOrWhiteSpace(current.ClipboardDetectionMode) ? "AskToast" : current.ClipboardDetectionMode;
         _maxMusicDurationMinutes = Math.Clamp(current.MaxMusicDurationMinutes, 1, 60);
+        _selectedAppLanguage = string.IsNullOrWhiteSpace(current.AppLanguage) ? "Auto" : current.AppLanguage;
+        LocalizationManager.Instance.SetLanguage(_selectedAppLanguage);
 
         if (!string.IsNullOrWhiteSpace(_collaborativePlaylistUrl))
         {
@@ -352,6 +365,11 @@ public sealed partial class SettingsViewModel : ObservableObject
         OnPropertyChanged(nameof(IsStarfaceSelected));
     }
 
+    partial void OnSelectedAppLanguageChanged(string value)
+    {
+        LocalizationManager.Instance.SetLanguage(value);
+    }
+
     private void ValidateCollaborativeUrl(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -454,10 +472,12 @@ public sealed partial class SettingsViewModel : ObservableObject
             AutoSyncPlaylistIntervalSeconds = Math.Clamp(AutoSyncPlaylistIntervalSeconds, 15, 3600),
             WindowBackdrop = string.IsNullOrWhiteSpace(SelectedWindowBackdrop) ? "Mica" : SelectedWindowBackdrop,
             UseSystemAccentColor = UseSystemAccentColor,
-            AppLanguage = _settingsService.CurrentSettings.AppLanguage,
+            AppLanguage = string.IsNullOrWhiteSpace(SelectedAppLanguage) ? "Auto" : SelectedAppLanguage,
             ClipboardDetectionMode = string.IsNullOrWhiteSpace(SelectedClipboardDetectionMode) ? "AskToast" : SelectedClipboardDetectionMode,
             MaxMusicDurationMinutes = Math.Clamp(MaxMusicDurationMinutes, 1, 60)
         };
+
+        LocalizationManager.Instance.SetLanguage(data.AppLanguage);
 
         await _settingsService.SaveAsync(data).ConfigureAwait(false);
         await _telephonyManager.SwitchProviderAsync(SelectedProviderId).ConfigureAwait(false);

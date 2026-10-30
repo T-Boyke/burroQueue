@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AppTitle" xml:space="preserve">
+    <value>burroQueue</value>
+  </data>
+  <data name="QueueHeader" xml:space="preserve">
+    <value>Warteschlange</value>
+  </data>
+  <data name="GroupFavoritesHeader" xml:space="preserve">
+    <value>Gruppen-Favoriten</value>
+  </data>
+  <data name="SettingsTitle" xml:space="preserve">
+    <value>Einstellungen</value>
+  </data>
+  <data name="DropZonePrompt" xml:space="preserve">
+    <value>YouTube-Link hier hineinziehen, klicken oder per Ctrl+V einfügen</value>
+  </data>
+  <data name="NoSongPlaying" xml:space="preserve">
+    <value>Kein Song aktiv</value>
+  </data>
+  <data name="NowPlayingToastTitle" xml:space="preserve">
+    <value>burroQueue – Jetzt läuft</value>
+  </data>
+  <data name="DuckingActiveBadge" xml:space="preserve">
+    <value>Ducking aktiv</value>
+  </data>
+  <data name="SaveSettingsButton" xml:space="preserve">
+    <value>Einstellungen speichern</value>
+  </data>
+  <data name="LanguageLabel" xml:space="preserve">
+    <value>Anwendungssprache (Auto / Deutsch / English)</value>
+  </data>
+</root>

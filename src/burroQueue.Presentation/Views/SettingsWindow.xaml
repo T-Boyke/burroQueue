@@ -338,6 +338,31 @@
                 ItemsSource="{Binding AvailableClipboardDetectionModes}"
                 SelectedItem="{Binding SelectedClipboardDetectionMode, Mode=TwoWay}" />
             </Grid>
+
+            <Grid Margin="0,8,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                <TextBlock
+                  Text="Anwendungssprache (Auto / de-DE / en-US)"
+                  FontSize="12"
+                  FontWeight="Medium"
+                  Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                <TextBlock
+                  FontSize="11"
+                  Opacity="0.7"
+                  Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                  Text="Wechselt Oberfläche sofort zur Laufzeit ohne Neustart" />
+              </StackPanel>
+              <ComboBox
+                Grid.Column="1"
+                Width="130"
+                VerticalAlignment="Center"
+                ItemsSource="{Binding AvailableLanguages}"
+                SelectedItem="{Binding SelectedAppLanguage, Mode=TwoWay}" />
+            </Grid>
           </StackPanel>
         </Border>
 

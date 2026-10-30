@@ -121,6 +121,7 @@ public partial class App : System.Windows.Application
 
         IAppSettingsService settings = serviceProvider.GetRequiredService<IAppSettingsService>();
         await settings.LoadAsync().ConfigureAwait(true);
+        Localization.LocalizationManager.Instance.SetLanguage(settings.CurrentSettings?.AppLanguage);
         LogStartup("Settings loaded");
 
         IPlaylistStorageService storage = serviceProvider.GetRequiredService<IPlaylistStorageService>();
