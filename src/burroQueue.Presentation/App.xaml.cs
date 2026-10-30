@@ -7,6 +7,7 @@ using burroQueue.Infrastructure.Audio;
 using burroQueue.Infrastructure.Configuration;
 using burroQueue.Infrastructure.Cryptography;
 using burroQueue.Infrastructure.Diagnostics;
+using burroQueue.Infrastructure.Imaging;
 using burroQueue.Infrastructure.Network;
 using burroQueue.Infrastructure.Performance;
 using burroQueue.Infrastructure.Persistence;
@@ -293,6 +294,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IYouTubePlaylistWriter, YouTubePlaylistWriter>();
         services.AddSingleton<ISimdAudioDspProcessor, SimdAudioDspProcessor>();
         services.AddSingleton<ITrackVibeAnalyzer, SimdTrackVibeAnalyzer>();
+        services.AddSingleton<IThumbnailEnhancer, SimdSuperResolutionThumbnailEnhancer>();
         services.AddSingleton<IAudioOutputController, AudioOutputController>();
         services.AddSingleton<IMediaStreamPlayer, WpfMediaStreamPlayer>();
         services.AddSingleton<IAudioPlayerBackend, AudioPlayerBackend>();

@@ -1,6 +1,6 @@
 using burroQueue.Domain.Model;
-using burroQueue.Infrastructure.Configuration;
 using burroQueue.Infrastructure.Audio;
+using burroQueue.Infrastructure.Configuration;
 using burroQueue.Infrastructure.Persistence;
 using burroQueue.Infrastructure.Playback;
 using FluentAssertions;

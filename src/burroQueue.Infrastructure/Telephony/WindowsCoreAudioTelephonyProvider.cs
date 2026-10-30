@@ -1,5 +1,5 @@
-using Microsoft.Win32;
 using burroQueue.Domain.Model;
+using Microsoft.Win32;
 
 namespace burroQueue.Infrastructure.Telephony;
 

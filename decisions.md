@@ -207,3 +207,43 @@ Dieses Dokument hält alle zentralen architektonischen Entscheidungen für `burr
   2. Strikte Trennung von Geheimnissen: CI/CD-Tokens (`SIGNPATH_API_TOKEN`, optional `WINGET_GITHUB_TOKEN`) liegen ausschließlich in **GitHub Actions Secrets**; Client-Binärdateien enthalten niemals eingebettete Secrets (`SECURITY.md`).
   3. Verpflichtende lokale SSH-Commit- und Tag-Signatur (`Ed25519`, `gpg.format = ssh`, `commit.gpgsign = true`, `tag.gpgsign = true`) sowie vollständige 1:1-Nachverfolgung im GitHub Project v2 Kanban-Board entlang der 5 Entwicklungs-Säulen (Epics `#23`–`#27`).
 - **Konsequenzen:** Vertrauenswürdige Windows-11-Installation ohne SmartScreen-Blockade nach Hinterlegung der SignPath-Secrets, lückenlose Supply-Chain-Nachvollziehbarkeit vom signierten Commit bis zum signierten Installer.
+
+---
+
+## ADR-020: Zero-Dependency `Span<char>` TOML Persistence (`settings.toml`, `session.toml`, `favorites.<group>.toml`)
+
+- **Datum:** 2026-10-30
+- **Status:** Akzeptiert (`#13`, `#19`)
+- **Kontext:** Einstellungen, Wiedergabe-Cursor (aktiver Song + Sekundengenauigkeit) und kollaborative Gruppen-Favoriten sollten menschenlesbar, diff-freundlich und ohne externe NuGet-Abhängigkeiten persistiert werden.
+- **Entscheidung:** Implementierung eines eigenen, allokationsarmen `Span<char>`-TOML-Serialisierers (`TomlDocumentSerializer`) mit atomarem `.tmp`-Write-Swap (`WriteAtomicallyAsync`) sowie automatischer Migration bestehender JSON-Dateien.
+- **Konsequenzen:** Null zusätzliche Paketabhängigkeiten, absturzsichere Persistenz und sekundengenaue Wiederaufnahme im Paused-State beim App-Start.
+
+---
+
+## ADR-021: Non-Destructive Cursor Queue & Cryptographic CSPRNG Shuffle Engine
+
+- **Datum:** 2026-10-30
+- **Status:** Akzeptiert (`#9`, `#10`)
+- **Kontext:** Das klassische `Dequeue()`-Modell löschte gespielte Songs unwiederbringlich aus der Ansicht und verhinderte das Zurückspringen sowie das Wiederherstellen der ursprünglichen Playlist-Reihenfolge nach einem Shuffle.
+- **Entscheidung:** `Playlist` speichert alle Tracks nicht-destruktiv in `AllTracks` mit einem `CurrentTrackIndex`-Cursor. `QueueShuffleEngine` nutzt `RandomNumberGenerator.Shuffle<T>` (`HardwareCsprngEntropySource`) mit Anti-Repeat-Boundary-Guard und synchronisiert die Reihenfolge deterministisch per `QUEUE_ORDER_SYNC`.
+- **Konsequenzen:** Vollständige Wiedergabe-Historie, visuelles Highlighting des aktiven Songs und echter kryptografischer Shuffle ohne Wiederholungs-Cluster.
+
+---
+
+## ADR-022: YouTube InnerTube Contributor Avatar Extraction & Frozen `48x48` LRU Bitmap Cache
+
+- **Datum:** 2026-10-30
+- **Status:** Akzeptiert (`#18`, `#278`, `#6`)
+- **Kontext:** In kollaborativen YouTube-Playlists soll im `TrackToastWindow`, in der Now-Playing-Card und in der Queue sichtbar sein, welcher Nutzer einen Song eingereicht hat – inklusive rundem Profilbild-Badge.
+- **Entscheidung:** `InnerTubePlaylistParser` wertet die `WEB`-Client `browse`-Antwort (`playlistVideoRenderer.contributors` / `shortBylineText` / `contributorAvatar`) aus. `AvatarBitmapCacheService` lädt HTTPS-Avatare von `yt3.ggpht.com` / `lh3.googleusercontent.com` mit `DecodePixelWidth = 48`, ruft `.Freeze()` auf und begrenzt den Speicher über einen 32-Einträge-LRU-Cache (`< 150 KB` RAM).
+- **Konsequenzen:** Authentisches Kollaborations-Feedback im Toast (`20x20` PiP-Badge) und Hauptfenster (`14x14` / `15x15`) unter strikter Einhaltung des `< 30 MB` RAM-Gesetzes.
+
+---
+
+## ADR-023: Zero-Bloat `.NET 11` Vector256 SIMD DSP, Vibe-Guard & 4x Super-Resolution
+
+- **Datum:** 2026-10-30
+- **Status:** Akzeptiert (`#20`, `#21`, `#22`)
+- **Kontext:** Audio-Normalisierung, Erkennung störender Scherz-/Hardstyle-Tracks ("Deep Work Vibe-Guard") und die 4x-Schärfung niedrig aufgelöster `64x48`-Cover im `TrackToastWindow` mussten ohne schwere ML-/ONNX-Pakete (`> 40 MB`) realisiert werden.
+- **Entscheidung:** Reine `.NET 11` `System.Runtime.Intrinsics` (`Vector256<float>` / `Vector128<float>`) und `ArrayPool<byte>.Shared` in `SimdAudioDspProcessor`, `SimdTrackVibeAnalyzer` und `SimdSuperResolutionThumbnailEnhancer`.
+- **Konsequenzen:** Sub-Millisekunden-Verarbeitung, `0` zusätzliche NuGet-Pakete und `0 B` dauerhafter Managed-Heap-Zuwachs.

@@ -1,33 +1,25 @@
 # 🫏 burroQueue – Repository Memory
 
-Letzte Aktualisierung: 2026-10-30 | Ziel: Version 2.0 (.NET 11, UnoCSS 66.12.0 & SignPath Code Signing)
+Letzte Aktualisierung: 2026-10-30 | Version: `2.1.0` (Alle 24 Issues & 5 Entwicklungs-Säulen abgeschlossen)
 
 ---
 
 ## 1. Projekt-Status & Kernmetriken
 
-- **Version:** `1.0.0` (Produktionsreif) → `2.0.0` Tech-Stack & Governance Upgrade aktiv
-- **Zielsystem:** Windows 11 (Mica, Fluent Design, Systray-Jukebox)
-- **Runtime:** `.NET 11` / `C# 15` (`net11.0` für Domain/Infrastructure, `net11.0-windows10.0.22621.0` für Presentation/Tests)
-- **WebDrop Frontend:** Build-Time `UnoCSS 66.12.0` (`src/burroQueue.WebDrop`, Zero Bootstrap, `< 9 KB` Embedded Resource `webdrop.uno.min.css` via `WebDropStylesheetProvider`, 0 Runtime-Overhead)
-- **Architektur:** Reine Domain-Driven Design Schichten (Domain = 0 externe Dependencies, Single Component Per File)
-- **Aktuelle Testanzahl:** 475 Tests (100% grün auf `net11.0`)
-- **Aktuelle Code-Coverage:**
-  - `burroQueue.Domain`: 100,00% Line Coverage
-  - `burroQueue.Presentation`: 100,00% Line Coverage
-  - `burroQueue.Infrastructure`: 99,3% Line Coverage
-  - **Gesamtlösung:** > 99,7% Line Coverage
-- **STARFACE VoIP & Ducking Release Delay:** `StarfaceTelephonyProvider` mit 3-stufiger Anruferkennung (WCF Named Pipe `net.pipe://localhost/StarfaceUcClient/UccService`, inkrementeller Log-Tail auf `UCC*.log` und CoreAudio Session Monitoring). Konfigurierbare Nachlaufzeit nach Anrufende (`DuckingReleaseDelaySeconds`, Standard 3s), bevor `MasterVolume` wiederhergestellt wird.
-- **Bidirektionaler YouTube-Playlist-Sync:** `YouTubePlaylistWriter` schreibt neu eingereihte Tracks dauerhaft per InnerTube `ACTION_ADD_VIDEO` (`edit_playlist`) in die gemeinsame YouTube-Playlist; `PeriodicTimer`-basierter Hintergrund-Auto-Sync (`AutoSyncCollaborativePlaylist`, `AutoSyncPlaylistIntervalSeconds`) plus manueller Sync-Button (`SyncPlaylistNowCommand`).
-- **Windows 11 Fluent UI, SystemAccentColor & Backdrops:** Integration von `ApplicationAccentColorManager.ApplySystemAccent()`, `SystemThemeWatcher` mit wählbarem `WindowBackdropType` (`Auto`, `Mica`, `Tabbed`, `Acrylic`, `None`), rechts angedockten Queue-Aktionsbuttons (`DockPanel.Dock="Right"`) und `64x48` Song-Cover in `TrackToastWindow`.
-- **EcoQoS & `< 30 MB` RAM Optimierung:** `ProcessEfficiencyManager` aktiviert Windows 11 EcoQoS (`PROCESS_POWER_THROTTLING_EXECUTION_SPEED` / E-Core-Scheduling), `ProcessPriorityClass.Idle`, LOH-Kompaktierung und `K32EmptyWorkingSet`.
-- **WebDrop & In-App QR-Code:** Sofort-Start/Stop beim Umschalten in den Einstellungen (`OnEnableWebDropServerChanged`), automatische Port-Fallback-Kette (`8080`, `8081`, `8082`, `8088`, `18080`, `0`), Filterung virtueller Docker/WSL-Netzwerkadapter, `/vote-skip` Endpunkt, Offline-Vektor QR-Code (`/qr.svg` und In-App Fluent-Flyout).
-- **Wiedergabe & Queue:** Echte Audio-Wiedergabe via `WpfMediaStreamPlayer` (`System.Windows.Media.MediaPlayer`), Direct Stream Extraction mit `yt-dlp` (priorisierte Suche in AppContext.BaseDirectory, WinGet, PATH) mit Invidious-Fallback, automatische Weiterschaltung auf `MediaEnded`, `Ctrl+V` URL-Paste, Quick-Add Eingabeleiste mit Enter-Taste, Queue Reordering (MoveUp/MoveDown Pfeil-Buttons), automatische Lautstärke-Persistenz (`MasterVolume`).
-- **Systray & Single-Instance:** Schnellsteuerung im Tray-Kontextmenü (`Wiedergabe/Pause`, `Nächster Titel`, `Stummschalten`), dynamischer 63-Zeichen Tooltip (`burroQueue: [Titel]`), automatische Windows-Balloon-Benachrichtigungen bei Songwechsel. `SingleInstanceManager` (Win32 Mutex & IPC Event) verhindert Doppelstarts und aktiviert bei erneutem Klick das bestehende Fenster im Vordergrund.
-- **Installer, Portable & Authenticode Code-Signing:** Inno Setup 6.x (`scripts/installer/burroQueue.iss`), `scripts/build-release.ps1` (inkl. UnoCSS-Build, optionalem lokalem `signtool.exe`-Signing und `SHA256SUMS.txt`) sowie zweistufiges Open-Source Authenticode Code-Signing (`burroQueue.exe` + `burroQueue-Setup-x64.exe`) über **SignPath.io** / **SignPath Foundation** und GitHub Actions Secrets in `.github/workflows/release.yml` (dokumentiert in `SECURITY.md`).
-- **GitHub Governance & Verified Git:** Alle Commits sind kryptografisch per Ed25519 SSH Signing Key signiert (`Verified` auf GitHub). Alle Commits, bestehenden Issues und Roadmap-Features sind im 5-Säulen-Kanban-Board (`https://github.com/users/T-Boyke/projects/7`) mit Milestones (`v1.0.0`–`v2.1.0`), Assignee `T-Boyke`, Sub-Issues (Epics `#23`–`#27`) und Abhängigkeiten (`blockedBy`) organisiert.
-- **Architektur-Check:** `./scripts/verify-architecture.ps1` (150/150 Dateien validiert, 0 Violations)
-- **CI Formatting:** `dotnet format burroQueue.sln --no-restore --verify-no-changes` (0 Warnungen / 0 Fehler)
+- **Version:** `2.1.0` (Meilensteine `v1.0.0`, `v1.1.0`, `v1.2.0`, `v2.0.0` und `v2.1.0` vollständig abgeschlossen)
+- **Zielsystem:** Windows 11 (Mica, Fluent Design, Systray-Jukebox, Native `SMTC`, Focus Assist, EcoQoS)
+- **Runtime:** `.NET 11` / `C# 15` (`net11.0` für Domain/Infrastructure, `net11.0-windows10.0.22621.0` für Presentation/Tests, `<TieredPGO>true</TieredPGO>`)
+- **WebDrop Frontend:** Build-Time `UnoCSS 66.12.0` (`src/burroQueue.WebDrop`, Zero Bootstrap, `< 9 KB` Embedded Resource `webdrop.uno.min.css`, Echtzeit-SSE `/api/events`, Mobile Upvote `/upvote` & Collaborator-Avatar)
+- **Architektur:** Reine Domain-Driven Design Schichten (Domain = 0 externe Dependencies, 212 C#-Dateien nach SFC / 1CPF validiert)
+- **Aktuelle Testanzahl:** > 515 Tests (100% grün auf `net11.0`)
+- **Kern-Features (v1.1.0 – v2.1.0):**
+  - **Non-Destructive Cursor Queue & Cryptographic CSPRNG Shuffle (`#9`, `#10`):** `Playlist` behält alle gespielten und kommenden Songs (`AllTracks`, `CurrentTrackIndex`, `IsRepeatAllEnabled`, `JumpToTrack`); `QueueShuffleEngine` mischt per `RandomNumberGenerator.Shuffle<T>` (`HardwareCsprngEntropySource`) mit Anti-Repeat-Guard und synchronisiert die Reihenfolge via `QUEUE_ORDER_SYNC`.
+  - **YouTube Collaborative Contributor & Circular Avatar Badge (`#18`, `#278`, `#6`):** `InnerTubePlaylistParser` extrahiert per InnerTube `browse` Contributor-Namen und `contributorAvatar` (`yt3.ggpht.com`); `AvatarBitmapCacheService` hält eingefrorene `48x48` Bitmaps im LRU-Cache (`< 150 KB` RAM); `TrackToastWindow` (`320x68`) zeigt das runde `20x20` Collaborator-Badge unten rechts auf dem Cover sowie `SimdSuperResolutionThumbnailEnhancer` (`4x` `64x48 -> 256x192` Upscaling, `#22`).
+  - **Zero-Dependency `Span<char>` TOML Persistence (`#13`, `#19`):** `TomlDocumentSerializer` speichert `%LOCALAPPDATA%\burroQueue\settings.toml`, `session.toml` (inkl. `QueuePlaybackCursor` Sekundengenauigkeit + `PreparePausedAtPositionAsync`) sowie kollaborative Gruppen-Favoriten in `favorites.<group>.toml` (`TomlFavoriteQueueRepository`, P2P `TRACK_UPVOTE`).
+  - **Smart Clipboard Watcher & 4-Signal `YouTubeMusicValidator` (`#7`):** Event-getriebener Win32 `WM_CLIPBOARDUPDATE`-Listener (`Win32ClipboardMonitorService`, `0%` Idle-CPU) + InnerTube 4-Signal Musik-Validierung (`Off` / `AskToast` / `AutoQueueVerifiedMusic`).
+  - **Multi-NIC LAN Discovery, P2P VoIP Ducking, Universal Meeting Detection & Host Handoff (`#15`, `#32`, `#34`, `#35`):** Physische IPv4-NIC-Filterung, aktives `DISCOVER_PROBE` + Unicast-`BEACON`, P2P `PEER_TELEPHONY` Auto-Ducking, Windows 11 Mikrofon-Consent-Erkennung für MS Teams/Zoom/Webex/Browser, `SHQueryUserNotificationState` Focus-Assist-Unterdrückung, Boss-Key `Ctrl+Alt+M` und nahtloser `HOST_HANDOFF` beim Beenden/Abmelden.
+  - **`.NET 11` Vector256 SIMD Audio DSP & Deep Work Vibe-Guard (`#20`, `#21`):** `SimdAudioDspProcessor` (`Vector256<float>` RMS/Gain/Soft-Clip) und `SimdTrackVibeAnalyzer` (`OfficeVibePolicy` senkt benötigte Skip-Votes bei disruptiven Tracks automatisch auf `1`).
+  - **Live-Lokalisierung (`#16`) & WinGet Pipeline (`#36`):** `.resx` (`de-DE` / `en-US`) via `LocalizationManager` + `{loc:Translate}` zur Laufzeit umschaltbar; WinGet-Manifeste (`scripts/winget/T-Boyke.burroQueue*.yaml`) + `publish-winget` Job in `.github/workflows/release.yml`.
 
 ---
 

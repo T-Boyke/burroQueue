@@ -2,6 +2,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using burroQueue.Domain.Model;
+using burroQueue.Infrastructure.Imaging;
 using burroQueue.Presentation.Services;
 using Wpf.Ui.Controls;
 
@@ -10,6 +12,8 @@ namespace burroQueue.Presentation.Views;
 [ExcludeFromCodeCoverage]
 public partial class TrackToastWindow : FluentWindow
 {
+    private static readonly SimdSuperResolutionThumbnailEnhancer _superResEnhancer = new();
+
     public TrackToastWindow(
         string title,
         string message,
@@ -34,9 +38,10 @@ public partial class TrackToastWindow : FluentWindow
                 BitmapImage bmp = new();
                 bmp.BeginInit();
                 bmp.UriSource = uri;
-                bmp.DecodePixelWidth = 192;
+                bmp.DecodePixelWidth = 64;
                 bmp.CacheOption = BitmapCacheOption.OnLoad;
                 bmp.EndInit();
+                bmp.DownloadCompleted += (_, _) => ApplySuperResolutionIfSmall(bmp);
                 CoverImage.Source = bmp;
             }
         }
@@ -66,5 +71,37 @@ public partial class TrackToastWindow : FluentWindow
                 }
             }
         };
+    }
+
+    private void ApplySuperResolutionIfSmall(BitmapSource source)
+    {
+        try
+        {
+            if (source.PixelWidth <= 0 || source.PixelHeight <= 0 || source.PixelWidth > 128)
+            {
+                return;
+            }
+
+            FormatConvertedBitmap bgra = new(source, PixelFormats.Bgra32, null, 0);
+            int stride = bgra.PixelWidth * 4;
+            byte[] raw = new byte[bgra.PixelHeight * stride];
+            bgra.CopyPixels(raw, stride, 0);
+
+            ThumbnailBuffer enhanced = _superResEnhancer.Upscale4xBgra32(new ThumbnailBuffer(bgra.PixelWidth, bgra.PixelHeight, raw));
+            BitmapSource upscaled = BitmapSource.Create(
+                enhanced.Width,
+                enhanced.Height,
+                96,
+                96,
+                PixelFormats.Bgra32,
+                null,
+                enhanced.Bgra32Pixels.ToArray(),
+                enhanced.Width * 4);
+            upscaled.Freeze();
+            CoverImage.Source = upscaled;
+        }
+        catch
+        {
+        }
     }
 }
