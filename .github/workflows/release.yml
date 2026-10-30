@@ -138,11 +138,11 @@ jobs:
             throw "Authenticode signature verification failed for burroQueue.exe: $($sig.StatusMessage)"
           }
 
-      - name: Notice When SignPath Secrets Are Not Yet Configured
+      - name: Skip SignPath Code Signing When Secrets Are Not Configured
         if: env.SIGNPATH_ENABLED != 'true'
         shell: pwsh
         run: |
-          Write-Host "::notice title=SignPath Code Signing nicht aktiv::SIGNPATH_API_TOKEN / SIGNPATH_ORGANIZATION_ID sind noch nicht in GitHub Secrets/Variables hinterlegt. Siehe SECURITY.md zur Aktivierung der kostenlosen SignPath Foundation Signatur gegen Windows SmartScreen."
+          Write-Host "[INFO] SIGNPATH_API_TOKEN ist noch nicht hinterlegt. Code-Signing wird uebersprungen und das Release direkt gebaut."
 
       - name: Build Inno Setup Installer (.exe)
         shell: pwsh
@@ -195,12 +195,18 @@ jobs:
           RELEASE_VERSION: ${{ steps.calc-version.outputs.next_version }}
         run: |
           Compress-Archive -Path ./publish/burroQueue-win-x64/* -DestinationPath ./publish-installer/burroQueue-portable-win-x64.zip -Force
-          $hashLines = Get-ChildItem ./publish-installer -File -Include *.exe, *.zip | ForEach-Object {
-            $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            "$h  $($_.Name)"
+          $filesToHash = @(
+            "./publish-installer/burroQueue-Setup-x64.exe",
+            "./publish-installer/burroQueue-portable-win-x64.zip"
+          )
+          $hashLines = foreach ($file in $filesToHash) {
+            $item = Get-Item $file -ErrorAction Stop
+            $h = (Get-FileHash $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$h  $($item.Name)"
           }
-          $hashLines | Set-Content -Path ./publish-installer/SHA256SUMS.txt -Encoding utf8NoBOM
-          Get-Content ./publish-installer/SHA256SUMS.txt
+          $sumsPath = Join-Path $PWD "publish-installer/SHA256SUMS.txt"
+          [System.IO.File]::WriteAllLines($sumsPath, [string[]]$hashLines, [System.Text.UTF8Encoding]::new($false))
+          Get-Content $sumsPath
 
           ./scripts/generate-release-notes.ps1 `
             -OutputPath "./publish-installer/RELEASE_NOTES.md" `
@@ -229,7 +235,7 @@ jobs:
             ./publish-installer/burroQueue-Setup-x64.exe `
             ./publish-installer/burroQueue-portable-win-x64.zip `
             ./publish-installer/SHA256SUMS.txt `
-            --title "🫏 burroQueue $env:NEXT_TAG" `
+            --title "burroQueue $env:NEXT_TAG" `
             --notes-file ./publish-installer/RELEASE_NOTES.md `
             --target "$env:TARGET_SHA" `
             --latest

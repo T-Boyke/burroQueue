@@ -30,6 +30,7 @@ public sealed class ReleaseWorkflowValidationTests
         content.Should().Contain("generate-release-notes.ps1");
         content.Should().Contain("SignPath/github-action-submit-signing-request@v3");
         content.Should().NotContain("SignPath/github-action-submit-signing-request@v2");
+        content.Should().NotContain("Get-ChildItem ./publish-installer -File -Include");
         content.Should().NotContain("if: startsWith(github.ref, 'refs/tags/v') && secrets.");
     }
 
