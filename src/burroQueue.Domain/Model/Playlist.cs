@@ -176,6 +176,39 @@ public sealed class Playlist
         return true;
     }
 
+    public bool MoveTrackToIndex(TrackId trackId, int targetIndex)
+    {
+        if (targetIndex < 0 || targetIndex >= _allTracks.Count)
+        {
+            return false;
+        }
+
+        int fromIndex = _allTracks.FindIndex(t => t.Id == trackId);
+        if (fromIndex < 0 || fromIndex == targetIndex)
+        {
+            return false;
+        }
+
+        Track item = _allTracks[fromIndex];
+        _allTracks.RemoveAt(fromIndex);
+        _allTracks.Insert(targetIndex, item);
+
+        if (CurrentTrackIndex == fromIndex)
+        {
+            CurrentTrackIndex = targetIndex;
+        }
+        else if (fromIndex < CurrentTrackIndex && targetIndex >= CurrentTrackIndex)
+        {
+            CurrentTrackIndex--;
+        }
+        else if (fromIndex > CurrentTrackIndex && targetIndex <= CurrentTrackIndex)
+        {
+            CurrentTrackIndex++;
+        }
+
+        return true;
+    }
+
     public void ReplaceOrderPreservingCursor(IReadOnlyList<Track> orderedTracks)
     {
         ArgumentNullException.ThrowIfNull(orderedTracks);

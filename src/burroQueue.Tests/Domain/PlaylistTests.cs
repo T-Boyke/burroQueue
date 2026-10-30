@@ -350,6 +350,56 @@ public sealed class PlaylistTests
         playlist.CurrentTrackIndex.Should().Be(0);
     }
 
+    [Fact]
+    public void MoveTrackToIndex_WhenMovingTrackAcrossCurrentTrackIndex_ShouldReorderAndKeepCurrentTrackStable()
+    {
+        Playlist playlist = new();
+        Track t0 = CreateSampleTrack("00000000000", "Track 0");
+        Track t1 = CreateSampleTrack("11111111111", "Track 1 (Active)");
+        Track t2 = CreateSampleTrack("22222222222", "Track 2");
+        Track t3 = CreateSampleTrack("33333333333", "Track 3");
+        playlist.Enqueue(t0);
+        playlist.Enqueue(t1);
+        playlist.Enqueue(t2);
+        playlist.Enqueue(t3);
+        playlist.JumpToTrack(t1.Id);
+
+        // Move t0 (before active) to index 3 (after active) -> CurrentTrackIndex should decrement from 1 to 0
+        bool movedDown = playlist.MoveTrackToIndex(t0.Id, 3);
+        movedDown.Should().BeTrue();
+        playlist.AllTracks.Should().Equal(t1, t2, t3, t0);
+        playlist.CurrentTrack.Should().BeSameAs(t1);
+        playlist.CurrentTrackIndex.Should().Be(0);
+
+        // Move t3 (after active) to index 0 (at active) -> CurrentTrackIndex should increment from 0 to 1
+        bool movedUp = playlist.MoveTrackToIndex(t3.Id, 0);
+        movedUp.Should().BeTrue();
+        playlist.AllTracks.Should().Equal(t3, t1, t2, t0);
+        playlist.CurrentTrack.Should().BeSameAs(t1);
+        playlist.CurrentTrackIndex.Should().Be(1);
+    }
+
+    [Fact]
+    public void MoveTrackToIndex_WhenMovingActiveTrackOrInvalidTarget_ShouldUpdateOrReturnFalse()
+    {
+        Playlist playlist = new();
+        Track t0 = CreateSampleTrack("00000000000", "Track 0");
+        Track t1 = CreateSampleTrack("11111111111", "Track 1");
+        playlist.Enqueue(t0);
+        playlist.Enqueue(t1);
+
+        // Move active track t0 from index 0 to index 1
+        playlist.MoveTrackToIndex(t0.Id, 1).Should().BeTrue();
+        playlist.CurrentTrack.Should().BeSameAs(t0);
+        playlist.CurrentTrackIndex.Should().Be(1);
+
+        // Invalid indices or same index or unknown track
+        playlist.MoveTrackToIndex(t0.Id, 1).Should().BeFalse();
+        playlist.MoveTrackToIndex(t0.Id, -1).Should().BeFalse();
+        playlist.MoveTrackToIndex(t0.Id, 5).Should().BeFalse();
+        playlist.MoveTrackToIndex(TrackId.New(), 0).Should().BeFalse();
+    }
+
     private static Track CreateSampleTrack(string videoId, string title) =>
         new(videoId, new Uri($"https://www.youtube.com/watch?v={videoId}"), title, "Tester", DateTimeOffset.UtcNow);
 }
