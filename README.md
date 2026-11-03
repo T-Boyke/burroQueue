@@ -114,6 +114,17 @@ Verify architecture compliance at any time:
 - Optional (only when modifying WebDrop CSS): Node.js 24+ (`npm ci && npm run build:css` in `src/burroQueue.WebDrop`)
 - Optional: `yt-dlp` (`winget install yt-dlp.yt-dlp`) for local progressive MP4 audio caching
 
+### Installation via WinGet
+
+burroQueue is available on the official Windows Package Manager repository (`microsoft/winget-pkgs`):
+
+```powershell
+winget install T-Boyke.burroQueue
+```
+
+> [!NOTE]
+> For automated releases to `microsoft/winget-pkgs`, maintainers must have accepted the [Microsoft CLA](https://opensource.microsoft.com/cla/) on GitHub. Manifests are automatically generated with `./scripts/winget/generate-winget-manifests.ps1` and submitted upon each release via `vedantmgoyal9/winget-releaser@v2`.
+
 ### Build and Test
 
 ```powershell

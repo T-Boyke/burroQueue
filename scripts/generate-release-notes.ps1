@@ -89,6 +89,12 @@ $headShaShort = (git rev-parse --short HEAD 2>$null).Trim()
 $headShaFull = (git rev-parse HEAD 2>$null).Trim()
 $releaseDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'")
 
+# Update local version files so everything is in sync
+$bumpScript = Join-Path $PSScriptRoot "bump-version.ps1"
+if (Test-Path $bumpScript) {
+    & $bumpScript -NewVersion $nextVersion
+}
+
 # 4. Categorize commits according to Conventional Commits 1.0.0
 $features = [System.Collections.Generic.List[string]]::new()
 $perf = [System.Collections.Generic.List[string]]::new()
@@ -139,28 +145,17 @@ foreach ($line in $rawCommits) {
 
 $totalCommitsInRelease = $rawCommits.Count
 
-# 5. Build Markdown Changelog (using codepoint escapes so both PowerShell 5.1 and pwsh 7 parse without BOM issues)
-$iconDonkey   = [char]::ConvertFromUtf32(0x1FADF)
-$iconPackage  = [char]::ConvertFromUtf32(0x1F4E6)
-$iconLock     = [char]::ConvertFromUtf32(0x1F510)
-$iconBoard    = [char]::ConvertFromUtf32(0x1F4CB)
-$iconRocket   = [char]::ConvertFromUtf32(0x1F680)
-$iconZap      = [char]::ConvertFromUtf32(0x26A1)
-$iconBug      = [char]::ConvertFromUtf32(0x1F41B)
-$iconPillar   = [char]::ConvertFromUtf32(0x1F3DB)
-$iconShield   = [char]::ConvertFromUtf32(0x1F6E1)
-$iconTest     = [char]::ConvertFromUtf32(0x1F9EA)
-$iconPin      = [char]::ConvertFromUtf32(0x1F4CC)
+# 5. Build Markdown Changelog (Anti-AI-Slop: clean typography, no emoji clutter)
 $emDash       = [char]0x2014
 $midDot       = [char]0x00B7
 $rightArrow   = [char]0x2192
 
 $sb = [System.Text.StringBuilder]::new()
-[void]$sb.AppendLine("## $iconDonkey burroQueue $nextTag $emDash Windows 11 Collaborative Office Jukebox")
+[void]$sb.AppendLine("## burroQueue $nextTag $emDash Windows 11 Collaborative Office Jukebox")
 [void]$sb.AppendLine("")
 [void]$sb.AppendLine("> **Build-Datum:** ``$releaseDate`` $midDot **Commit:** [``$headShaShort``]($RepoUrl/commit/$headShaFull) $midDot **Stack:** ``.NET 11 (win-x64)`` $midDot ``WPF-UI Fluent`` $midDot ``UnoCSS 66.12.0`` $midDot **Lizenz:** ``AGPL-3.0-only``")
 [void]$sb.AppendLine("")
-[void]$sb.AppendLine("### $iconPackage Downloads & Installation")
+[void]$sb.AppendLine("### Downloads & Installation")
 [void]$sb.AppendLine("")
 [void]$sb.AppendLine("| Datei | Typ | Beschreibung |")
 [void]$sb.AppendLine("| :--- | :--- | :--- |")
@@ -172,7 +167,7 @@ $sb = [System.Text.StringBuilder]::new()
 if (Test-Path $ChecksumsPath) {
     $checksumLines = @(Get-Content $ChecksumsPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     if ($checksumLines.Count -gt 0) {
-        [void]$sb.AppendLine("#### $iconLock SHA-256 Checksums")
+        [void]$sb.AppendLine("#### SHA-256 Checksums")
         [void]$sb.AppendLine("")
         [void]$sb.AppendLine('```text')
         foreach ($cl in $checksumLines) {
@@ -186,57 +181,57 @@ if (Test-Path $ChecksumsPath) {
 [void]$sb.AppendLine("---")
 [void]$sb.AppendLine("")
 if ([string]::IsNullOrWhiteSpace($prevTag)) {
-    [void]$sb.AppendLine("### $iconBoard Changelog ($totalCommitsInRelease Commits in Release ``$nextTag``)")
+    [void]$sb.AppendLine("### Changelog ($totalCommitsInRelease Commits in Release ``$nextTag``)")
 }
 else {
-    [void]$sb.AppendLine("### $iconBoard Changelog (``$prevTag`` $rightArrow ``$nextTag`` $midDot $totalCommitsInRelease Commits)")
+    [void]$sb.AppendLine("### Changelog (``$prevTag`` $rightArrow ``$nextTag`` $midDot $totalCommitsInRelease Commits)")
 }
 [void]$sb.AppendLine("")
 
 if ($features.Count -gt 0) {
-    [void]$sb.AppendLine("#### $iconRocket Features & New Capabilities (``feat``)")
+    [void]$sb.AppendLine("#### Features & New Capabilities (``feat``)")
     [void]$sb.AppendLine("")
     foreach ($item in $features) { [void]$sb.AppendLine($item) }
     [void]$sb.AppendLine("")
 }
 
 if ($perf.Count -gt 0) {
-    [void]$sb.AppendLine("#### $iconZap Performance & SIMD Optimizations (``perf``)")
+    [void]$sb.AppendLine("#### Performance & SIMD Optimizations (``perf``)")
     [void]$sb.AppendLine("")
     foreach ($item in $perf) { [void]$sb.AppendLine($item) }
     [void]$sb.AppendLine("")
 }
 
 if ($fixes.Count -gt 0) {
-    [void]$sb.AppendLine("#### $iconBug Bug Fixes & Stability (``fix``)")
+    [void]$sb.AppendLine("#### Bug Fixes & Stability (``fix``)")
     [void]$sb.AppendLine("")
     foreach ($item in $fixes) { [void]$sb.AppendLine($item) }
     [void]$sb.AppendLine("")
 }
 
 if ($refactors.Count -gt 0) {
-    [void]$sb.AppendLine("#### $iconPillar Architecture & Refactoring (``refactor``)")
+    [void]$sb.AppendLine("#### Architecture & Refactoring (``refactor``)")
     [void]$sb.AppendLine("")
     foreach ($item in $refactors) { [void]$sb.AppendLine($item) }
     [void]$sb.AppendLine("")
 }
 
 if ($cicd.Count -gt 0) {
-    [void]$sb.AppendLine("#### $iconShield CI/CD, Release Pipeline & Packaging (``ci`` / ``build`` / ``chore``)")
+    [void]$sb.AppendLine("#### CI/CD, Release Pipeline & Packaging (``ci`` / ``build`` / ``chore``)")
     [void]$sb.AppendLine("")
     foreach ($item in $cicd) { [void]$sb.AppendLine($item) }
     [void]$sb.AppendLine("")
 }
 
 if ($testsAndDocs.Count -gt 0) {
-    [void]$sb.AppendLine("#### $iconTest TDD Tests, Documentation & Code Quality (``test`` / ``docs`` / ``style``)")
+    [void]$sb.AppendLine("#### TDD Tests, Documentation & Code Quality (``test`` / ``docs`` / ``style``)")
     [void]$sb.AppendLine("")
     foreach ($item in $testsAndDocs) { [void]$sb.AppendLine($item) }
     [void]$sb.AppendLine("")
 }
 
 if ($other.Count -gt 0) {
-    [void]$sb.AppendLine("#### $iconPin Other Changes")
+    [void]$sb.AppendLine("#### Other Changes")
     [void]$sb.AppendLine("")
     foreach ($item in $other) { [void]$sb.AppendLine($item) }
     [void]$sb.AppendLine("")

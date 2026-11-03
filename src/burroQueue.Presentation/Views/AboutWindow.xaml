@@ -38,7 +38,7 @@
         <Image Source="pack://application:,,,/burroQueue;component/Assets/logo.png" Width="60" Height="60" Margin="0,0,0,8" />
         <TextBlock Text="burroQueue" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" />
         <TextBlock Text="Kollaborative Windows 11 Office-Jukebox" FontSize="12" Opacity="0.7" HorizontalAlignment="Center" />
-        <TextBlock Text="Version 1.1.0 (Release x64 · .NET 11)" FontSize="11" Opacity="0.55" HorizontalAlignment="Center" Margin="0,2,0,0" />
+        <TextBlock x:Name="VersionTextBlock" Text="Version 2.3.2 (Release x64 · .NET 11)" FontSize="11" Opacity="0.55" HorizontalAlignment="Center" Margin="0,2,0,0" />
       </StackPanel>
 
       <!-- Details Card -->
