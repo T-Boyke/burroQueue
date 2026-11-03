@@ -293,7 +293,10 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
                     {
                         string q = path.Substring(path.IndexOf("level=", StringComparison.OrdinalIgnoreCase) + 6);
                         int amp = q.IndexOf('&');
-                        if (amp >= 0) q = q.Substring(0, amp);
+                        if (amp >= 0)
+                        {
+                            q = q.Substring(0, amp);
+                        }
                         _ = int.TryParse(q, out vol);
                     }
                     if (vol < 0 && !string.IsNullOrWhiteSpace(body))
@@ -327,7 +330,10 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
                     {
                         string q = path.Substring(path.IndexOf("trackId=", StringComparison.OrdinalIgnoreCase) + 8);
                         int amp = q.IndexOf('&');
-                        if (amp >= 0) q = q.Substring(0, amp);
+                        if (amp >= 0)
+                        {
+                            q = q.Substring(0, amp);
+                        }
                         trackId = WebUtility.UrlDecode(q);
                     }
                     if (string.IsNullOrWhiteSpace(trackId) && !string.IsNullOrWhiteSpace(body))
@@ -361,7 +367,10 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
                     {
                         string q = path.Substring(path.IndexOf("action=", StringComparison.OrdinalIgnoreCase) + 7);
                         int amp = q.IndexOf('&');
-                        if (amp >= 0) q = q.Substring(0, amp);
+                        if (amp >= 0)
+                        {
+                            q = q.Substring(0, amp);
+                        }
                         action = WebUtility.UrlDecode(q).ToLowerInvariant();
                     }
                     if (string.IsNullOrWhiteSpace(action) && !string.IsNullOrWhiteSpace(body))

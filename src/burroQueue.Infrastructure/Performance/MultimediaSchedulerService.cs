@@ -4,13 +4,13 @@ namespace burroQueue.Infrastructure.Performance;
 
 public sealed partial class MultimediaSchedulerService : IMultimediaSchedulerService
 {
-    private static readonly bool IsWindowsPlatform = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+    private static readonly bool _isWindowsPlatform = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
-    public bool IsSupported => IsWindowsPlatform;
+    public bool IsSupported => _isWindowsPlatform;
 
     public IDisposable RegisterPlaybackThread()
     {
-        if (!IsWindowsPlatform)
+        if (!_isWindowsPlatform)
         {
             return NullMultimediaSchedulerScope.Instance;
         }

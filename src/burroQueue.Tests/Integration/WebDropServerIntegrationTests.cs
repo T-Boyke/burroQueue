@@ -449,7 +449,11 @@ public sealed class WebDropServerIntegrationTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task PostPlay_ShouldTriggerPlayRequestedEvent()
     {
-        if (_server is null || !_server.IsRunning) return;
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
         bool triggered = false;
         _server.PlayRequested += (_, _) => triggered = true;
 
@@ -461,7 +465,11 @@ public sealed class WebDropServerIntegrationTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task PostPause_ShouldTriggerPauseRequestedEvent()
     {
-        if (_server is null || !_server.IsRunning) return;
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
         bool triggered = false;
         _server.PauseRequested += (_, _) => triggered = true;
 
@@ -473,7 +481,11 @@ public sealed class WebDropServerIntegrationTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task PostSkip_ShouldTriggerSkipRequestedEvent()
     {
-        if (_server is null || !_server.IsRunning) return;
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
         bool triggered = false;
         _server.SkipRequested += (_, _) => triggered = true;
 
@@ -485,7 +497,11 @@ public sealed class WebDropServerIntegrationTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task PostVolume_ShouldTriggerVolumeChangeRequestedEvent()
     {
-        if (_server is null || !_server.IsRunning) return;
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
         int? volume = null;
         _server.VolumeChangeRequested += (_, v) => volume = v;
 
@@ -497,7 +513,11 @@ public sealed class WebDropServerIntegrationTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task PostPlayTrack_ShouldTriggerTrackSelectRequestedEvent()
     {
-        if (_server is null || !_server.IsRunning) return;
+        if (_server is null || !_server.IsRunning)
+        {
+            return;
+        }
+
         string? trackId = null;
         _server.TrackSelectRequested += (_, id) => trackId = id;
 

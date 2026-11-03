@@ -1,5 +1,5 @@
-using burroQueue.Infrastructure.Playback;
 using burroQueue.Infrastructure.Performance;
+using burroQueue.Infrastructure.Playback;
 using Windows.Media.Core;
 using Windows.Media.Playback;
 
