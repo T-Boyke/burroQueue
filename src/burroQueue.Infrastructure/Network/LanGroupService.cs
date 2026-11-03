@@ -172,6 +172,11 @@ public sealed class LanGroupService : ILanGroupService
         {
             await _listenerTask.ConfigureAwait(false);
         }
+
+        if (_announceTask is not null)
+        {
+            await _announceTask.ConfigureAwait(false);
+        }
     }
 
     public async Task BroadcastBeaconAsync(BurroGroup group, ClientId hostId, string hostName, CancellationToken cancellationToken = default)
@@ -502,8 +507,12 @@ public sealed class LanGroupService : ILanGroupService
                             GroupDiscovered?.Invoke(this, beacon);
                             if (_beaconResponder?.Invoke() is { } response && response.GroupId != beacon.GroupId)
                             {
-                                IPEndPoint target = new(result.RemoteEndPoint.Address, Port);
-                                await SendDirectUnicastAsync("BEACON", response, target).ConfigureAwait(false);
+                                await SendDirectUnicastAsync("BEACON", response, result.RemoteEndPoint).ConfigureAwait(false);
+                                if (result.RemoteEndPoint.Port != Port)
+                                {
+                                    IPEndPoint target = new(result.RemoteEndPoint.Address, Port);
+                                    await SendDirectUnicastAsync("BEACON", response, target).ConfigureAwait(false);
+                                }
                             }
                         }
                         break;
@@ -512,8 +521,12 @@ public sealed class LanGroupService : ILanGroupService
                         DiscoveryBeaconMessage? responseBeacon = _beaconResponder?.Invoke();
                         if (responseBeacon is not null)
                         {
-                            IPEndPoint target = new(result.RemoteEndPoint.Address, Port);
-                            await SendDirectUnicastAsync("BEACON", responseBeacon, target).ConfigureAwait(false);
+                            await SendDirectUnicastAsync("BEACON", responseBeacon, result.RemoteEndPoint).ConfigureAwait(false);
+                            if (result.RemoteEndPoint.Port != Port)
+                            {
+                                IPEndPoint target = new(result.RemoteEndPoint.Address, Port);
+                                await SendDirectUnicastAsync("BEACON", responseBeacon, target).ConfigureAwait(false);
+                            }
                             await SendMessageAsync("BEACON", responseBeacon, includeBroadcastFallback: true, token).ConfigureAwait(false);
                         }
                         break;

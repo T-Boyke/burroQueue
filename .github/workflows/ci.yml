@@ -67,7 +67,24 @@ jobs:
         run: dotnet build burroQueue.sln --configuration Release --no-restore -warnaserror
 
       - name: Run TDD Unit & Integration Tests
-        run: dotnet test burroQueue.sln --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./TestResults
+        run: dotnet test burroQueue.sln --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./TestResults --logger "trx;LogFileName=test_results.trx"
+
+      - name: Report Test Failures
+        if: failure()
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path ./TestResults -Filter "*.trx" -Recurse | ForEach-Object {
+            [xml]$trx = Get-Content $_.FullName
+            $failedTests = $trx.TestRun.Results.UnitTestResult | Where-Object { $_.outcome -eq 'Failed' }
+            foreach ($test in $failedTests) {
+              Write-Host "::error title=Failed Test::$($test.testName) - $($test.Output.ErrorInfo.Message)"
+              "### Failed Test: $($test.testName)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+              "```" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+              $test.Output.ErrorInfo.Message | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+              $test.Output.ErrorInfo.StackTrace | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+              "```" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            }
+          }
 
       - name: Upload Code Coverage Artifact
         uses: actions/upload-artifact@v7
