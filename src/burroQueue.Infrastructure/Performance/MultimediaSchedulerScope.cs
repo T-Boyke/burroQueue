@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace burroQueue.Infrastructure.Performance;
 
-public sealed partial class MultimediaSchedulerScope(nint handle) : IDisposable
+public sealed class MultimediaSchedulerScope(nint handle) : IDisposable
 {
     private nint _handle = handle;
 
@@ -15,8 +15,7 @@ public sealed partial class MultimediaSchedulerScope(nint handle) : IDisposable
         }
     }
 
-    [LibraryImport("avrt.dll", SetLastError = true)]
+    [DllImport("avrt.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool AvRevertMmThreadCharacteristics(nint avrtHandle);
+    private static extern bool AvRevertMmThreadCharacteristics(nint avrtHandle);
 }
-

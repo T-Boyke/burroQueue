@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace burroQueue.Infrastructure.Performance;
 
-public sealed partial class MultimediaSchedulerService : IMultimediaSchedulerService
+public sealed class MultimediaSchedulerService : IMultimediaSchedulerService
 {
     private static readonly bool _isWindowsPlatform = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
@@ -32,7 +32,6 @@ public sealed partial class MultimediaSchedulerService : IMultimediaSchedulerSer
         }
     }
 
-    [LibraryImport("avrt.dll", EntryPoint = "AvSetMmThreadCharacteristicsW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
-    private static partial nint AvSetMmThreadCharacteristics(string taskName, ref int taskIndex);
+    [DllImport("avrt.dll", EntryPoint = "AvSetMmThreadCharacteristicsW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern nint AvSetMmThreadCharacteristics(string taskName, ref int taskIndex);
 }
-
