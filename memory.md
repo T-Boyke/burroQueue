@@ -1,18 +1,21 @@
 # 🫏 burroQueue – Repository Memory
 
-Letzte Aktualisierung: 2026-10-30 | Version: `2.1.0` (Alle 24 Issues & 5 Entwicklungs-Säulen abgeschlossen)
+Letzte Aktualisierung: 2026-11-03 | Version: `2.3.3` (Remote Playback Control, WebDrop Volume Sync, Auto-Close Settings, BrowserOpenTask)
 
 ---
 
 ## 1. Projekt-Status & Kernmetriken
 
-- **Version:** `2.1.0` (Meilensteine `v1.0.0`, `v1.1.0`, `v1.2.0`, `v2.0.0` und `v2.1.0` vollständig abgeschlossen)
+- **Version:** `2.3.3` (Meilensteine `v1.0.0` bis `v2.3.3` vollständig abgeschlossen)
 - **Zielsystem:** Windows 11 (Mica, Fluent Design, Systray-Jukebox, Native `SMTC`, Focus Assist, EcoQoS)
 - **Runtime:** `.NET 11` / `C# 15` (`net11.0` für Domain/Infrastructure, `net11.0-windows10.0.22621.0` für Presentation/Tests, `<TieredPGO>true</TieredPGO>`)
 - **WebDrop Frontend:** Build-Time `UnoCSS 66.12.0` (`src/burroQueue.WebDrop`, Zero Bootstrap, `< 9 KB` Embedded Resource `webdrop.uno.min.css`, Echtzeit-SSE `/api/events`, Mobile Upvote `/upvote` & Collaborator-Avatar)
-- **Architektur:** Reine Domain-Driven Design Schichten (Domain = 0 externe Dependencies, 212 C#-Dateien nach SFC / 1CPF validiert)
-- **Aktuelle Testanzahl:** > 515 Tests (100% grün auf `net11.0`)
-- **Kern-Features (v1.1.0 – v2.1.0):**
+- **Architektur:** Reine Domain-Driven Design Schichten (Domain = 0 externe Dependencies, 219 C#-Dateien nach SFC / 1CPF validiert)
+- **Aktuelle Testanzahl:** 580 Tests (100% grün auf `net11.0`)
+- **Kern-Features (v1.1.0 – v2.3.3):**
+  - **LAN Jukebox Remote-Control & Host Role Separation:** Client B kann nach Gruppenbeitritt die Wiedergabe von Host A fernsteuern (`Play`, `Pause`, `Stop`, `Skip`, `PlayTrack`, `Volume`, `Shuffle`, `Repeat` via `SendPlaybackCommandAsync`), ohne dass Audio fälschlicherweise lokal auf Client B gestartet wird.
+  - **WebDrop Lautstärke-Synchronisation:** Nahtlose bidirektionale Skalierung (0–100% Skala) zwischen WebDrop UI, Host-App und SSE-Events.
+  - **Auto-Close Settings & Deterministic Browser Operations:** Einstellungsfenster schließt sich bei erfolgreichem Speichern via `RequestClose`; Browser-Start-Aufrufe sind über `BrowserOpenTask` asynchron entkoppelt und in Tests 100% deterministisch überprüfbar.
   - **Non-Destructive Cursor Queue & Cryptographic CSPRNG Shuffle (`#9`, `#10`):** `Playlist` behält alle gespielten und kommenden Songs (`AllTracks`, `CurrentTrackIndex`, `IsRepeatAllEnabled`, `JumpToTrack`); `QueueShuffleEngine` mischt per `RandomNumberGenerator.Shuffle<T>` (`HardwareCsprngEntropySource`) mit Anti-Repeat-Guard und synchronisiert die Reihenfolge via `QUEUE_ORDER_SYNC`.
   - **YouTube Collaborative Contributor & Circular Avatar Badge (`#18`, `#278`, `#6`):** `InnerTubePlaylistParser` extrahiert per InnerTube `browse` Contributor-Namen und `contributorAvatar` (`yt3.ggpht.com`); `AvatarBitmapCacheService` hält eingefrorene `48x48` Bitmaps im LRU-Cache (`< 150 KB` RAM); `TrackToastWindow` (`320x68`) zeigt das runde `20x20` Collaborator-Badge unten rechts auf dem Cover sowie `SimdSuperResolutionThumbnailEnhancer` (`4x` `64x48 -> 256x192` Upscaling, `#22`).
   - **Zero-Dependency `Span<char>` TOML Persistence (`#13`, `#19`):** `TomlDocumentSerializer` speichert `%LOCALAPPDATA%\burroQueue\settings.toml`, `session.toml` (inkl. `QueuePlaybackCursor` Sekundengenauigkeit + `PreparePausedAtPositionAsync`) sowie kollaborative Gruppen-Favoriten in `favorites.<group>.toml` (`TomlFavoriteQueueRepository`, P2P `TRACK_UPVOTE`).
