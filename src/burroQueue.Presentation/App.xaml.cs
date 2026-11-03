@@ -380,6 +380,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<IWindowsAutostartService, WindowsAutostartService>();
         services.AddSingleton<IFocusAssistDetector, WindowsFocusAssistDetector>();
         services.AddSingleton<IProcessEfficiencyManager, ProcessEfficiencyManager>();
+        services.AddSingleton<IMultimediaSchedulerService, MultimediaSchedulerService>();
         services.AddSingleton<IGitHubRepoStatsClient, GitHubRepoStatsClient>();
 
 

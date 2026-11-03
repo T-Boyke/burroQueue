@@ -1,4 +1,5 @@
 using burroQueue.Infrastructure.Playback;
+using burroQueue.Infrastructure.Performance;
 using Windows.Media.Core;
 using Windows.Media.Playback;
 
@@ -8,6 +9,7 @@ namespace burroQueue.Presentation.Services;
 public sealed class WpfMediaStreamPlayer : IMediaStreamPlayer
 {
     private readonly MediaPlayer _mediaPlayer;
+    private readonly IDisposable? _mmcssScope;
     private MediaSource? _activeMediaSource;
     private TimeSpan? _pendingSeek;
     private double _volume = 0.8;
@@ -78,8 +80,9 @@ public sealed class WpfMediaStreamPlayer : IMediaStreamPlayer
 
     public event EventHandler? MediaEnded;
 
-    public WpfMediaStreamPlayer()
+    public WpfMediaStreamPlayer(IMultimediaSchedulerService? scheduler = null)
     {
+        _mmcssScope = scheduler?.RegisterPlaybackThread();
         _mediaPlayer = new MediaPlayer
         {
             AudioCategory = MediaPlayerAudioCategory.Media,
@@ -217,6 +220,7 @@ public sealed class WpfMediaStreamPlayer : IMediaStreamPlayer
         if (!_isDisposed)
         {
             _isDisposed = true;
+            _mmcssScope?.Dispose();
             try
             {
                 _mediaPlayer.Pause();

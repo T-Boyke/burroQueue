@@ -9,6 +9,8 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <Deterministic>true</Deterministic>
+    <TieredPGO>true</TieredPGO>
+    <Version>2.3.2</Version>
     <Authors>T-Boyke</Authors>
     <Company>burroQueue</Company>
     <Product>burroQueue</Product>
