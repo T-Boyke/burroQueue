@@ -543,6 +543,16 @@ public sealed class SettingsViewModelTests
         scrollViewer!.Attribute("PreviewMouseWheel")?.Value.Should().Be("OnScrollViewerPreviewMouseWheel");
     }
 
+    private SettingsViewModel CreateViewModel(burroQueue.Domain.Model.BurroGroup? group = null)
+    {
+        return new SettingsViewModel(
+            _settingsService,
+            _telephonyManager,
+            _autostartService,
+            _audioDeviceEnumerator,
+            group: group ?? new burroQueue.Domain.Model.BurroGroup(burroQueue.Domain.Model.GroupId.New(), "Initial Group"));
+    }
+
     [Fact]
     public async Task SaveSettingsCommand_ShouldRaiseRequestCloseEvent()
     {
