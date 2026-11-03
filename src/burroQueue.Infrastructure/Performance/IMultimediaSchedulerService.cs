@@ -6,3 +6,4 @@ public interface IMultimediaSchedulerService
 
     IDisposable RegisterPlaybackThread();
 }
+

@@ -124,3 +124,4 @@ ManifestVersion: 1.6.0
 [System.IO.File]::WriteAllText((Join-Path $OutputDir "T-Boyke.burroQueue.locale.de-DE.yaml"), $localeDeYaml, $utf8NoBom)
 
 Write-Host "Generated WinGet manifests in: $OutputDir"
+

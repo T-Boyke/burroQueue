@@ -35,3 +35,4 @@ public sealed partial class MultimediaSchedulerService : IMultimediaSchedulerSer
     [LibraryImport("avrt.dll", EntryPoint = "AvSetMmThreadCharacteristicsW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
     private static partial nint AvSetMmThreadCharacteristics(string taskName, ref int taskIndex);
 }
+

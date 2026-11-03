@@ -19,3 +19,4 @@ public sealed partial class MultimediaSchedulerScope(nint handle) : IDisposable
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool AvRevertMmThreadCharacteristics(nint avrtHandle);
 }
+

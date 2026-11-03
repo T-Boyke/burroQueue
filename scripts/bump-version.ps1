@@ -62,3 +62,4 @@ if (-not $DryRun) {
         [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "version=$nextVersion`ntag=v$nextVersion`n", $utf8NoBom)
     }
 }
+
