@@ -594,14 +594,26 @@ public sealed class MainWindowViewModelPlaybackTests
     }
 
     [Fact]
-    public void OpenCollaborativePlaylist_WhenUrlSet_ShouldAttemptOpen()
+    public async Task OpenCollaborativePlaylist_WhenUrlSet_ShouldAttemptOpen()
     {
         MainWindowViewModel vm = CreateViewModel();
         vm.CollaborativePlaylistUrl = "https://youtube.com/playlist?list=PLvalid";
+        Action<System.Diagnostics.ProcessStartInfo> original = MainWindowViewModel.ProcessStarter;
+        try
+        {
+            System.Diagnostics.ProcessStartInfo? startedPsi = null;
+            MainWindowViewModel.ProcessStarter = psi => startedPsi = psi;
 
-        Action act = () => vm.OpenCollaborativePlaylist();
+            vm.OpenCollaborativePlaylist();
+            await vm.BrowserOpenTask;
 
-        act.Should().NotThrow();
+            startedPsi.Should().NotBeNull();
+            startedPsi!.FileName.Should().Be("https://youtube.com/playlist?list=PLvalid");
+        }
+        finally
+        {
+            MainWindowViewModel.ProcessStarter = original;
+        }
     }
 
     [Fact]
@@ -643,7 +655,7 @@ public sealed class MainWindowViewModelPlaybackTests
     }
 
     [Fact]
-    public void OpenCollaborativePlaylistInBrowser_WhenProcessStarterThrows_ShouldCatchAndSetErrorMessage()
+    public async Task OpenCollaborativePlaylistInBrowser_WhenProcessStarterThrows_ShouldCatchAndSetErrorMessage()
     {
         MainWindowViewModel vm = CreateViewModel();
         vm.CollaborativePlaylistUrl = "https://youtube.com/playlist?list=PLvalid";
@@ -652,6 +664,7 @@ public sealed class MainWindowViewModelPlaybackTests
         {
             MainWindowViewModel.ProcessStarter = _ => throw new System.ComponentModel.Win32Exception("No browser");
             vm.OpenCollaborativePlaylist();
+            await vm.BrowserOpenTask;
 
             vm.StatusMessage.Should().Be("Could not open browser for playlist.");
         }
@@ -774,17 +787,26 @@ public sealed class MainWindowViewModelPlaybackTests
     }
 
     [Fact]
-    public void OpenWebDropInBrowserCommand_ShouldStartProcessWithWebDropUrl()
+    public async Task OpenWebDropInBrowserCommand_ShouldStartProcessWithWebDropUrl()
     {
         MainWindowViewModel vm = CreateViewModel();
         System.Diagnostics.ProcessStartInfo? startedPsi = null;
-        MainWindowViewModel.ProcessStarter = psi => startedPsi = psi;
+        Action<System.Diagnostics.ProcessStartInfo> original = MainWindowViewModel.ProcessStarter;
+        try
+        {
+            MainWindowViewModel.ProcessStarter = psi => startedPsi = psi;
 
-        vm.OpenWebDropInBrowserCommand.Execute(null);
+            vm.OpenWebDropInBrowserCommand.Execute(null);
+            await vm.BrowserOpenTask;
 
-        startedPsi.Should().NotBeNull();
-        startedPsi!.FileName.Should().Be(vm.WebDropUrl);
-        startedPsi.UseShellExecute.Should().BeTrue();
+            startedPsi.Should().NotBeNull();
+            startedPsi!.FileName.Should().Be(vm.WebDropUrl);
+            startedPsi.UseShellExecute.Should().BeTrue();
+        }
+        finally
+        {
+            MainWindowViewModel.ProcessStarter = original;
+        }
     }
 
     [Fact]
@@ -848,14 +870,23 @@ public sealed class MainWindowViewModelPlaybackTests
     }
 
     [Fact]
-    public void OpenWebDropInBrowserCommand_WhenProcessStarterThrows_ShouldCatchAndSetErrorMessage()
+    public async Task OpenWebDropInBrowserCommand_WhenProcessStarterThrows_ShouldCatchAndSetErrorMessage()
     {
         MainWindowViewModel vm = CreateViewModel();
-        MainWindowViewModel.ProcessStarter = _ => throw new System.ComponentModel.Win32Exception("Browser not found");
+        Action<System.Diagnostics.ProcessStartInfo> original = MainWindowViewModel.ProcessStarter;
+        try
+        {
+            MainWindowViewModel.ProcessStarter = _ => throw new System.ComponentModel.Win32Exception("Browser not found");
 
-        vm.OpenWebDropInBrowserCommand.Execute(null);
+            vm.OpenWebDropInBrowserCommand.Execute(null);
+            await vm.BrowserOpenTask;
 
-        vm.StatusMessage.Should().Be("Konnte Browser nicht öffnen");
+            vm.StatusMessage.Should().Be("Konnte Browser nicht öffnen");
+        }
+        finally
+        {
+            MainWindowViewModel.ProcessStarter = original;
+        }
     }
 
     [Fact]

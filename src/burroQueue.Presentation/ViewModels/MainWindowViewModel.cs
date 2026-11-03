@@ -263,6 +263,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     internal Task PrefetchTask { get; private set; } = Task.CompletedTask;
 
+    internal Task BrowserOpenTask { get; private set; } = Task.CompletedTask;
+
     public MainWindowViewModel(
         BurroGroup group,
         IYouTubeUrlParser urlParser,
@@ -752,7 +754,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         if (!string.IsNullOrWhiteSpace(WebDropUrl))
         {
-            Task.Run(async () =>
+            BrowserOpenTask = Task.Run(async () =>
             {
                 try
                 {
@@ -1515,7 +1517,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             return;
         }
 
-        Task.Run(() =>
+        BrowserOpenTask = Task.Run(() =>
         {
             try
             {
