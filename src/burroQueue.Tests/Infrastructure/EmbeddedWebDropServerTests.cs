@@ -68,4 +68,46 @@ public sealed class EmbeddedWebDropServerTests
         json.Should().Contain("\"videoId\":\"vid1\"");
         json.Should().Contain("\"submitterAvatarUrl\":\"https://yt3.ggpht.com/ytc/userA=s88\"");
     }
+
+    [Fact]
+    public void GeneratePageHtml_ContainsModernControlsWithoutEmojis()
+    {
+        BurroGroup group = new(GroupId.New(), "Test Jukebox");
+        EmbeddedWebDropServer server = new(8089, group)
+        {
+            PlaybackStateProvider = () => "Playing",
+            VolumeProvider = () => 75
+        };
+
+        string html = server.GeneratePageHtml();
+
+        html.Should().Contain("volume-slider");
+        html.Should().Contain("data-action='play'");
+        html.Should().Contain("data-action='skip'");
+        html.Should().NotContain("🫏");
+        html.Should().NotContain("🚀");
+        html.Should().NotContain("✨");
+        html.Should().NotContain("🔥");
+    }
+
+    [Fact]
+    public void GenerateStatusJson_WhenProvidersSet_ShouldIncludePlaybackStateAndVolume()
+    {
+        BurroGroup group = new(GroupId.New(), "Test Jukebox");
+        Track track = new("t1", new Uri("https://www.youtube.com/watch?v=t1"), "Test Track", "Tester", DateTimeOffset.UtcNow);
+        group.Playlist.Enqueue(track);
+
+        EmbeddedWebDropServer server = new(8089, group)
+        {
+            PlaybackStateProvider = () => "Playing",
+            VolumeProvider = () => 64
+        };
+
+        string json = server.GenerateStatusJson();
+
+        json.Should().Contain("\"playbackState\":\"Playing\"");
+        json.Should().Contain("\"volume\":64");
+        json.Should().Contain("\"id\":\"" + track.Id.Value + "\"");
+        json.Should().Contain("\"videoId\":\"t1\"");
+    }
 }

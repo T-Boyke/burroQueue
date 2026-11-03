@@ -24,9 +24,23 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
 
     public Func<string>? SkipVoteStatusProvider { get; set; }
 
+    public Func<string>? PlaybackStateProvider { get; set; }
+
+    public Func<int>? VolumeProvider { get; set; }
+
     public event EventHandler<LinkDropRequest>? LinkDropped;
 
     public event EventHandler? SkipVoteRequested;
+
+    public event EventHandler? PlayRequested;
+
+    public event EventHandler? PauseRequested;
+
+    public event EventHandler? SkipRequested;
+
+    public event EventHandler<int>? VolumeChangeRequested;
+
+    public event EventHandler<string>? TrackSelectRequested;
 
     public event EventHandler<WebDropUpvoteRequest>? TrackUpvoteRequested;
 
@@ -244,6 +258,143 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
                     await stream.WriteAsync(headerBytes, token).ConfigureAwait(false);
                     await stream.FlushAsync(token).ConfigureAwait(false);
                 }
+                else if (method == "POST" && (path == "/play" || path.StartsWith("/play?", StringComparison.Ordinal)))
+                {
+                    PlayRequested?.Invoke(this, EventArgs.Empty);
+                    byte[] payload = "{\"success\":true,\"action\":\"play\"}"u8.ToArray();
+                    byte[] headerBytes = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n");
+                    await stream.WriteAsync(headerBytes, token).ConfigureAwait(false);
+                    await stream.WriteAsync(payload, token).ConfigureAwait(false);
+                    await stream.FlushAsync(token).ConfigureAwait(false);
+                }
+                else if (method == "POST" && (path == "/pause" || path.StartsWith("/pause?", StringComparison.Ordinal)))
+                {
+                    PauseRequested?.Invoke(this, EventArgs.Empty);
+                    byte[] payload = "{\"success\":true,\"action\":\"pause\"}"u8.ToArray();
+                    byte[] headerBytes = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n");
+                    await stream.WriteAsync(headerBytes, token).ConfigureAwait(false);
+                    await stream.WriteAsync(payload, token).ConfigureAwait(false);
+                    await stream.FlushAsync(token).ConfigureAwait(false);
+                }
+                else if (method == "POST" && (path == "/skip" || path.StartsWith("/skip?", StringComparison.Ordinal)))
+                {
+                    SkipRequested?.Invoke(this, EventArgs.Empty);
+                    byte[] payload = "{\"success\":true,\"action\":\"skip\"}"u8.ToArray();
+                    byte[] headerBytes = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n");
+                    await stream.WriteAsync(headerBytes, token).ConfigureAwait(false);
+                    await stream.WriteAsync(payload, token).ConfigureAwait(false);
+                    await stream.FlushAsync(token).ConfigureAwait(false);
+                }
+                else if (method == "POST" && (path == "/volume" || path.StartsWith("/volume?", StringComparison.Ordinal)))
+                {
+                    string body = await ReadBodyAsync(reader, contentLength).ConfigureAwait(false);
+                    int vol = -1;
+                    if (path.Contains("level=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string q = path.Substring(path.IndexOf("level=", StringComparison.OrdinalIgnoreCase) + 6);
+                        int amp = q.IndexOf('&');
+                        if (amp >= 0) q = q.Substring(0, amp);
+                        _ = int.TryParse(q, out vol);
+                    }
+                    if (vol < 0 && !string.IsNullOrWhiteSpace(body))
+                    {
+                        foreach (string pair in body.Split('&'))
+                        {
+                            string[] kvp = pair.Split('=', 2);
+                            if (kvp.Length == 2 && kvp[0].Equals("level", StringComparison.OrdinalIgnoreCase))
+                            {
+                                _ = int.TryParse(WebUtility.UrlDecode(kvp[1]), out vol);
+                            }
+                        }
+                    }
+
+                    if (vol >= 0)
+                    {
+                        VolumeChangeRequested?.Invoke(this, Math.Clamp(vol, 0, 100));
+                    }
+
+                    byte[] payload = Encoding.UTF8.GetBytes($"{{\"success\":true,\"volume\":{vol}}}");
+                    byte[] headerBytes = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n");
+                    await stream.WriteAsync(headerBytes, token).ConfigureAwait(false);
+                    await stream.WriteAsync(payload, token).ConfigureAwait(false);
+                    await stream.FlushAsync(token).ConfigureAwait(false);
+                }
+                else if (method == "POST" && (path == "/play-track" || path.StartsWith("/play-track?", StringComparison.Ordinal)))
+                {
+                    string body = await ReadBodyAsync(reader, contentLength).ConfigureAwait(false);
+                    string trackId = string.Empty;
+                    if (path.Contains("trackId=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string q = path.Substring(path.IndexOf("trackId=", StringComparison.OrdinalIgnoreCase) + 8);
+                        int amp = q.IndexOf('&');
+                        if (amp >= 0) q = q.Substring(0, amp);
+                        trackId = WebUtility.UrlDecode(q);
+                    }
+                    if (string.IsNullOrWhiteSpace(trackId) && !string.IsNullOrWhiteSpace(body))
+                    {
+                        foreach (string pair in body.Split('&'))
+                        {
+                            string[] kvp = pair.Split('=', 2);
+                            if (kvp.Length == 2 && kvp[0].Equals("trackId", StringComparison.OrdinalIgnoreCase))
+                            {
+                                trackId = WebUtility.UrlDecode(kvp[1]);
+                            }
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(trackId))
+                    {
+                        TrackSelectRequested?.Invoke(this, trackId.Trim());
+                    }
+
+                    byte[] payload = Encoding.UTF8.GetBytes($"{{\"success\":true,\"trackId\":\"{WebUtility.HtmlEncode(trackId)}\"}}");
+                    byte[] headerBytes = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n");
+                    await stream.WriteAsync(headerBytes, token).ConfigureAwait(false);
+                    await stream.WriteAsync(payload, token).ConfigureAwait(false);
+                    await stream.FlushAsync(token).ConfigureAwait(false);
+                }
+                else if (method == "POST" && (path == "/playback" || path.StartsWith("/playback?", StringComparison.Ordinal)))
+                {
+                    string body = await ReadBodyAsync(reader, contentLength).ConfigureAwait(false);
+                    string action = string.Empty;
+                    if (path.Contains("action=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string q = path.Substring(path.IndexOf("action=", StringComparison.OrdinalIgnoreCase) + 7);
+                        int amp = q.IndexOf('&');
+                        if (amp >= 0) q = q.Substring(0, amp);
+                        action = WebUtility.UrlDecode(q).ToLowerInvariant();
+                    }
+                    if (string.IsNullOrWhiteSpace(action) && !string.IsNullOrWhiteSpace(body))
+                    {
+                        foreach (string pair in body.Split('&'))
+                        {
+                            string[] kvp = pair.Split('=', 2);
+                            if (kvp.Length == 2 && kvp[0].Equals("action", StringComparison.OrdinalIgnoreCase))
+                            {
+                                action = WebUtility.UrlDecode(kvp[1]).ToLowerInvariant();
+                            }
+                        }
+                    }
+
+                    switch (action)
+                    {
+                        case "play":
+                            PlayRequested?.Invoke(this, EventArgs.Empty);
+                            break;
+                        case "pause":
+                            PauseRequested?.Invoke(this, EventArgs.Empty);
+                            break;
+                        case "skip":
+                            SkipRequested?.Invoke(this, EventArgs.Empty);
+                            break;
+                    }
+
+                    byte[] payload = "{\"success\":true}"u8.ToArray();
+                    byte[] headerBytes = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n");
+                    await stream.WriteAsync(headerBytes, token).ConfigureAwait(false);
+                    await stream.WriteAsync(payload, token).ConfigureAwait(false);
+                    await stream.FlushAsync(token).ConfigureAwait(false);
+                }
                 else if (method == "POST" && (path == "/upvote" || path.StartsWith("/upvote?", StringComparison.Ordinal)))
                 {
                     string body = await ReadBodyAsync(reader, contentLength).ConfigureAwait(false);
@@ -422,6 +573,8 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
     {
         string groupName = _group?.Name ?? "Office Jukebox";
         string? skipVotes = SkipVoteStatusProvider?.Invoke();
+        string playbackState = PlaybackStateProvider?.Invoke() ?? "Stopped";
+        int volume = VolumeProvider?.Invoke() ?? 80;
 
         using MemoryStream ms = new();
         using (Utf8JsonWriter writer = new(ms))
@@ -429,11 +582,14 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
             writer.WriteStartObject();
             writer.WriteString("groupName", groupName);
             writer.WriteString("skipVotes", skipVotes ?? string.Empty);
+            writer.WriteString("playbackState", playbackState);
+            writer.WriteNumber("volume", volume);
 
             Domain.Model.Track? current = _group?.Playlist.CurrentTrack;
             if (current is not null)
             {
                 writer.WriteStartObject("currentTrack");
+                writer.WriteString("id", current.Id.Value.ToString());
                 writer.WriteString("videoId", current.VideoId);
                 writer.WriteString("title", current.Title);
                 writer.WriteString("submittedBy", current.SubmittedBy);
@@ -451,6 +607,7 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
                 foreach (Domain.Model.Track track in _group.Playlist.QueuedTracks)
                 {
                     writer.WriteStartObject();
+                    writer.WriteString("id", track.Id.Value.ToString());
                     writer.WriteString("videoId", track.VideoId);
                     writer.WriteString("title", track.Title);
                     writer.WriteString("submittedBy", track.SubmittedBy);
@@ -471,6 +628,8 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
         StringBuilder sb = new();
         string groupName = _group?.Name ?? "Office Jukebox";
         string? skipVoteStatus = SkipVoteStatusProvider?.Invoke();
+        string playbackState = PlaybackStateProvider?.Invoke() ?? "Stopped";
+        int volume = VolumeProvider?.Invoke() ?? 80;
 
         bool isDropped = path?.Contains("status=dropped", StringComparison.OrdinalIgnoreCase) == true;
         bool isVoted = path?.Contains("status=voted", StringComparison.OrdinalIgnoreCase) == true;
@@ -494,11 +653,11 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
 
         if (isDropped)
         {
-            sb.Append("<div class='bq-toast'>Titel erfolgreich zur Warteschlange hinzugefügt.</div>");
+            sb.Append("<div class='bq-toast'>Titel erfolgreich zur Warteschlange hinzugef&uuml;gt.</div>");
         }
         else if (isVoted)
         {
-            sb.Append("<div class='bq-toast'>Deine Stimme für Skip wurde gezählt.</div>");
+            sb.Append("<div class='bq-toast'>Deine Stimme f&uuml;r Skip wurde gez&auml;hlt.</div>");
         }
 
         sb.Append("<section class='bq-section'>");
@@ -524,32 +683,53 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
         string voteLabel = !string.IsNullOrWhiteSpace(skipVoteStatus) ? $" ({WebUtility.HtmlEncode(skipVoteStatus)})" : string.Empty;
         string skipBtnDisplay = currentTrack is not null ? "block" : "none";
         string curVid = currentTrack?.VideoId ?? string.Empty;
-        sb.Append(CultureInfo.InvariantCulture, $@"<div class='flex items-center gap-2 mt-2.5' id='skip-form' style='display:{skipBtnDisplay};'>
+
+        // Player Controls (Play, Pause, Skip, Volume Slider)
+        sb.Append(CultureInfo.InvariantCulture, $@"
+        <div class='flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-fluent-border'>
+            <button type='button' class='bq-btn-skip' id='play-toggle-btn' data-action='play'>
+                <span id='play-toggle-text'>{(playbackState.Equals("Playing", StringComparison.OrdinalIgnoreCase) ? "Pause" : "Play")}</span>
+            </button>
+            <button type='button' class='bq-btn-skip' id='skip-track-btn' data-action='skip'>Weiter &raquo;</button>
+            <div class='flex items-center gap-1.5 ml-auto text-xs text-fluent-muted'>
+                <label for='volume-slider'>Vol</label>
+                <input type='range' id='volume-slider' min='0' max='100' value='{volume}' class='w-20 cursor-pointer accent-fluent-accent' />
+                <span id='volume-val' class='w-6 text-right'>{volume}%</span>
+            </div>
+        </div>
+
+        <div class='flex items-center gap-2 mt-2.5' id='skip-form' style='display:{skipBtnDisplay};'>
             <form method='POST' action='/vote-skip' class='inline'>
                 <button type='submit' class='bq-btn-skip' id='skip-btn'>F&uuml;r Skip stimmen{voteLabel}</button>
             </form>
             <form method='POST' action='/upvote' class='inline'>
                 <input type='hidden' name='videoId' id='upvote-vid' value='{WebUtility.HtmlEncode(curVid)}' />
-                <button type='submit' class='bq-btn-skip'>&#x1F44D; Favorit</button>
+                <button type='submit' class='bq-btn-skip'>Favorit +1</button>
             </form>
         </div>
         </section>");
 
         sb.Append(@"<section class='bq-section'>
             <div class='bq-section-label'>Warteschlange</div>
-            <div class='max-h-[140px] overflow-y-auto mt-2'>");
+            <div class='max-h-[160px] overflow-y-auto mt-2'>");
 
         List<Domain.Model.Track>? queued = _group?.Playlist.QueuedTracks.ToList();
         bool hasQueued = queued is not null && queued.Count > 0;
         string queueListDisplay = hasQueued ? "block" : "none";
         string queueEmptyDisplay = hasQueued ? "none" : "block";
 
-        sb.Append(CultureInfo.InvariantCulture, $"<ol class='m-0 pl-5 text-[13px] text-fluent-text space-y-1' id='queue-list' style='display:{queueListDisplay};'>");
+        sb.Append(CultureInfo.InvariantCulture, $"<ol class='m-0 pl-0 list-none text-[13px] text-fluent-text space-y-1.5' id='queue-list' style='display:{queueListDisplay};'>");
         if (queued is not null)
         {
             foreach (Domain.Model.Track t in queued)
             {
-                sb.Append(CultureInfo.InvariantCulture, $"<li class='mb-1'>{WebUtility.HtmlEncode(t.Title)} ({WebUtility.HtmlEncode(t.SubmittedBy)})</li>");
+                sb.Append(CultureInfo.InvariantCulture, $@"<li class='flex items-center justify-between gap-2 p-1.5 rounded hover:bg-fluent-subtle'>
+                    <div class='truncate'>
+                        <span class='font-medium'>{WebUtility.HtmlEncode(t.Title)}</span>
+                        <span class='text-xs text-fluent-muted ml-1'>({WebUtility.HtmlEncode(t.SubmittedBy)})</span>
+                    </div>
+                    <button type='button' class='bq-btn-skip shrink-0 text-xs px-2 py-0.5' onclick=""playTrack('{WebUtility.HtmlEncode(t.Id.Value.ToString())}')"">Abspielen</button>
+                </li>");
             }
         }
         sb.Append("</ol>");
@@ -591,6 +771,41 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
             });
         }
 
+        const playBtn = document.getElementById('play-toggle-btn');
+        const playText = document.getElementById('play-toggle-text');
+        const skipTrackBtn = document.getElementById('skip-track-btn');
+        const volumeSlider = document.getElementById('volume-slider');
+        const volumeVal = document.getElementById('volume-val');
+
+        let currentPlaybackState = 'Stopped';
+
+        if (playBtn) {
+            playBtn.addEventListener('click', () => {
+                const targetAction = currentPlaybackState === 'Playing' ? 'pause' : 'play';
+                fetch('/' + targetAction, { method: 'POST' }).catch(() => {});
+            });
+        }
+
+        if (skipTrackBtn) {
+            skipTrackBtn.addEventListener('click', () => {
+                fetch('/skip', { method: 'POST' }).catch(() => {});
+            });
+        }
+
+        if (volumeSlider) {
+            volumeSlider.addEventListener('input', () => {
+                if (volumeVal) volumeVal.textContent = volumeSlider.value + '%';
+            });
+            volumeSlider.addEventListener('change', () => {
+                fetch('/volume?level=' + volumeSlider.value, { method: 'POST' }).catch(() => {});
+            });
+        }
+
+        function playTrack(trackId) {
+            if (!trackId) return;
+            fetch('/play-track?trackId=' + encodeURIComponent(trackId), { method: 'POST' }).catch(() => {});
+        }
+
         function applyStatusData(data) {
             const titleEl = document.getElementById('now-playing-title');
             const subEl = document.getElementById('now-playing-submitter');
@@ -599,6 +814,15 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
             const upVid = document.getElementById('upvote-vid');
             const listEl = document.getElementById('queue-list');
             const emptyEl = document.getElementById('queue-empty');
+
+            if (data.playbackState) {
+                currentPlaybackState = data.playbackState;
+                if (playText) playText.textContent = currentPlaybackState === 'Playing' ? 'Pause' : 'Play';
+            }
+            if (data.volume !== undefined && volumeSlider && document.activeElement !== volumeSlider) {
+                volumeSlider.value = data.volume;
+                if (volumeVal) volumeVal.textContent = data.volume + '%';
+            }
 
             if (data.currentTrack) {
                 if (titleEl) {
@@ -627,8 +851,30 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
                     listEl.innerHTML = '';
                     data.queuedTracks.forEach(t => {
                         const li = document.createElement('li');
-                        li.className = 'mb-1';
-                        li.textContent = t.title + ' (' + (t.submittedBy || 'Anonym') + ')';
+                        li.className = 'flex items-center justify-between gap-2 p-1.5 rounded hover:bg-fluent-subtle';
+
+                        const div = document.createElement('div');
+                        div.className = 'truncate';
+
+                        const spanTitle = document.createElement('span');
+                        spanTitle.className = 'font-medium';
+                        spanTitle.textContent = t.title;
+
+                        const spanSub = document.createElement('span');
+                        spanSub.className = 'text-xs text-fluent-muted ml-1';
+                        spanSub.textContent = ' (' + (t.submittedBy || 'Anonym') + ')';
+
+                        div.appendChild(spanTitle);
+                        div.appendChild(spanSub);
+
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'bq-btn-skip shrink-0 text-xs px-2 py-0.5';
+                        btn.textContent = 'Abspielen';
+                        btn.onclick = () => playTrack(t.id);
+
+                        li.appendChild(div);
+                        li.appendChild(btn);
                         listEl.appendChild(li);
                     });
                 } else {

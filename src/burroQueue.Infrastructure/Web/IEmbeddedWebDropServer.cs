@@ -8,9 +8,23 @@ public interface IEmbeddedWebDropServer : IAsyncDisposable
 
     Func<string>? SkipVoteStatusProvider { get; set; }
 
+    Func<string>? PlaybackStateProvider { get; set; }
+
+    Func<int>? VolumeProvider { get; set; }
+
     event EventHandler<LinkDropRequest>? LinkDropped;
 
     event EventHandler? SkipVoteRequested;
+
+    event EventHandler? PlayRequested;
+
+    event EventHandler? PauseRequested;
+
+    event EventHandler? SkipRequested;
+
+    event EventHandler<int>? VolumeChangeRequested;
+
+    event EventHandler<string>? TrackSelectRequested;
 
     event EventHandler<WebDropUpvoteRequest>? TrackUpvoteRequested;
 

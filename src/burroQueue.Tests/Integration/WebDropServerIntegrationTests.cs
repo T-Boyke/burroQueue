@@ -445,6 +445,66 @@ public sealed class WebDropServerIntegrationTests : IAsyncLifetime, IDisposable
         html.Should().Contain("class='bq-shell'");
         html.Should().NotContainEquivalentOf("bootstrap");
     }
+
+    [Fact]
+    public async Task PostPlay_ShouldTriggerPlayRequestedEvent()
+    {
+        if (_server is null || !_server.IsRunning) return;
+        bool triggered = false;
+        _server.PlayRequested += (_, _) => triggered = true;
+
+        HttpResponseMessage response = await _httpClient!.PostAsync($"http://localhost:{_port}/play", new StringContent(string.Empty));
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        triggered.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task PostPause_ShouldTriggerPauseRequestedEvent()
+    {
+        if (_server is null || !_server.IsRunning) return;
+        bool triggered = false;
+        _server.PauseRequested += (_, _) => triggered = true;
+
+        HttpResponseMessage response = await _httpClient!.PostAsync($"http://localhost:{_port}/pause", new StringContent(string.Empty));
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        triggered.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task PostSkip_ShouldTriggerSkipRequestedEvent()
+    {
+        if (_server is null || !_server.IsRunning) return;
+        bool triggered = false;
+        _server.SkipRequested += (_, _) => triggered = true;
+
+        HttpResponseMessage response = await _httpClient!.PostAsync($"http://localhost:{_port}/skip", new StringContent(string.Empty));
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        triggered.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task PostVolume_ShouldTriggerVolumeChangeRequestedEvent()
+    {
+        if (_server is null || !_server.IsRunning) return;
+        int? volume = null;
+        _server.VolumeChangeRequested += (_, v) => volume = v;
+
+        HttpResponseMessage response = await _httpClient!.PostAsync($"http://localhost:{_port}/volume?level=42", new StringContent(string.Empty));
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        volume.Should().Be(42);
+    }
+
+    [Fact]
+    public async Task PostPlayTrack_ShouldTriggerTrackSelectRequestedEvent()
+    {
+        if (_server is null || !_server.IsRunning) return;
+        string? trackId = null;
+        _server.TrackSelectRequested += (_, id) => trackId = id;
+
+        HttpResponseMessage response = await _httpClient!.PostAsync($"http://localhost:{_port}/play-track?trackId=test-track-123", new StringContent(string.Empty));
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        trackId.Should().Be("test-track-123");
+    }
 }
 
 

@@ -404,6 +404,32 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
         _webDropServer.LinkDropped += (_, req) => EnqueueRawUrl(req.Url, req.Submitter);
         _webDropServer.SkipVoteRequested += async (_, _) => await VoteToSkipAsync().ConfigureAwait(false);
+        _webDropServer.PlayRequested += async (_, _) =>
+        {
+            if (PlaybackState != PlaybackState.Playing)
+            {
+                await TogglePlayPauseAsync().ConfigureAwait(false);
+            }
+        };
+        _webDropServer.PauseRequested += async (_, _) =>
+        {
+            if (PlaybackState == PlaybackState.Playing)
+            {
+                await TogglePlayPauseAsync().ConfigureAwait(false);
+            }
+        };
+        _webDropServer.SkipRequested += async (_, _) => await SkipAsync().ConfigureAwait(false);
+        _webDropServer.VolumeChangeRequested += (_, vol) => MasterVolume = Math.Clamp(vol, 0, 100);
+        _webDropServer.TrackSelectRequested += async (_, trackIdStr) =>
+        {
+            Track? target = _group.Playlist.AllTracks.FirstOrDefault(t => t.Id.Value.ToString() == trackIdStr || t.VideoId == trackIdStr);
+            if (target is not null)
+            {
+                await PlayTrackNowAsync(target).ConfigureAwait(false);
+            }
+        };
+        _webDropServer.VolumeProvider = () => (int)Math.Round(MasterVolume);
+        _webDropServer.PlaybackStateProvider = () => PlaybackState.ToString();
         _webDropServer.TrackUpvoteRequested += async (_, req) =>
         {
             Track? target = _group.Playlist.AllTracks.FirstOrDefault(t => t.VideoId == req.VideoId);
