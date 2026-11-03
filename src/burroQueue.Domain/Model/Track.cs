@@ -8,7 +8,8 @@ public sealed class Track
     [
         ".ggpht.com",
         ".googleusercontent.com",
-        ".ytimg.com"
+        ".ytimg.com",
+        ".youtube.com"
     ];
 
     public TrackId Id { get; }
@@ -29,7 +30,7 @@ public sealed class Track
 
     public DateTimeOffset EnqueuedAtUtc { get; }
 
-    public string ThumbnailUrl => $"https://img.youtube.com/vi/{VideoId}/mqdefault.jpg";
+    public string ThumbnailUrl => $"https://i.ytimg.com/vi/{VideoId}/hqdefault.jpg";
 
     public Track(
         string videoId,
