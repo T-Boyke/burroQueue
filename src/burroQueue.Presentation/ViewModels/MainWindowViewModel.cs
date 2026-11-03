@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using burroQueue.Domain.Model;
 using burroQueue.Domain.Repositories;
 using burroQueue.Domain.Services;
@@ -313,17 +314,18 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
         _groupName = _group.Name;
         _group.Renamed += OnGroupRenamed;
-        _collaborativePlaylistUrl = _settingsService.CurrentSettings.CollaborativePlaylistUrl;
+        AppSettingsData settings = _settingsService.CurrentSettings;
+        _collaborativePlaylistUrl = settings.CollaborativePlaylistUrl;
         _webDropUrl = _networkInfoService.GetWebDropUrl(_webDropServer.Port > 0 ? _webDropServer.Port : 8080);
         _skipVotePool = new SkipVotePool(TrackId.New(), requiredVotes: 3);
-        _isHost = _settingsService.CurrentSettings?.IsHost ?? true;
-        _isWebDropActive = _settingsService.CurrentSettings.EnableWebDropServer;
+        _isHost = settings.IsHost;
+        _isWebDropActive = settings.EnableWebDropServer;
         _networkStatusText = _isWebDropActive ? "LAN-Sync & WebDrop aktiv" : "LAN-Sync aktiv (WebDrop aus)";
-        _isFirstJoinPromptVisible = !string.IsNullOrWhiteSpace(_settingsService.CurrentSettings.CollaborativePlaylistUrl) && !_settingsService.CurrentSettings.HasJoinedCollaborativePlaylist;
+        _isFirstJoinPromptVisible = !string.IsNullOrWhiteSpace(settings.CollaborativePlaylistUrl) && !settings.HasJoinedCollaborativePlaylist;
 
-        if (_settingsService.CurrentSettings.MasterVolume > 0 && Math.Abs(_settingsService.CurrentSettings.MasterVolume - 0.8) > 0.001)
+        if (settings.MasterVolume > 0 && Math.Abs(settings.MasterVolume - 0.8) > 0.001)
         {
-            _masterVolume = _settingsService.CurrentSettings.MasterVolume;
+            _masterVolume = settings.MasterVolume;
         }
         else
         {

@@ -79,10 +79,10 @@ jobs:
             foreach ($test in $failedTests) {
               Write-Host "::error title=Failed Test::$($test.testName) - $($test.Output.ErrorInfo.Message)"
               "### Failed Test: $($test.testName)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-              "```" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+              '```' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
               $test.Output.ErrorInfo.Message | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
               $test.Output.ErrorInfo.StackTrace | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-              "```" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+              '```' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
             }
           }
 
