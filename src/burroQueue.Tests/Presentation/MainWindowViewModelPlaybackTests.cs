@@ -1549,4 +1549,106 @@ public sealed class MainWindowViewModelPlaybackTests
         vm.StatusMessage.Should().Contain("PeerBob");
         await _lanGroupService.Received(1).SendQueueSyncAsync(_group.Id, "Enqueue", t1, Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task PlayAsync_WhenNotHost_ShouldSendPlaybackCommandAndNotPlayLocalAudio()
+    {
+        Track t1 = new("remote-1", new Uri("https://www.youtube.com/watch?v=remote-1"), "Remote Song", "Bob", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(t1);
+
+        MainWindowViewModel vm = CreateViewModel();
+        vm.IsHost = false;
+        _lanGroupService.ClearReceivedCalls();
+        _audioPlayerBackend.ClearReceivedCalls();
+
+        await vm.PlayAsync();
+
+        await _audioPlayerBackend.DidNotReceive().PlayTrackAsync(Arg.Any<Track>(), Arg.Any<CancellationToken>());
+        await _lanGroupService.Received(1).SendPlaybackCommandAsync(_group.Id, Arg.Any<ClientId>(), "Play", Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PauseAsync_WhenNotHost_ShouldSendPlaybackCommand()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.IsHost = false;
+        _lanGroupService.ClearReceivedCalls();
+
+        await vm.PauseAsync();
+
+        await _lanGroupService.Received(1).SendPlaybackCommandAsync(_group.Id, Arg.Any<ClientId>(), "Pause", Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task StopAsync_WhenNotHost_ShouldSendPlaybackCommand()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.IsHost = false;
+        _lanGroupService.ClearReceivedCalls();
+
+        await vm.StopAsync();
+
+        await _lanGroupService.Received(1).SendPlaybackCommandAsync(_group.Id, Arg.Any<ClientId>(), "Stop", Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SkipAsync_WhenNotHost_ShouldSendPlaybackCommand()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.IsHost = false;
+        _lanGroupService.ClearReceivedCalls();
+
+        await vm.SkipAsync();
+
+        await _lanGroupService.Received(1).SendPlaybackCommandAsync(_group.Id, Arg.Any<ClientId>(), "Skip", Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PlayTrackNowAsync_WhenNotHost_ShouldSendPlaybackCommandWithVideoId()
+    {
+        Track t1 = new("track-click", new Uri("https://www.youtube.com/watch?v=track-click"), "Selected Song", "Charlie", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(t1);
+
+        MainWindowViewModel vm = CreateViewModel();
+        vm.IsHost = false;
+        _lanGroupService.ClearReceivedCalls();
+
+        await vm.PlayTrackNowAsync(t1);
+
+        await _lanGroupService.Received(1).SendPlaybackCommandAsync(_group.Id, Arg.Any<ClientId>(), "PlayTrack", "track-click", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void VolumeChangeRequested_OnWebDrop_ShouldNormalizeScaleToZeroToOne()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+
+        _webDropServer.VolumeChangeRequested += Raise.Event<EventHandler<int>>(_webDropServer, 75);
+
+        vm.MasterVolume.Should().BeApproximately(0.75, 0.001);
+    }
+
+    [Fact]
+    public async Task OnPlaybackCommandReceived_WhenHost_ShouldExecuteLocally()
+    {
+        Track t1 = new("host-cmd", new Uri("https://www.youtube.com/watch?v=host-cmd"), "Host Song", "Alice", DateTimeOffset.UtcNow);
+        _group.Playlist.Enqueue(t1);
+
+        MainWindowViewModel vm = CreateViewModel();
+        vm.IsHost = true;
+        _audioPlayerBackend.ClearReceivedCalls();
+
+        _lanGroupService.PlaybackCommandReceived += Raise.Event<EventHandler<burroQueue.Infrastructure.Network.Messages.PlaybackCommandMessage>>(
+            _lanGroupService,
+            new burroQueue.Infrastructure.Network.Messages.PlaybackCommandMessage(
+                _group.Id.Value,
+                Guid.NewGuid(),
+                "Play",
+                null,
+                DateTimeOffset.UtcNow));
+
+        await vm.PlaybackCommandTask;
+
+        await _audioPlayerBackend.Received(1).PlayTrackAsync(t1, Arg.Any<CancellationToken>());
+    }
 }

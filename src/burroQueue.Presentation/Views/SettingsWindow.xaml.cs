@@ -11,6 +11,7 @@ public partial class SettingsWindow : FluentWindow
     {
         InitializeComponent();
         DataContext = viewModel;
+        viewModel.RequestClose += (_, _) => Dispatcher.Invoke(Close);
         Loaded += (_, _) =>
         {
             WindowBackdropType backdrop = MainWindow.ParseBackdropType(viewModel.SelectedWindowBackdrop);

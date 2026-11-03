@@ -111,6 +111,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     partial void OnPlaybackStateChanged(PlaybackState value)
     {
         _smtcService?.UpdatePlaybackState(value);
+        _webDropServer?.BroadcastStatusEvent();
     }
 
     public bool IsPlaying => PlaybackState == PlaybackState.Playing;
@@ -161,6 +162,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
             _settingsService.CurrentSettings.MasterVolume = value;
             AutoSaveSettings();
+            _webDropServer?.BroadcastStatusEvent();
+            if (!IsHost)
+            {
+                _ = _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "Volume", Math.Round(value * 100.0).ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
         }
     }
 
@@ -223,6 +229,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _isFirstJoinPromptVisible;
+
+    [ObservableProperty]
+    private bool _isHost = true;
 
     [ObservableProperty]
     private bool _isWebDropActive;
@@ -307,6 +316,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _collaborativePlaylistUrl = _settingsService.CurrentSettings.CollaborativePlaylistUrl;
         _webDropUrl = _networkInfoService.GetWebDropUrl(_webDropServer.Port > 0 ? _webDropServer.Port : 8080);
         _skipVotePool = new SkipVotePool(TrackId.New(), requiredVotes: 3);
+        _isHost = _settingsService.CurrentSettings?.IsHost ?? true;
         _isWebDropActive = _settingsService.CurrentSettings.EnableWebDropServer;
         _networkStatusText = _isWebDropActive ? "LAN-Sync & WebDrop aktiv" : "LAN-Sync aktiv (WebDrop aus)";
         _isFirstJoinPromptVisible = !string.IsNullOrWhiteSpace(_settingsService.CurrentSettings.CollaborativePlaylistUrl) && !_settingsService.CurrentSettings.HasJoinedCollaborativePlaylist;
@@ -419,7 +429,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             }
         };
         _webDropServer.SkipRequested += async (_, _) => await SkipAsync().ConfigureAwait(false);
-        _webDropServer.VolumeChangeRequested += (_, vol) => MasterVolume = Math.Clamp(vol, 0, 100);
+        _webDropServer.VolumeChangeRequested += (_, vol) => MasterVolume = Math.Clamp(vol / 100.0, 0.0, 1.0);
         _webDropServer.TrackSelectRequested += async (_, trackIdStr) =>
         {
             Track? target = _group.Playlist.AllTracks.FirstOrDefault(t => t.Id.Value.ToString() == trackIdStr || t.VideoId == trackIdStr);
@@ -428,7 +438,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 await PlayTrackNowAsync(target).ConfigureAwait(false);
             }
         };
-        _webDropServer.VolumeProvider = () => (int)Math.Round(MasterVolume);
+        _webDropServer.VolumeProvider = () => (int)Math.Round(MasterVolume * 100.0);
         _webDropServer.PlaybackStateProvider = () => PlaybackState.ToString();
         _webDropServer.TrackUpvoteRequested += async (_, req) =>
         {
@@ -627,6 +637,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         string? oldPlaylistUrl = CollaborativePlaylistUrl;
         CollaborativePlaylistUrl = _settingsService.CurrentSettings.CollaborativePlaylistUrl;
+        IsHost = _settingsService.CurrentSettings.IsHost;
         IsWebDropActive = _settingsService.CurrentSettings.EnableWebDropServer || _webDropServer.IsRunning;
         NetworkStatusText = IsWebDropActive ? "LAN-Sync & WebDrop aktiv" : "LAN-Sync aktiv (WebDrop aus)";
 
@@ -739,25 +750,31 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         if (!string.IsNullOrWhiteSpace(WebDropUrl))
         {
-            try
+            Task.Run(async () =>
             {
-                if (!_webDropServer.IsRunning)
+                try
                 {
-                    _webDropServer.StartAsync().GetAwaiter().GetResult();
-                    IsWebDropActive = _settingsService.CurrentSettings.EnableWebDropServer || _webDropServer.IsRunning;
-                    RefreshWebDropEndpointUrl();
-                }
+                    if (!_webDropServer.IsRunning)
+                    {
+                        await _webDropServer.StartAsync().ConfigureAwait(false);
+                        RunOnUi(() =>
+                        {
+                            IsWebDropActive = _settingsService.CurrentSettings.EnableWebDropServer || _webDropServer.IsRunning;
+                            RefreshWebDropEndpointUrl();
+                        });
+                    }
 
-                ProcessStarter(new ProcessStartInfo
+                    ProcessStarter(new ProcessStartInfo
+                    {
+                        FileName = WebDropUrl,
+                        UseShellExecute = true
+                    });
+                }
+                catch
                 {
-                    FileName = WebDropUrl,
-                    UseShellExecute = true
-                });
-            }
-            catch
-            {
-                StatusMessage = "Konnte Browser nicht öffnen";
-            }
+                    RunOnUi(() => StatusMessage = "Konnte Browser nicht öffnen");
+                }
+            });
         }
     }
 
@@ -1259,6 +1276,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task PlayAsync()
     {
+        if (!IsHost)
+        {
+            await _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "Play").ConfigureAwait(false);
+            return;
+        }
+
         if (_group.Playlist.CurrentTrack is null)
         {
             if (_group.Playlist.Count > 0)
@@ -1309,6 +1332,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             return;
         }
 
+        if (!IsHost)
+        {
+            await _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "PlayTrack", track.VideoId).ConfigureAwait(false);
+            return;
+        }
+
         Track? selected = _group.JumpTo(track.Id);
         if (selected is null)
         {
@@ -1334,11 +1363,19 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         MetadataLoadTask = LoadTrackMetadataAsync(selected);
         await _audioPlayerBackend.PlayTrackAsync(selected).ConfigureAwait(false);
         TriggerNextTrackPrefetch();
+
+        await _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "PlayTrack", selected.VideoId).ConfigureAwait(false);
     }
 
     [RelayCommand]
     public async Task PauseAsync()
     {
+        if (!IsHost)
+        {
+            await _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "Pause").ConfigureAwait(false);
+            return;
+        }
+
         _group.Pause();
         PlaybackState = _group.PlaybackState;
         RunOnUi(() => _playbackTimer?.Stop());
@@ -1350,6 +1387,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task StopAsync()
     {
+        if (!IsHost)
+        {
+            await _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "Stop").ConfigureAwait(false);
+            return;
+        }
+
         _group.Stop();
         PlaybackState = _group.PlaybackState;
         RunOnUi(() =>
@@ -1365,6 +1408,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task ToggleShuffleAsync()
     {
+        if (!IsHost)
+        {
+            await _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "Shuffle").ConfigureAwait(false);
+            return;
+        }
+
         if (IsShuffleEnabled)
         {
             _shuffleEngine.DisableShuffle(_group.Playlist);
@@ -1388,6 +1437,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public void ToggleRepeatAll()
     {
+        if (!IsHost)
+        {
+            _ = _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "Repeat");
+            return;
+        }
+
         IsRepeatAllEnabled = !IsRepeatAllEnabled;
         _group.Playlist.IsRepeatAllEnabled = IsRepeatAllEnabled;
         StatusMessage = IsRepeatAllEnabled ? "Wiederholen (Alle) aktiv" : "Wiederholen deaktiviert";
@@ -1396,6 +1451,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task SkipAsync()
     {
+        if (!IsHost)
+        {
+            await _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "Skip").ConfigureAwait(false);
+            return;
+        }
+
         if (_group.Playlist.CurrentTrack is { } finished)
         {
             _shuffleEngine.RecordPlayed(finished.VideoId);
@@ -1441,7 +1502,6 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             await _audioPlayerBackend.StopAsync().ConfigureAwait(false);
         }
 
-
         await _lanGroupService.SendPlaybackCommandAsync(_group.Id, _localClientId, "Skip").ConfigureAwait(false);
     }
 
@@ -1453,18 +1513,21 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             return;
         }
 
-        try
+        Task.Run(() =>
         {
-            ProcessStarter(new ProcessStartInfo
+            try
             {
-                FileName = CollaborativePlaylistUrl,
-                UseShellExecute = true
-            });
-        }
-        catch
-        {
-            StatusMessage = "Could not open browser for playlist.";
-        }
+                ProcessStarter(new ProcessStartInfo
+                {
+                    FileName = CollaborativePlaylistUrl,
+                    UseShellExecute = true
+                });
+            }
+            catch
+            {
+                RunOnUi(() => StatusMessage = "Could not open browser for playlist.");
+            }
+        });
     }
 
     private void OnTelephonyStateChanged(object? sender, TelephonyCallEventArgs e)
@@ -1635,32 +1698,114 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             return;
         }
 
-        switch (cmd.Command)
+        if (IsHost)
         {
-            case "Play":
-                RunOnUi(() =>
-                {
-                    _group.Play();
-                    PlaybackState = _group.PlaybackState;
-                });
-                break;
-            case "Pause":
-                RunOnUi(() =>
-                {
-                    _group.Pause();
-                    PlaybackState = _group.PlaybackState;
-                });
-                break;
-            case "Stop":
-                RunOnUi(() =>
-                {
-                    _group.Stop();
-                    PlaybackState = _group.PlaybackState;
-                });
-                break;
-            case "Skip":
-                PlaybackCommandTask = SkipAsync();
-                break;
+            switch (cmd.Command)
+            {
+                case "Play":
+                    PlaybackCommandTask = PlayAsync();
+                    break;
+                case "Pause":
+                    PlaybackCommandTask = PauseAsync();
+                    break;
+                case "Stop":
+                    PlaybackCommandTask = StopAsync();
+                    break;
+                case "Skip":
+                    PlaybackCommandTask = SkipAsync();
+                    break;
+                case "PlayTrack":
+                    if (!string.IsNullOrWhiteSpace(cmd.OptionalTrackVideoId))
+                    {
+                        Track? target = _group.Playlist.AllTracks.FirstOrDefault(t => t.VideoId == cmd.OptionalTrackVideoId || t.Id.Value.ToString() == cmd.OptionalTrackVideoId);
+                        if (target is not null)
+                        {
+                            PlaybackCommandTask = PlayTrackNowAsync(target);
+                        }
+                    }
+                    break;
+                case "Volume":
+                    if (double.TryParse(cmd.OptionalTrackVideoId, NumberStyles.Float, CultureInfo.InvariantCulture, out double volLevel))
+                    {
+                        RunOnUi(() => MasterVolume = Math.Clamp(volLevel / 100.0, 0.0, 1.0));
+                    }
+                    break;
+                case "Shuffle":
+                    PlaybackCommandTask = ToggleShuffleAsync();
+                    break;
+                case "Repeat":
+                    RunOnUi(ToggleRepeatAll);
+                    break;
+            }
+        }
+        else
+        {
+            switch (cmd.Command)
+            {
+                case "Play":
+                    RunOnUi(() =>
+                    {
+                        _group.Play();
+                        PlaybackState = _group.PlaybackState;
+                        SyncCurrentTrackDisplayIfEmpty();
+                    });
+                    break;
+                case "Pause":
+                    RunOnUi(() =>
+                    {
+                        _group.Pause();
+                        PlaybackState = _group.PlaybackState;
+                    });
+                    break;
+                case "Stop":
+                    RunOnUi(() =>
+                    {
+                        _group.Stop();
+                        PlaybackState = _group.PlaybackState;
+                        PlaybackProgress = 0.0;
+                    });
+                    break;
+                case "PlayTrack":
+                    if (!string.IsNullOrWhiteSpace(cmd.OptionalTrackVideoId))
+                    {
+                        RunOnUi(() =>
+                        {
+                            Track? target = _group.Playlist.AllTracks.FirstOrDefault(t => t.VideoId == cmd.OptionalTrackVideoId || t.Id.Value.ToString() == cmd.OptionalTrackVideoId);
+                            if (target is not null)
+                            {
+                                _ = _group.JumpTo(target.Id);
+                                PlaybackState = _group.PlaybackState;
+                                CurrentTrackTitle = target.Title;
+                                CurrentTrackArtist = target.ArtistName ?? target.SubmittedBy;
+                                CurrentTrackSubmittedBy = target.SubmittedBy;
+                                CurrentTrackSubmitterAvatarUrl = target.SubmitterAvatarUrl;
+                                CurrentTrackThumbnailUrl = target.ThumbnailUrl;
+                                SyncQueuedItems();
+                            }
+                        });
+                    }
+                    break;
+                case "Volume":
+                    if (double.TryParse(cmd.OptionalTrackVideoId, NumberStyles.Float, CultureInfo.InvariantCulture, out double volLevel))
+                    {
+                        _isUpdatingVolumeInternally = true;
+                        try
+                        {
+                            RunOnUi(() => MasterVolume = Math.Clamp(volLevel / 100.0, 0.0, 1.0));
+                        }
+                        finally
+                        {
+                            _isUpdatingVolumeInternally = false;
+                        }
+                    }
+                    break;
+                case "Shuffle":
+                    RunOnUi(() => IsShuffleEnabled = !IsShuffleEnabled);
+                    break;
+                case "Repeat":
+                    RunOnUi(ToggleRepeatAll);
+                    break;
+            }
         }
     }
 

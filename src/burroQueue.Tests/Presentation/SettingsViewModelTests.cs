@@ -542,4 +542,42 @@ public sealed class SettingsViewModelTests
         scrollViewer.Should().NotBeNull();
         scrollViewer!.Attribute("PreviewMouseWheel")?.Value.Should().Be("OnScrollViewerPreviewMouseWheel");
     }
+
+    [Fact]
+    public async Task SaveSettingsCommand_ShouldRaiseRequestCloseEvent()
+    {
+        SettingsViewModel vm = CreateViewModel();
+        bool closed = false;
+        vm.RequestClose += (_, _) => closed = true;
+
+        await vm.SaveSettingsCommand.ExecuteAsync(null);
+
+        closed.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task JoinGroupAsync_ShouldSetIsHostFalse()
+    {
+        SettingsViewModel vm = CreateViewModel();
+        vm.IsHost.Should().BeTrue();
+
+        DiscoveredGroupItem target = new(Guid.NewGuid(), "Remote Office", 3, "Host-PC", DateTimeOffset.UtcNow);
+        await vm.JoinGroupAsync(target);
+
+        vm.IsHost.Should().BeFalse();
+        _settingsService.CurrentSettings.IsHost.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CreateNewGroup_ShouldSetIsHostTrue()
+    {
+        SettingsViewModel vm = CreateViewModel();
+        vm.IsHost = false;
+
+        vm.NewGroupName = "My Jukebox Room";
+        vm.CreateNewGroup();
+
+        vm.IsHost.Should().BeTrue();
+        _settingsService.CurrentSettings.IsHost.Should().BeTrue();
+    }
 }

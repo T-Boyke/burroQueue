@@ -8,7 +8,9 @@ public sealed class AppSettingsData
 
     public string? CollaborativePlaylistUrl { get; set; }
 
-    public bool AutoOpenCollaborativePlaylistOnJoin { get; set; } = true;
+    public bool AutoOpenCollaborativePlaylistOnJoin { get; set; }
+
+    public bool IsHost { get; set; } = true;
 
     public string ClientDisplayName { get; set; } = Environment.UserName;
 

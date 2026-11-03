@@ -43,7 +43,7 @@ public interface ILanGroupService : IAsyncDisposable
 
     Task ShareCollaborativePlaylistAsync(GroupId groupId, string playlistUrl, string sharedByName, CancellationToken cancellationToken = default);
 
-    Task SendPlaybackCommandAsync(GroupId groupId, ClientId issuerId, string command, CancellationToken cancellationToken = default);
+    Task SendPlaybackCommandAsync(GroupId groupId, ClientId issuerId, string command, string? optionalPayload = null, CancellationToken cancellationToken = default);
 
     Task SendGroupActionAsync(GroupId groupId, ClientId actorId, string actionType, string? payload, CancellationToken cancellationToken = default);
 

@@ -37,6 +37,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly ILanGroupService? _lanGroupService;
     private readonly IEmbeddedWebDropServer? _webDropServer;
 
+    public event EventHandler? RequestClose;
+
     [ObservableProperty]
     private string _selectedProviderId;
 
@@ -54,6 +56,9 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _autoOpenCollaborativePlaylistOnJoin;
+
+    [ObservableProperty]
+    private bool _isHost = true;
 
     [ObservableProperty]
     private string _clientDisplayName;
@@ -202,6 +207,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _selectedAudioDeviceId = current.SelectedAudioDeviceId;
         _collaborativePlaylistUrl = current.CollaborativePlaylistUrl ?? string.Empty;
         _autoOpenCollaborativePlaylistOnJoin = current.AutoOpenCollaborativePlaylistOnJoin;
+        _isHost = current.IsHost;
         _clientDisplayName = current.ClientDisplayName;
         _isAutostartEnabled = _autostartService.IsAutostartEnabled;
         _enableWebDropServer = current.EnableWebDropServer;
@@ -434,6 +440,8 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         _group.SwitchGroup(new GroupId(target.GroupId), target.GroupName);
         CurrentGroupName = target.GroupName;
+        IsHost = false;
+        _settingsService.CurrentSettings.IsHost = false;
         MainWindowViewModel.UiDispatcherRunner(() => DiscoveredGroups.Remove(target));
         if (_lanGroupService is not null)
         {
@@ -455,6 +463,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         _group.SwitchGroup(GroupId.New(), trimmed);
         CurrentGroupName = trimmed;
         NewGroupName = string.Empty;
+        IsHost = true;
+        _settingsService.CurrentSettings.IsHost = true;
         if (_lanGroupService is not null)
         {
             _ = _lanGroupService.BroadcastBeaconAsync(_group, ClientId.New(), ClientDisplayName);
@@ -485,6 +495,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             SelectedAudioDeviceId = SelectedAudioDeviceId,
             CollaborativePlaylistUrl = string.IsNullOrWhiteSpace(CollaborativePlaylistUrl) ? null : CollaborativePlaylistUrl.Trim(),
             AutoOpenCollaborativePlaylistOnJoin = AutoOpenCollaborativePlaylistOnJoin,
+            IsHost = IsHost,
             ClientDisplayName = string.IsNullOrWhiteSpace(ClientDisplayName) ? Environment.UserName : ClientDisplayName.Trim(),
             EnableWebDropServer = EnableWebDropServer,
             MasterVolume = _settingsService.CurrentSettings.MasterVolume,
@@ -525,5 +536,6 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
 
         StatusMessage = "Einstellungen gespeichert!";
+        RequestClose?.Invoke(this, EventArgs.Empty);
     }
 }

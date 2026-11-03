@@ -270,3 +270,11 @@ jobs:
           version: ${{ needs.build-sign-and-package.outputs.next_version }}
           installers-regex: 'burroQueue-Setup-x64\.exe$'
           token: ${{ secrets.WINGET_GITHUB_TOKEN }}
+
+      - name: Inform Missing WinGet Token
+        if: env.HAS_WINGET_TOKEN != 'true'
+        shell: pwsh
+        run: |
+          Write-Host "::warning title=WinGet Token Missing::WINGET_GITHUB_TOKEN secret is not configured in repository. To enable automatic winget submission, configure a GitHub PAT with repo scope as WINGET_GITHUB_TOKEN."
+          "### WinGet Deployment übersprungen" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "Das Secret `WINGET_GITHUB_TOKEN` ist im Repository nicht konfiguriert. Bitte erstelle ein GitHub Personal Access Token mit dem Scope `public_repo` und hinterlege es als Repository-Secret `WINGET_GITHUB_TOKEN`." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append

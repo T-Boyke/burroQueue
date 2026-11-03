@@ -236,16 +236,16 @@ public sealed class LanGroupService : ILanGroupService
         await SendMessageAsync("SHARE_PLAYLIST", message, includeBroadcastFallback: false, cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task SendPlaybackCommandAsync(GroupId groupId, ClientId issuerId, string command, CancellationToken cancellationToken = default)
+    public async Task SendPlaybackCommandAsync(GroupId groupId, ClientId issuerId, string command, string? optionalPayload = null, CancellationToken cancellationToken = default)
     {
         PlaybackCommandMessage message = new(
             groupId.Value,
             issuerId.Value,
             command,
-            null,
+            optionalPayload,
             DateTimeOffset.UtcNow);
 
-        await SendMessageAsync("PLAYBACK_CMD", message, includeBroadcastFallback: false, cancellationToken).ConfigureAwait(false);
+        await SendMessageAsync("PLAYBACK_CMD", message, includeBroadcastFallback: true, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task SendGroupActionAsync(GroupId groupId, ClientId actorId, string actionType, string? payload, CancellationToken cancellationToken = default)

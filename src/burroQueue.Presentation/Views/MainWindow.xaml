@@ -66,6 +66,22 @@
             FontWeight="SemiBold"
             Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
             Text="{Binding GroupName}" />
+          <TextBlock
+            FontSize="11"
+            Margin="6,0,0,0"
+            Opacity="0.6"
+            VerticalAlignment="Center">
+            <TextBlock.Style>
+              <Style TargetType="TextBlock">
+                <Setter Property="Text" Value="• Fernbedienung" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding IsHost}" Value="True">
+                    <Setter Property="Text" Value="• Host" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </TextBlock.Style>
+          </TextBlock>
         </StackPanel>
 
         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
