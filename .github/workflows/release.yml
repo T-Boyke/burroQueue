@@ -262,14 +262,46 @@ jobs:
     env:
       HAS_WINGET_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN != '' }}
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Generate WinGet Manifests
+        shell: pwsh
+        run: |
+          ./scripts/winget/generate-winget-manifests.ps1 -Version "${{ needs.build-sign-and-package.outputs.next_version }}"
+
+      - name: Upload WinGet Manifests Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: winget-manifests
+          path: scripts/winget/manifests/
+
       - name: Submit Package to microsoft/winget-pkgs via Komac
+        id: winget-releaser
         if: env.HAS_WINGET_TOKEN == 'true'
         uses: vedantmgoyal9/winget-releaser@v2
+        continue-on-error: true
         with:
           identifier: T-Boyke.burroQueue
           version: ${{ needs.build-sign-and-package.outputs.next_version }}
           installers-regex: 'burroQueue-Setup-x64\.exe$'
           token: ${{ secrets.WINGET_GITHUB_TOKEN }}
+
+      - name: Handle WinGet Submission Status
+        if: env.HAS_WINGET_TOKEN == 'true'
+        shell: pwsh
+        run: |
+          if ('${{ steps.winget-releaser.outcome }}' == 'failure') {
+            Write-Host "::warning title=Initial WinGet Submission Required::Package 'T-Boyke.burroQueue' does not exist yet in microsoft/winget-pkgs. For brand-new packages, an initial onboarding PR must be submitted to microsoft/winget-pkgs."
+            "### WinGet: Erstveröffentlichung erforderlich" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            "Das Paket `T-Boyke.burroQueue` existiert noch nicht im offiziellen [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) Repository." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            "- Die fertigen, validierten Manifest-Dateien wurden automatisch generiert und liegen im Workflow-Artefakt `winget-manifests` bereit." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            "- Für die Erstaufnahme kann der PR per `wingetcreate submit` oder manuell eingereicht werden." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            "- Sobald die Erstaufnahme gemergt wurde, erfolgen alle Folge-Updates vollautomatisch über diese GitHub Action." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          } else {
+            "### WinGet Deployment erfolgreich" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            "Pull Request für `T-Boyke.burroQueue` v${{ needs.build-sign-and-package.outputs.next_version }} wurde erfolgreich an microsoft/winget-pkgs übermittelt!" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          }
 
       - name: Inform Missing WinGet Token
         if: env.HAS_WINGET_TOKEN != 'true'
