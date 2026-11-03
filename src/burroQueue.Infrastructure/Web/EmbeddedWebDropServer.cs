@@ -662,15 +662,15 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
 
         if (isDropped)
         {
-            sb.Append("<div class='bq-toast'>Titel erfolgreich zur Warteschlange hinzugef&uuml;gt.</div>");
+            sb.Append("<div class='bq-toast'>Titel erfolgreich zur Warteschlange hinzugefügt.</div>");
         }
         else if (isVoted)
         {
-            sb.Append("<div class='bq-toast'>Deine Stimme f&uuml;r Skip wurde gez&auml;hlt.</div>");
+            sb.Append("<div class='bq-toast'>Deine Stimme für Skip wurde gezählt.</div>");
         }
 
         sb.Append("<section class='bq-section'>");
-        sb.Append("<div class='bq-section-label'>Aktuell l&auml;uft</div>");
+        sb.Append("<div class='bq-section-label'>Aktuell läuft</div>");
 
         Domain.Model.Track? currentTrack = _group?.Playlist.CurrentTrack;
         if (currentTrack is not null)
@@ -709,7 +709,7 @@ public sealed class EmbeddedWebDropServer : IEmbeddedWebDropServer
 
         <div class='flex items-center gap-2 mt-2.5' id='skip-form' style='display:{skipBtnDisplay};'>
             <form method='POST' action='/vote-skip' class='inline'>
-                <button type='submit' class='bq-btn-skip' id='skip-btn'>F&uuml;r Skip stimmen{voteLabel}</button>
+                <button type='submit' class='bq-btn-skip' id='skip-btn'>Für Skip stimmen{voteLabel}</button>
             </form>
             <form method='POST' action='/upvote' class='inline'>
                 <input type='hidden' name='videoId' id='upvote-vid' value='{WebUtility.HtmlEncode(curVid)}' />

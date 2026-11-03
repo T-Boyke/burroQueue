@@ -351,9 +351,11 @@ public sealed class MainWindowViewModelPlaybackTests
         MainWindowViewModel vm = CreateViewModel();
 
         Func<TimeSpan, CancellationToken, Task> originalDelay = MainWindowViewModel.DelayProvider;
+        Action<Action> originalRunner = MainWindowViewModel.UiDispatcherRunner;
         TimeSpan capturedDelay = TimeSpan.Zero;
         try
         {
+            MainWindowViewModel.UiDispatcherRunner = action => action();
             MainWindowViewModel.DelayProvider = (ts, _) =>
             {
                 capturedDelay = ts;
@@ -381,6 +383,7 @@ public sealed class MainWindowViewModelPlaybackTests
         finally
         {
             MainWindowViewModel.DelayProvider = originalDelay;
+            MainWindowViewModel.UiDispatcherRunner = originalRunner;
         }
     }
 
