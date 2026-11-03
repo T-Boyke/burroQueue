@@ -23,6 +23,7 @@ public sealed class LanGroupService : ILanGroupService
     private UdpClient? _udpClient;
     private CancellationTokenSource? _cts;
     private Task? _listenerTask;
+    private Task? _announceTask;
     private bool _isDisposed;
 
     internal int Port { get; init; } = _defaultMulticastPort;
@@ -126,6 +127,7 @@ public sealed class LanGroupService : ILanGroupService
 
         _cts = new CancellationTokenSource();
         _listenerTask = Task.Run(() => ReceiveLoopAsync(_cts.Token), CancellationToken.None);
+        _announceTask = Task.Run(() => AnnounceLoopAsync(_cts.Token), CancellationToken.None);
 
         return Task.CompletedTask;
     }
@@ -430,6 +432,32 @@ public sealed class LanGroupService : ILanGroupService
         }
     }
 
+    private async Task AnnounceLoopAsync(CancellationToken token)
+    {
+        using PeriodicTimer timer = new(TimeSpan.FromSeconds(20));
+        while (!token.IsCancellationRequested)
+        {
+            try
+            {
+                if (await timer.WaitForNextTickAsync(token).ConfigureAwait(false))
+                {
+                    if (_beaconResponder?.Invoke() is { } beacon)
+                    {
+                        await SendMessageAsync("BEACON", beacon, includeBroadcastFallback: true, token).ConfigureAwait(false);
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch
+            {
+                // Resilient background loop
+            }
+        }
+    }
+
     private async Task ReceiveLoopAsync(CancellationToken token)
     {
         while (!token.IsCancellationRequested && _udpClient is not null)
@@ -472,6 +500,11 @@ public sealed class LanGroupService : ILanGroupService
                         if (beacon is not null)
                         {
                             GroupDiscovered?.Invoke(this, beacon);
+                            if (_beaconResponder?.Invoke() is { } response && response.GroupId != beacon.GroupId)
+                            {
+                                IPEndPoint target = new(result.RemoteEndPoint.Address, Port);
+                                await SendDirectUnicastAsync("BEACON", response, target).ConfigureAwait(false);
+                            }
                         }
                         break;
 
@@ -479,8 +512,9 @@ public sealed class LanGroupService : ILanGroupService
                         DiscoveryBeaconMessage? responseBeacon = _beaconResponder?.Invoke();
                         if (responseBeacon is not null)
                         {
-                            await SendDirectUnicastAsync("BEACON", responseBeacon, result.RemoteEndPoint).ConfigureAwait(false);
-                            await SendMessageAsync("BEACON", responseBeacon, includeBroadcastFallback: false, token).ConfigureAwait(false);
+                            IPEndPoint target = new(result.RemoteEndPoint.Address, Port);
+                            await SendDirectUnicastAsync("BEACON", responseBeacon, target).ConfigureAwait(false);
+                            await SendMessageAsync("BEACON", responseBeacon, includeBroadcastFallback: true, token).ConfigureAwait(false);
                         }
                         break;
 
