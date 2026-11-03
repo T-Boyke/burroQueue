@@ -1,7 +1,7 @@
 ; Inno Setup Script for burroQueue
 #define MyAppName "burroQueue"
 #ifndef MyAppVersion
-  #define MyAppVersion "2.5.0"
+  #define MyAppVersion "2.5.1"
 #endif
 #define MyAppPublisher "T-Boyke"
 #define MyAppURL "https://github.com/T-Boyke/burroQueue"
